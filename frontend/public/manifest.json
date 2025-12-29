@@ -1,0 +1,36 @@
+{
+  "name": "Silent Help",
+  "short_name": "Silent Help",
+  "description": "Mental health support when you need it most. Crisis intervention, coping tools, and reflective journaling.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAF9",
+  "theme_color": "#12A594",
+  "orientation": "portrait",
+  "categories": ["health", "medical", "lifestyle"],
+  "lang": "en-GB",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "SOS - Get Help Now",
+      "short_name": "SOS",
+      "description": "Access crisis support immediately",
+      "url": "/?pathway=high",
+      "icons": [{ "src": "/icons/sos-icon.png", "sizes": "96x96" }]
+    }
+  ]
+}

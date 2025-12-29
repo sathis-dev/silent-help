@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  database:
+    image: pgvector/pgvector:pg16
+    container_name: silent-help-db
+    environment:
+      POSTGRES_DB: silenthelp
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: securepass123
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5433:5432"   # Using 5433 since 5432 is taken by local PostgreSQL
+    volumes:
+      - silenthelp_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d silenthelp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  silenthelp_pg_data:
+    # Removed 'external: true' - volume will be created automatically

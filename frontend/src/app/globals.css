@@ -1,0 +1,339 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   Silent Help - Global Styles
+   "The Midnight Sanctuary" - Atmospheric Depth, Biological Regulation
+   
+   Design Philosophy:
+   - Slate-950 (#020617) as base - the void should feel alive, not threatening
+   - Indigo-900 radial gradients at 15% for "breathing" atmosphere
+   - Spring physics for all motion - elements float as if underwater
+   - WCAG 2.2 AA compliance: 4.5:1 contrast, 18px minimum for actions
+   
+   2025 Wellness Color Trends:
+   - Digital Lavender (#E6E6FA → #B4A7D6) - Luxury calm, spiritual wellness
+   - Neo-Mint (#AAFFC6 → #7FDBCA) - Fresh vitality, nature-tech fusion
+   ============================================================================ */
+
+:root {
+  /* Midnight Sanctuary Base */
+  --sanctuary-base: #020617;
+  --sanctuary-glow: rgba(49, 46, 129, 0.15);
+  
+  /* 2025 Wellness Palette */
+  --digital-lavender: #B4A7D6;
+  --digital-lavender-soft: #D8D0E8;
+  --digital-lavender-deep: #8B7FB8;
+  --digital-lavender-glow: rgba(180, 167, 214, 0.25);
+  
+  --neo-mint: #7FDBCA;
+  --neo-mint-soft: #B8F0E4;
+  --neo-mint-deep: #4ECDB3;
+  --neo-mint-glow: rgba(127, 219, 202, 0.25);
+  
+  /* Lifebuoy Red - SOS */
+  --lifebuoy-red: #E53935;
+  --lifebuoy-glow: rgba(229, 57, 53, 0.4);
+  
+  /* Legacy light fallbacks */
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+/* Light Theme - Rarely used, sanctuary is dark-first */
+:root[data-theme="light"] {
+  --bg: #FAFAF9;
+  --surface: #FFFFFF;
+  --surface-2: #F3F4F6;
+  --text: #0F172A;
+  --text-muted: #475569;
+  --primary: var(--neo-mint-deep);
+  --on-primary: #0F172A;
+  --secondary: var(--digital-lavender);
+  --accent: var(--neo-mint);
+  --success: #10B981;
+  --warning: var(--digital-lavender-deep);
+  --danger: var(--lifebuoy-red);
+  --border: #E5E7EB;
+  --focus: var(--neo-mint);
+}
+
+/* Dark Theme - The Midnight Sanctuary */
+:root[data-theme="dark"], :root:not([data-theme]) {
+  --bg: #020617; /* Slate-950 - Deep sanctuary */
+  --surface: #0F172A; /* Slate-900 */
+  --surface-2: #1E293B; /* Slate-800 */
+  --text: #F1F5F9; /* Slate-100 - High contrast for accessibility */
+  --text-muted: #CBD5E1; /* Slate-300 - Improved contrast 4.5:1+ */
+  --primary: var(--neo-mint); /* Neo-Mint - Calm, fresh */
+  --on-primary: #0F172A;
+  --secondary: var(--digital-lavender); /* Digital Lavender - Luxury */
+  --accent: var(--neo-mint-soft);
+  --success: var(--neo-mint-deep);
+  --warning: var(--digital-lavender-deep); /* Lavender for bridge state */
+  --danger: var(--lifebuoy-red); /* Lifebuoy Red for SOS */
+  --border: #334155; /* Slate-700 */
+  --focus: var(--neo-mint);
+}
+
+html, body { 
+  background: #020617 !important;  /* Force slate-950 - TRUE Midnight Sanctuary */
+  color: var(--text);
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-geist-sans), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #020617 !important;  /* Enforce dark background */
+}
+
+/* Safe area padding utility */
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 8px);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #020617;
+    --foreground: #F1F5F9;
+  }
+}
+
+/* ============================================================================
+   Typography - WCAG 2.2 AA: 18px minimum for core actions
+   ============================================================================ */
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+
+h1 { font-size: 1.75rem; } /* 28px */
+h2 { font-size: 1.25rem; } /* 20px */
+
+p {
+  line-height: 1.6;
+}
+
+/* Core action text - 18px minimum per WCAG 2.2 */
+.action-text {
+  font-size: 1.125rem; /* 18px */
+  font-weight: 500;
+}
+
+/* ============================================================================
+   Animations - Spring Physics via Framer Motion, CSS fallbacks
+   ============================================================================ */
+
+/* Fade In - For elements when JS disabled */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Pulse - For SOS button heartbeat */
+@keyframes heartbeat {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  14% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+  28% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  42% {
+    transform: scale(1.03);
+    opacity: 0.7;
+  }
+}
+
+.animate-heartbeat {
+  animation: heartbeat 1.2s ease-in-out infinite;
+}
+
+/* Breathing - For atmospheric elements */
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+.animate-breathe {
+  animation: breathe 8s ease-in-out infinite;
+}
+
+/* Glow pulse for danger elements */
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.5);
+  }
+}
+
+.animate-glow-pulse {
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+/* ============================================================================
+   Accessibility - WCAG 2.2 AA compliance
+   ============================================================================ */
+
+/* Focus styles - visible and high contrast */
+*:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Touch targets - 44px minimum per WCAG */
+button, a, input, select, textarea {
+  min-height: 44px;
+}
+
+/* Large touch targets for crisis elements */
+.touch-target-lg {
+  min-height: 56px;
+  min-width: 56px;
+}
+
+.touch-target-xl {
+  min-height: 64px;
+  min-width: 64px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .animate-fade-in,
+  .animate-breathe,
+  .animate-heartbeat,
+  .animate-glow-pulse {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  :root {
+    --border: #FFFFFF;
+    --text-muted: var(--text);
+  }
+  
+  button, a {
+    border: 2px solid currentColor;
+  }
+}
+
+/* ============================================================================
+   Pathway Color System - Soft Signalling
+   ============================================================================ */
+
+/* HIGH (Crisis) - Soft Crimson with glow */
+.pathway-high {
+  --pathway-bg: rgba(239, 68, 68, 0.15);
+  --pathway-glow: rgba(239, 68, 68, 0.4);
+  --pathway-text: #FCA5A5;
+  --pathway-border: rgba(239, 68, 68, 0.3);
+}
+
+/* MID (Bridge) - Warm Amber with glassmorphism */
+.pathway-mid {
+  --pathway-bg: rgba(245, 158, 11, 0.12);
+  --pathway-glow: rgba(245, 158, 11, 0.3);
+  --pathway-text: #FCD34D;
+  --pathway-border: rgba(245, 158, 11, 0.25);
+}
+
+/* LOW (Reflect) - Deep Sage/Teal - most stable */
+.pathway-low {
+  --pathway-bg: rgba(13, 148, 136, 0.12);
+  --pathway-glow: rgba(13, 148, 136, 0.25);
+  --pathway-text: #5EEAD4;
+  --pathway-border: rgba(13, 148, 136, 0.25);
+}
+
+/* ============================================================================
+   Glassmorphism - For MID pathway "warm lamp" feel
+   ============================================================================ */
+
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-warm {
+  background: rgba(245, 158, 11, 0.08);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+/* ============================================================================
+   Utility Classes
+   ============================================================================ */
+
+/* Hide scrollbar but allow scrolling */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Prevent text selection on UI elements */
+.select-none {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Active press state */
+.active-scale:active {
+  transform: scale(0.98);
+}

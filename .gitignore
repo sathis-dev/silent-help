@@ -1,0 +1,24 @@
+# Node / monorepo
+node_modules/
+npm-debug.log*
+yarn.lock
+pnpm-lock.yaml
+
+# Build output
+dist/
+build/
+.next/
+out/
+coverage/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# Editor / OS junk
+.vscode/
+.idea/
+*.log
+.DS_Store
+Thumbs.db
