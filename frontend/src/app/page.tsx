@@ -22,7 +22,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { NeuroAdaptiveProvider, useNeuroAdaptiveContext } from '@/components/providers/NeuroAdaptiveProvider';
 import { GhostIntervention } from '@/components/interventions/GhostIntervention';
 import { TransparencyDrawer, TransparencyIndicator } from '@/components/transparency/TransparencyDrawer';
+import { OnboardingProvider, OnboardingFlow, useOnboarding } from '@/components/onboarding';
+import { ResponsiveHomeWrapper } from '@/components/desktop';
 import type { StressPathway } from '@/lib/types';
+import type { UserProfile } from '@/lib/types/onboarding';
 
 // ============================================================================
 // Premium Color Palette - 2025 Wellness Trends
@@ -1511,13 +1514,56 @@ function SentientHomeContent() {
 }
 
 // ============================================================================
-// Root Component
+// Root Component with Onboarding
 // ============================================================================
+
+function AppWithOnboarding() {
+  const { isComplete, isLoading, detectedProfile } = useOnboarding();
+
+  // Show onboarding if not complete
+  if (!isComplete && !isLoading) {
+    return <OnboardingFlow />;
+  }
+
+  // Load user profile from localStorage if not in context
+  const getUserProfile = (): UserProfile | null => {
+    if (detectedProfile) return detectedProfile as UserProfile;
+    
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('silent_help_user_profile');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          return {
+            ...parsed,
+            createdAt: new Date(parsed.createdAt),
+            lastUpdatedAt: new Date(parsed.lastUpdatedAt),
+          };
+        }
+      } catch (e) {
+        console.error('Failed to load user profile:', e);
+      }
+    }
+    return null;
+  };
+
+  const userProfile = getUserProfile();
+
+  // Show the main app after onboarding with responsive layout
+  return (
+    <NeuroAdaptiveProvider enableBiometrics={true} enableAutoState={true}>
+      <ResponsiveHomeWrapper 
+        userProfile={userProfile}
+        mobileContent={<SentientHomeContent />}
+      />
+    </NeuroAdaptiveProvider>
+  );
+}
 
 export default function Home() {
   return (
-    <NeuroAdaptiveProvider enableBiometrics={true} enableAutoState={true}>
-      <SentientHomeContent />
-    </NeuroAdaptiveProvider>
+    <OnboardingProvider>
+      <AppWithOnboarding />
+    </OnboardingProvider>
   );
 }

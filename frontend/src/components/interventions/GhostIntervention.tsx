@@ -75,7 +75,7 @@ function BreathingExercise({
     
     // Trigger haptic for current phase
     if (phase === 'inhale' || phase === 'exhale') {
-      triggerBreathingHaptic(phase === 'inhale' ? 'in' : 'out');
+      triggerBreathingHaptic(phase);
     }
 
     const timer = setTimeout(() => {
