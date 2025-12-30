@@ -293,34 +293,35 @@ function PremiumBioPulse({
 // Ghost Greeting - Semantic Memory
 // ============================================================================
 
-function GhostGreeting({ userName = 'friend' }: { userName?: string }) {
-  const [greeting, setGreeting] = useState({ main: '', sub: '' });
+function getGreetingForTime(userName: string) {
+  const hour = new Date().getHours();
+  
+  if (hour >= 23 || hour < 4) {
+    return {
+      main: `It's late, ${userName}`,
+      sub: "I'm here with you in the quiet hours",
+    };
+  } else if (hour >= 4 && hour < 12) {
+    return {
+      main: `Good morning, ${userName}`,
+      sub: "How are you arriving in this day?",
+    };
+  } else if (hour >= 12 && hour < 17) {
+    return {
+      main: `Afternoon, ${userName}`,
+      sub: "A moment to check in with yourself",
+    };
+  } else {
+    return {
+      main: `Evening, ${userName}`,
+      sub: "Let the day's weight begin to settle",
+    };
+  }
+}
 
-  useEffect(() => {
-    const hour = new Date().getHours();
-    
-    if (hour >= 23 || hour < 4) {
-      setGreeting({
-        main: `It's late, ${userName}`,
-        sub: "I'm here with you in the quiet hours",
-      });
-    } else if (hour >= 4 && hour < 12) {
-      setGreeting({
-        main: `Good morning, ${userName}`,
-        sub: "How are you arriving in this day?",
-      });
-    } else if (hour >= 12 && hour < 17) {
-      setGreeting({
-        main: `Afternoon, ${userName}`,
-        sub: "A moment to check in with yourself",
-      });
-    } else {
-      setGreeting({
-        main: `Evening, ${userName}`,
-        sub: "Let the day's weight begin to settle",
-      });
-    }
-  }, [userName]);
+function GhostGreeting({ userName = 'friend' }: { userName?: string }) {
+  // Initialize greeting synchronously to avoid setState in effect
+  const greeting = getGreetingForTime(userName);
 
   return (
     <motion.div 
@@ -786,7 +787,7 @@ function MidPathwayView({ onBack }: { onBack: () => void }) {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          Let's find what helps
+          Let&apos;s find what helps
         </motion.h1>
         <p className="text-slate-400">Small steps can make a difference</p>
       </div>
@@ -1081,7 +1082,7 @@ function GroundingExerciseView({ onBack }: { onBack: () => void }) {
           >
             <span className="text-6xl mb-6 block">✨</span>
             <h2 className="text-2xl text-white font-medium mb-2">Well done</h2>
-            <p className="text-slate-400 mb-8">You've grounded yourself in the present moment</p>
+            <p className="text-slate-400 mb-8">You&apos;ve grounded yourself in the present moment</p>
             <motion.button
               className="px-8 py-4 rounded-full text-white font-medium"
               style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}

@@ -75,7 +75,7 @@ export function MidPathway({
         {/* Header */}
         <div className="text-center mb-6">
           <h1 className="text-2xl font-medium text-[--text]">
-            Let's find what helps
+            Let&apos;s find what helps
           </h1>
           <p className="text-[--text-muted] mt-1">
             Small steps can make a difference

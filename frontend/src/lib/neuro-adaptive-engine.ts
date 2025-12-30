@@ -246,7 +246,7 @@ function classifyCognitiveState(
   biometrics: BiometricData | null
 ): { state: CognitiveState; confidence: number; trigger: string } {
   let stressScore = 0;
-  let triggers: string[] = [];
+  const triggers: string[] = [];
 
   // === Typing Pattern Analysis ===
   

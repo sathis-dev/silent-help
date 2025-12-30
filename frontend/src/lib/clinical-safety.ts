@@ -644,15 +644,20 @@ export function useClinicalSafety() {
   const consent = getConsentManager();
 
   useEffect(() => {
-    // Get initial logs
-    setRecentLogs(logger.getRecentLogs(20));
+    // Get initial logs - defer to avoid synchronous setState in effect
+    const timeout = setTimeout(() => {
+      setRecentLogs(logger.getRecentLogs(20));
+    }, 0);
 
     // Subscribe to new logs
     const unsubscribe = logger.subscribe((entry) => {
       setRecentLogs(prev => [...prev.slice(-19), entry]);
     });
 
-    return unsubscribe;
+    return () => {
+      clearTimeout(timeout);
+      unsubscribe();
+    };
   }, [logger]);
 
   const checkSafety = useCallback((text: string) => {

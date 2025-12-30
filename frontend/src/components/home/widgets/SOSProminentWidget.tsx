@@ -69,7 +69,7 @@ export function SOSProminentWidget({
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
       >
-        You're not alone. Help is available 24/7.
+        You&apos;re not alone. Help is available 24/7.
       </motion.p>
     </motion.div>
   );

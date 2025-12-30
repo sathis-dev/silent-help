@@ -5,7 +5,7 @@
  * "The First Touch" - Initial greeting with breathing animation
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useOnboarding } from '../OnboardingProvider';
 
@@ -31,7 +31,11 @@ const COLORS = {
 export function WelcomeStep() {
   const { nextStep, submitResponse } = useOnboarding();
   const [showButton, setShowButton] = useState(false);
-  const [interactionStart] = useState(Date.now());
+  const interactionStartRef = useRef<number>(0);
+
+  useEffect(() => {
+    interactionStartRef.current = Date.now();
+  }, []);
 
   // Delay button appearance for dramatic effect
   useEffect(() => {
@@ -43,7 +47,7 @@ export function WelcomeStep() {
     submitResponse({
       stepId: 'welcome',
       value: 'started',
-      interactionTime: Date.now() - interactionStart,
+      interactionTime: Date.now() - interactionStartRef.current,
       hesitationCount: 0,
       confidence: 1,
     });
@@ -158,7 +162,7 @@ export function WelcomeStep() {
         animate={{ opacity: 1 }}
         transition={{ delay: 1.5 }}
       >
-        This space adapts to how you're feeling. Let's take a moment to understand what you need.
+        This space adapts to how you&apos;re feeling. Let&apos;s take a moment to understand what you need.
       </motion.p>
 
       {/* Continue button */}

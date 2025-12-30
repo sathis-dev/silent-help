@@ -17,7 +17,7 @@
  * </NeuroAdaptiveProvider>
  */
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, ReactNode } from 'react';
 import { 
   NeuroAdaptiveState, 
   UIOverrides, 
@@ -131,7 +131,6 @@ export function NeuroAdaptiveProvider({
   
   // Manual override state
   const [manualState, setManualState] = useState<CognitiveState | null>(null);
-  const [stateReason, setStateReason] = useState<string>('initializing');
   
   // Pending intervention (from biometrics)
   const [pendingIntervention, setPendingIntervention] = useState<InterventionTrigger | null>(null);
@@ -156,12 +155,17 @@ export function NeuroAdaptiveProvider({
   // Handle intervention triggers from wearables
   useEffect(() => {
     if (wearables.latestTrigger) {
-      setPendingIntervention(wearables.latestTrigger);
+      // Defer state update to avoid synchronous setState in effect
+      const timeout = setTimeout(() => {
+        setPendingIntervention(wearables.latestTrigger);
+      }, 0);
       
       // Auto-transition to high stress if critical trigger
       if (wearables.latestTrigger.severity === 'critical' && forceState) {
         forceState('high_stress', wearables.latestTrigger.reason);
       }
+      
+      return () => clearTimeout(timeout);
     }
   }, [wearables.latestTrigger, forceState]);
 
@@ -170,15 +174,15 @@ export function NeuroAdaptiveProvider({
   const effectiveOverrides = neuroAdaptive.state?.uiOverrides ?? STATE_UI_OVERRIDES[effectiveState];
   const effectiveConfidence = neuroAdaptive.state?.confidence ?? 0.5;
 
-  // Update state reason for transparency
-  useEffect(() => {
+  // Compute state reason for transparency (derived state, no effect needed)
+  const stateReason = useMemo(() => {
     if (manualState) {
-      setStateReason('Manual override');
+      return 'Manual override';
     } else if (neuroAdaptive.state?.stateHistory?.length) {
       const lastTransition = neuroAdaptive.state.stateHistory[neuroAdaptive.state.stateHistory.length - 1];
-      setStateReason(lastTransition.trigger);
+      return lastTransition.trigger;
     } else {
-      setStateReason('Baseline state');
+      return 'Baseline state';
     }
   }, [manualState, neuroAdaptive.state?.stateHistory]);
 
@@ -199,9 +203,9 @@ export function NeuroAdaptiveProvider({
       wearables.clearTrigger();
     },
     
-    forceState: (state: CognitiveState, reason?: string) => {
+    forceState: (state: CognitiveState, _reason?: string) => {
       setManualState(state);
-      if (reason) setStateReason(reason);
+      // Note: stateReason is now computed from manualState, so no need to set it
     },
     resetToAuto: () => {
       setManualState(null);

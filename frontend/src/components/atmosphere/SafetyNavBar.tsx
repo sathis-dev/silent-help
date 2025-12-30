@@ -172,7 +172,7 @@ export function SafetyNavBar({
                   className="w-full mt-6 p-4 rounded-2xl bg-slate-800 text-slate-300 font-medium"
                   whileTap={{ scale: 0.98 }}
                 >
-                  I'm okay for now
+                  I&apos;m okay for now
                 </motion.button>
               </div>
             </motion.div>

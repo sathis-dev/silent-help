@@ -11,7 +11,7 @@
  * - Caregiver → Support context
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useOnboarding, useCurrentOnboardingStep, useStepResponse } from '../OnboardingProvider';
 import type { OnboardingOption } from '@/lib/types/onboarding';
@@ -40,7 +40,12 @@ export function ContextualStep() {
   
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [hesitationCount, setHesitationCount] = useState(0);
-  const [interactionStart] = useState(Date.now());
+  const interactionStartRef = useRef<number>(0);
+  
+  // Capture interaction start time on mount
+  useEffect(() => {
+    interactionStartRef.current = Date.now();
+  }, []);
 
   const isMultiSelect = currentStep?.inputType === 'multi_select';
 
@@ -60,7 +65,7 @@ export function ContextualStep() {
       submitResponse({
         stepId: currentStep!.id,
         value: option.id,
-        interactionTime: Date.now() - interactionStart,
+        interactionTime: Date.now() - interactionStartRef.current,
         hesitationCount,
         confidence: hesitationCount < 2 ? 0.85 : 0.6,
       });
@@ -69,7 +74,7 @@ export function ContextualStep() {
         nextStep();
       }, 500);
     }
-  }, [isMultiSelect, submitResponse, nextStep, currentStep, interactionStart, hesitationCount]);
+  }, [isMultiSelect, submitResponse, nextStep, currentStep, hesitationCount]);
 
   // Handle continue for multi-select
   const handleContinue = useCallback(() => {
@@ -78,13 +83,13 @@ export function ContextualStep() {
     submitResponse({
       stepId: currentStep!.id,
       value: selectedOptions,
-      interactionTime: Date.now() - interactionStart,
+      interactionTime: Date.now() - interactionStartRef.current,
       hesitationCount,
       confidence: selectedOptions.length > 0 ? 0.8 : 0.5,
     });
 
     nextStep();
-  }, [selectedOptions, submitResponse, nextStep, currentStep, interactionStart, hesitationCount]);
+  }, [selectedOptions, submitResponse, nextStep, currentStep, hesitationCount]);
 
   if (!currentStep?.options) return null;
 

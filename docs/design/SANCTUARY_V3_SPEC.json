@@ -1,0 +1,883 @@
+{
+  "meta": {
+    "system_id": "SILENT_HELP_SANCTUARY_V3",
+    "codename": "The Invisible Fortress",
+    "version": "3.0.0-ultra",
+    "build_year": "2025",
+    "author": "Silent Help AI Design System",
+    "philosophy": "Invisible Intervention - The UI should feel like a warm presence, not a tool"
+  },
+
+  "core_philosophy": {
+    "primary_mission": "Reduce time-to-calm to under 60 seconds",
+    "design_mantra": "Low-Load UX - If the user has to think about how to use it, we have already failed",
+    "emotional_goal": "The app should feel like a friend who knows exactly what you need without asking",
+    "technical_goal": "Zero API dependency for crisis features - works offline in airplane mode",
+    "accessibility_goal": "WCAG 2.2 AAA for all crisis pathways"
+  },
+
+  "design_dna": {
+    "theme_philosophy": {
+      "name": "Liquid Sanctuary",
+      "concept": "The UI behaves like water - it flows around the user, never pushes against them",
+      "psychology": "Parasympathetic Nervous System activation through visual softness",
+      "core_principle": "Zero sharp edges, zero jarring transitions, zero cognitive demands"
+    },
+    "visual_frequency": {
+      "color_temperature": "Ultra-Warm Midnight (2700K equivalent)",
+      "edge_radius": "Organic curves only (minimum 16px, preferred 24px+)",
+      "contrast_ratio": "Soft contrast (never pure white on pure black)",
+      "shadow_philosophy": "Shadows should feel like gentle fog, not hard drops"
+    },
+    "motion_physics": {
+      "spring_type": "Under-damped (bouncy but controlled)",
+      "config": {
+        "stiffness": 120,
+        "damping": 20,
+        "mass": 1
+      },
+      "timing": "All animations complete in 300-500ms sweet spot",
+      "principle": "Motion should feel like breathing underwater"
+    }
+  },
+
+  "visual_engine": {
+    "cosmic_background": {
+      "name": "Living Nebula",
+      "description": "The background is alive - it breathes with the user and responds to their state",
+      "implementation": {
+        "target_file": "src/components/atmosphere/CosmicBackground.tsx",
+        "engine": "Multi-layer WebGL/Canvas with CSS fallback",
+        "layers": [
+          {
+            "id": "base",
+            "type": "solid",
+            "color": "#020408",
+            "description": "Near-black void - the canvas for everything"
+          },
+          {
+            "id": "nebula_primary",
+            "type": "animated_gradient_orb",
+            "colors": ["#1a1a2e", "#16213e", "#0f3460"],
+            "size": "150vmax",
+            "position": "top-left -30%",
+            "animation": {
+              "type": "drift",
+              "duration": "45s",
+              "movement_radius": "15%",
+              "blur": "150px"
+            }
+          },
+          {
+            "id": "nebula_secondary",
+            "type": "animated_gradient_orb",
+            "colors": ["#1e1b4b", "#312e81", "#3730a3"],
+            "size": "120vmax",
+            "position": "bottom-right -20%",
+            "animation": {
+              "type": "drift",
+              "duration": "35s",
+              "movement_radius": "20%",
+              "blur": "120px"
+            }
+          },
+          {
+            "id": "state_reactive_glow",
+            "type": "radial_glow",
+            "description": "Changes color and intensity based on cognitive state",
+            "position": "center",
+            "size": "80vmin",
+            "states": {
+              "calm": { "color": "#6366f1", "intensity": 0.15, "pulse_speed": "8s" },
+              "maintenance": { "color": "#8b5cf6", "intensity": 0.2, "pulse_speed": "6s" },
+              "high_stress": { "color": "#f43f5e", "intensity": 0.35, "pulse_speed": "3s" },
+              "crisis": { "color": "#dc2626", "intensity": 0.5, "pulse_speed": "1.5s" }
+            }
+          },
+          {
+            "id": "star_field",
+            "type": "particle_system",
+            "description": "Subtle twinkling stars for depth and wonder",
+            "density": "sparse (50-80 particles)",
+            "color": "rgba(255, 255, 255, 0.3)",
+            "size_range": "1-3px",
+            "animation": "gentle_twinkle (3-8s random)"
+          },
+          {
+            "id": "texture_overlay",
+            "type": "noise_texture",
+            "opacity": "2%",
+            "description": "Prevents color banding and adds tactile organic feel"
+          }
+        ],
+        "accessibility": {
+          "reduced_motion_fallback": "Static gradient only",
+          "performance_threshold": "If FPS drops below 30, disable particle_system"
+        }
+      }
+    },
+
+    "glassmorphism_2": {
+      "name": "Liquid Glass",
+      "description": "Next-gen glass effect that feels wet and alive",
+      "specification": {
+        "surface_types": {
+          "card": {
+            "background": "rgba(255, 255, 255, 0.03)",
+            "backdrop_blur": "20px",
+            "border": "1px solid rgba(255, 255, 255, 0.06)",
+            "border_top": "1px solid rgba(255, 255, 255, 0.1)",
+            "box_shadow": "0 4px 30px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
+            "border_radius": "24px"
+          },
+          "card_elevated": {
+            "background": "rgba(255, 255, 255, 0.05)",
+            "backdrop_blur": "30px",
+            "border": "1px solid rgba(255, 255, 255, 0.08)",
+            "border_top": "1px solid rgba(255, 255, 255, 0.15)",
+            "box_shadow": "0 8px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08)",
+            "border_radius": "28px"
+          },
+          "card_floating": {
+            "background": "rgba(255, 255, 255, 0.02)",
+            "backdrop_blur": "40px",
+            "border": "1px solid rgba(255, 255, 255, 0.04)",
+            "box_shadow": "0 20px 60px rgba(0, 0, 0, 0.5)",
+            "border_radius": "32px"
+          },
+          "pill": {
+            "background": "rgba(255, 255, 255, 0.08)",
+            "backdrop_blur": "16px",
+            "border": "1px solid rgba(255, 255, 255, 0.1)",
+            "border_radius": "9999px"
+          }
+        },
+        "hover_enhancement": {
+          "border_color_shift": "rgba(255, 255, 255, 0.15)",
+          "box_shadow_glow": "0 0 30px {accent_color}30",
+          "transform": "translateY(-2px) scale(1.01)",
+          "transition": "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
+        },
+        "active_enhancement": {
+          "transform": "scale(0.98)",
+          "transition": "transform 0.1s ease"
+        }
+      }
+    },
+
+    "typography_system": {
+      "philosophy": "Typography should breathe with the user's emotional state",
+      "font_stack": {
+        "display": "'Bricolage Grotesque', 'Inter', system-ui, sans-serif",
+        "body": "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+        "mono": "'JetBrains Mono', 'Fira Code', monospace"
+      },
+      "variable_weight": {
+        "description": "Font weight changes based on cognitive state - lighter when calm (more space), bolder in crisis (more presence)",
+        "calm": { "display_weight": 200, "body_weight": 400 },
+        "maintenance": { "display_weight": 300, "body_weight": 400 },
+        "high_stress": { "display_weight": 400, "body_weight": 500 },
+        "crisis": { "display_weight": 600, "body_weight": 600 }
+      },
+      "sizes": {
+        "hero": { "size": "clamp(2.5rem, 8vw, 4rem)", "line_height": 1.1, "letter_spacing": "-0.03em" },
+        "h1": { "size": "clamp(2rem, 5vw, 3rem)", "line_height": 1.2, "letter_spacing": "-0.02em" },
+        "h2": { "size": "clamp(1.5rem, 3vw, 2rem)", "line_height": 1.3, "letter_spacing": "-0.01em" },
+        "body": { "size": "1rem", "line_height": 1.6, "letter_spacing": "0" },
+        "small": { "size": "0.875rem", "line_height": 1.5, "letter_spacing": "0.01em" },
+        "caption": { "size": "0.75rem", "line_height": 1.4, "letter_spacing": "0.02em" }
+      },
+      "gradient_text": {
+        "hero_title": {
+          "gradient": "linear-gradient(135deg, #ffffff 0%, #94a3b8 50%, #64748b 100%)",
+          "fallback_color": "#e2e8f0"
+        }
+      }
+    },
+
+    "color_system": {
+      "semantic_colors": {
+        "sanctuary": {
+          "description": "Home state - peaceful indigo",
+          "primary": "#6366f1",
+          "secondary": "#818cf8",
+          "glow": "rgba(99, 102, 241, 0.3)",
+          "subtle": "rgba(99, 102, 241, 0.1)"
+        },
+        "calm": {
+          "description": "Calm state - healing teal/mint",
+          "primary": "#14b8a6",
+          "secondary": "#5eead4",
+          "glow": "rgba(20, 184, 166, 0.3)",
+          "subtle": "rgba(20, 184, 166, 0.1)"
+        },
+        "bridge": {
+          "description": "Mid pathway - warm amber",
+          "primary": "#f59e0b",
+          "secondary": "#fcd34d",
+          "glow": "rgba(245, 158, 11, 0.3)",
+          "subtle": "rgba(245, 158, 11, 0.1)"
+        },
+        "alert": {
+          "description": "High stress - soft rose",
+          "primary": "#f43f5e",
+          "secondary": "#fb7185",
+          "glow": "rgba(244, 63, 94, 0.3)",
+          "subtle": "rgba(244, 63, 94, 0.1)"
+        },
+        "crisis": {
+          "description": "Crisis state - urgent but not alarming",
+          "primary": "#ef4444",
+          "secondary": "#fca5a5",
+          "glow": "rgba(239, 68, 68, 0.4)",
+          "subtle": "rgba(239, 68, 68, 0.15)"
+        },
+        "journal": {
+          "description": "Journaling - creative pink",
+          "primary": "#ec4899",
+          "secondary": "#f472b6",
+          "glow": "rgba(236, 72, 153, 0.3)",
+          "subtle": "rgba(236, 72, 153, 0.1)"
+        },
+        "grounding": {
+          "description": "Grounding - stable violet",
+          "primary": "#8b5cf6",
+          "secondary": "#a78bfa",
+          "glow": "rgba(139, 92, 246, 0.3)",
+          "subtle": "rgba(139, 92, 246, 0.1)"
+        }
+      },
+      "neutral_palette": {
+        "white": "#ffffff",
+        "gray_100": "#f1f5f9",
+        "gray_200": "#e2e8f0",
+        "gray_300": "#cbd5e1",
+        "gray_400": "#94a3b8",
+        "gray_500": "#64748b",
+        "gray_600": "#475569",
+        "gray_700": "#334155",
+        "gray_800": "#1e293b",
+        "gray_900": "#0f172a",
+        "gray_950": "#020617",
+        "void": "#020408"
+      }
+    }
+  },
+
+  "layout_architecture": {
+    "philosophy": "The layout should feel like entering a physical sanctuary - spacious, calm, intentional",
+
+    "desktop_layout": {
+      "name": "The Observatory",
+      "description": "A grand, spacious view that makes the user feel like they're in a peaceful observatory looking at their mental landscape",
+      "structure": {
+        "navigation": {
+          "type": "floating_dock",
+          "position": "left",
+          "width": "72px",
+          "expanded_width": "240px",
+          "behavior": "icon-only by default, expands on hover with spring animation",
+          "style": "glass_floating",
+          "implementation": {
+            "target_file": "src/components/desktop/navigation/FloatingDock.tsx",
+            "features": [
+              "Icon-only navigation with 56px touch targets",
+              "Hover expands label with spring physics (0.3s)",
+              "Active state: soft glow halo + scale(1.05)",
+              "Tooltip appears on hover for accessibility",
+              "Settings at bottom separated by divider",
+              "SOS quick-access at top (always visible)"
+            ]
+          }
+        },
+
+        "main_stage": {
+          "description": "The central focus area - like being in the center of a planetarium",
+          "layout": "vertical_flow_centered",
+          "max_width": "1400px",
+          "padding": "clamp(2rem, 5vw, 4rem)",
+          "sections": [
+            {
+              "id": "sanctuary_header",
+              "position": "top_center",
+              "components": [
+                "TimeBasedGreeting",
+                "HeroTitle (Your Sanctuary)",
+                "SubtitleMessage"
+              ],
+              "animation": "fade_in_down with 0.1s delay"
+            },
+            {
+              "id": "biometric_core",
+              "position": "center",
+              "description": "The heart of the sanctuary - a living, breathing biometric display",
+              "component": "BiometricOrb",
+              "size": "clamp(280px, 40vmin, 400px)",
+              "features": [
+                "Central BPM display with heartbeat-synced pulse",
+                "Outer ring shows HRV trend (expanding/contracting)",
+                "State indicator pill (Calm/Elevated/Crisis)",
+                "Tap to expand into full-screen meditation mode",
+                "Rings rotate slowly (20s) with conic gradient"
+              ]
+            },
+            {
+              "id": "tool_ecosystem",
+              "position": "bottom",
+              "description": "Interactive tool cards in a staggered bento grid",
+              "component": "BentoToolGrid",
+              "implementation": {
+                "target_file": "src/components/desktop/tools/BentoToolGrid.tsx",
+                "grid": "asymmetric 12-column CSS grid",
+                "cards": [
+                  {
+                    "id": "breathing",
+                    "span": "col-span-6",
+                    "priority": 1,
+                    "visual": "live_waveform_svg",
+                    "accent": "#14b8a6"
+                  },
+                  {
+                    "id": "grounding",
+                    "span": "col-span-3",
+                    "priority": 2,
+                    "visual": "ripple_effect",
+                    "accent": "#8b5cf6"
+                  },
+                  {
+                    "id": "journal",
+                    "span": "col-span-3",
+                    "priority": 3,
+                    "visual": "ink_bleed_effect",
+                    "accent": "#ec4899"
+                  },
+                  {
+                    "id": "body_scan",
+                    "span": "col-span-4",
+                    "priority": 4,
+                    "visual": "body_outline_pulse",
+                    "accent": "#6366f1"
+                  },
+                  {
+                    "id": "mood_log",
+                    "span": "col-span-4",
+                    "priority": 5,
+                    "visual": "emoji_orbit",
+                    "accent": "#f59e0b"
+                  },
+                  {
+                    "id": "patterns",
+                    "span": "col-span-4",
+                    "priority": 6,
+                    "visual": "line_graph_preview",
+                    "accent": "#0ea5e9"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+
+        "ambient_elements": {
+          "insights_fab": {
+            "position": "fixed bottom-right",
+            "trigger": "sparkles icon",
+            "opens": "InsightsDrawer (side-peek from right)",
+            "style": "glass_pill with indigo glow"
+          },
+          "sos_anchor": {
+            "position": "fixed bottom-center",
+            "style": "soft_crimson_pill",
+            "behavior": "hold 2 seconds to activate (prevents accidents)",
+            "always_visible": true
+          },
+          "time_widget": {
+            "position": "fixed top-right",
+            "shows": "current time + ambient light indicator (day/night)",
+            "style": "minimal glass pill"
+          }
+        }
+      }
+    },
+
+    "mobile_layout": {
+      "name": "The Pocket Sanctuary",
+      "description": "A cozy, intimate space optimized for one-handed use",
+      "structure": {
+        "navigation": {
+          "type": "bottom_tab_bar",
+          "height": "72px + safe-area",
+          "style": "glass_rail",
+          "items": [
+            { "id": "home", "icon": "Home", "label": "Sanctuary" },
+            { "id": "breathe", "icon": "Wind", "label": "Breathe" },
+            { "id": "ground", "icon": "Anchor", "label": "Ground" },
+            { "id": "journal", "icon": "PenLine", "label": "Journal" }
+          ],
+          "features": [
+            "Haptic feedback on tap",
+            "Active state: icon lift + glow",
+            "Safe area respect for notch/home indicator"
+          ]
+        },
+
+        "main_content": {
+          "layout": "vertical_scroll",
+          "padding": "1rem",
+          "gap": "1.5rem",
+          "sections": [
+            {
+              "id": "greeting_card",
+              "type": "full_width_card",
+              "content": ["TimeGreeting", "UserName", "StatusPill"]
+            },
+            {
+              "id": "bio_summary",
+              "type": "compact_orb",
+              "size": "200px",
+              "shows": ["BPM", "State", "TapToExpand"]
+            },
+            {
+              "id": "quick_actions",
+              "type": "horizontal_scroll_chips",
+              "items": ["30s Breath", "5-4-3-2-1", "Write", "Body Scan"]
+            },
+            {
+              "id": "tool_grid",
+              "type": "2_column_grid",
+              "cards": ["Breathing", "Grounding", "Journal", "Patterns"]
+            },
+            {
+              "id": "insight_preview",
+              "type": "collapsible_card",
+              "shows": "Latest AI observation"
+            }
+          ]
+        },
+
+        "floating_elements": {
+          "sos_button": {
+            "position": "above tab bar, centered",
+            "style": "floating_pill",
+            "behavior": "hold 2s to activate"
+          }
+        }
+      }
+    }
+  },
+
+  "component_specifications": {
+    "biometric_orb": {
+      "name": "BiometricOrb / Sanctuary Heart",
+      "description": "The central living element that responds to user's biometric data",
+      "target_file": "src/components/sanctuary/BiometricOrb.tsx",
+      "structure": {
+        "layers": [
+          {
+            "name": "outer_aura",
+            "type": "expanding_pulse",
+            "size": "120% of core",
+            "animation": "scale 1 -> 1.3 -> 1, synced to BPM",
+            "color": "state_reactive_gradient",
+            "opacity": "0.2 -> 0.05 -> 0.2"
+          },
+          {
+            "name": "conic_ring",
+            "type": "rotating_gradient",
+            "size": "100% of core",
+            "animation": "rotate 360deg over 25s, linear, infinite",
+            "gradient": "conic-gradient(from 0deg, {primary}, {secondary}, {primary})",
+            "opacity": 0.25
+          },
+          {
+            "name": "dark_ring",
+            "type": "static_ring",
+            "size": "90% of core",
+            "background": "#020408",
+            "border": "2px solid {primary}40"
+          },
+          {
+            "name": "data_core",
+            "type": "glass_circle",
+            "size": "80% of core",
+            "style": "card_elevated",
+            "content": {
+              "bpm_display": {
+                "font_size": "clamp(3rem, 8vw, 5rem)",
+                "font_weight": 200,
+                "color": "#ffffff",
+                "animation": "opacity pulse synced to BPM"
+              },
+              "bpm_label": {
+                "text": "BPM",
+                "style": "tracking-widest, text-slate-400"
+              },
+              "state_pill": {
+                "type": "pill",
+                "shows": "current_state (Calm/Elevated/Crisis)",
+                "icon": "Sparkles",
+                "color": "state_semantic_color"
+              }
+            }
+          }
+        ],
+        "interactions": {
+          "tap": "Expand to full-screen meditation mode",
+          "long_press": "Show detailed biometric history",
+          "hover": "Show tooltip with HRV and sleep score"
+        },
+        "accessibility": {
+          "aria_label": "Biometric status. Heart rate: {bpm} beats per minute. Current state: {state}",
+          "role": "button",
+          "keyboard": "Enter/Space to expand"
+        }
+      }
+    },
+
+    "bento_tool_card": {
+      "name": "BentoToolCard",
+      "description": "Individual tool card with unique visual personality",
+      "target_file": "src/components/tools/BentoToolCard.tsx",
+      "structure": {
+        "container": {
+          "style": "card",
+          "padding": "clamp(1rem, 3vw, 1.5rem)",
+          "min_height": "160px"
+        },
+        "elements": {
+          "accent_line": {
+            "position": "top edge",
+            "height": "2px",
+            "gradient": "linear-gradient(90deg, {accent}, transparent)"
+          },
+          "icon_container": {
+            "size": "48px",
+            "background": "{accent}15",
+            "border_radius": "12px",
+            "icon_color": "{accent}"
+          },
+          "title": {
+            "font_size": "1rem",
+            "font_weight": 500,
+            "color": "#ffffff"
+          },
+          "subtitle": {
+            "font_size": "0.875rem",
+            "color": "#94a3b8"
+          },
+          "visual_effect": {
+            "position": "absolute, trailing edge",
+            "type": "varies_by_tool",
+            "opacity": "0.3 -> 0.6 on hover"
+          }
+        },
+        "interactions": {
+          "hover": {
+            "transform": "translateY(-4px) scale(1.01)",
+            "border_glow": "0 0 30px {accent}30",
+            "visual_effect_opacity": 0.6
+          },
+          "active": {
+            "transform": "scale(0.98)"
+          }
+        },
+        "visual_effects_per_tool": {
+          "breathing": {
+            "type": "live_waveform_svg",
+            "description": "Animated sine wave that flows continuously"
+          },
+          "grounding": {
+            "type": "ripple_pulse",
+            "description": "Concentric circles that pulse outward on hover"
+          },
+          "journal": {
+            "type": "ink_bleed",
+            "description": "Soft ink splatter that expands on hover"
+          },
+          "body_scan": {
+            "type": "body_outline",
+            "description": "Minimalist human silhouette with scanning line"
+          },
+          "patterns": {
+            "type": "mini_chart",
+            "description": "Tiny line graph showing mood trend"
+          }
+        }
+      }
+    },
+
+    "floating_dock": {
+      "name": "FloatingDock",
+      "description": "Icon-only navigation that expands on hover",
+      "target_file": "src/components/navigation/FloatingDock.tsx",
+      "structure": {
+        "container": {
+          "position": "fixed, left, centered vertically",
+          "width": "72px (collapsed), 240px (expanded)",
+          "style": "glass_rail",
+          "padding": "12px"
+        },
+        "items": [
+          { "id": "sos", "icon": "Heart", "label": "SOS", "accent": "#ef4444", "position": "top", "separated": true },
+          { "id": "sanctuary", "icon": "Home", "label": "Sanctuary", "accent": "#6366f1" },
+          { "id": "breathing", "icon": "Wind", "label": "Breathing", "accent": "#14b8a6" },
+          { "id": "grounding", "icon": "Anchor", "label": "Grounding", "accent": "#8b5cf6" },
+          { "id": "journal", "icon": "PenLine", "label": "Journal", "accent": "#ec4899" },
+          { "id": "body_scan", "icon": "Activity", "label": "Body Scan", "accent": "#f59e0b" },
+          { "id": "settings", "icon": "Settings", "label": "Settings", "position": "bottom", "separated": true }
+        ],
+        "behavior": {
+          "default": "icons only, 56px buttons",
+          "hover_item": "label slides out with spring (damping: 20, stiffness: 300)",
+          "hover_dock": "optional: expand full width",
+          "active_state": "indigo glow halo, scale(1.05)"
+        }
+      }
+    },
+
+    "insights_drawer": {
+      "name": "InsightsDrawer",
+      "description": "AI observations in a side-peek drawer",
+      "target_file": "src/components/insights/InsightsDrawer.tsx",
+      "structure": {
+        "trigger": {
+          "type": "fab",
+          "position": "fixed, bottom-right",
+          "icon": "Sparkles",
+          "style": "indigo_glass_pill"
+        },
+        "drawer": {
+          "position": "right side, full height",
+          "width": "min(400px, 90vw)",
+          "animation": "slide in from right with spring",
+          "style": "glass_rail with solid background fallback"
+        },
+        "content": {
+          "header": "Insights with Sparkles icon",
+          "cards": [
+            {
+              "type": "observation",
+              "accent": "#10b981",
+              "content": "AI-generated observation about patterns"
+            },
+            {
+              "type": "reminder",
+              "accent": "#f59e0b",
+              "content": "Gentle reminder about streak or habit"
+            },
+            {
+              "type": "achievement",
+              "accent": "#6366f1",
+              "content": "Celebration of progress"
+            }
+          ]
+        }
+      }
+    },
+
+    "sos_button": {
+      "name": "SOSButton",
+      "description": "Emergency button with accidental press protection",
+      "target_file": "src/components/shared/SOSButton.tsx",
+      "specification": {
+        "position": "fixed, bottom-center",
+        "style": "soft_crimson_glass_pill",
+        "icon": "Heart",
+        "label": "SOS",
+        "behavior": {
+          "activation": "hold for 2 seconds",
+          "during_hold": "progress bar fills, label changes to 'Hold...'",
+          "on_release_early": "resets completely",
+          "on_complete": "trigger SOS flow, haptic feedback"
+        },
+        "accessibility": {
+          "aria_label": "Emergency SOS. Hold for 2 seconds to activate.",
+          "keyboard": "Hold Space for 2 seconds"
+        },
+        "hint_text": "Hold 2s for emergency"
+      }
+    }
+  },
+
+  "interaction_physics": {
+    "magnetic_buttons": {
+      "description": "Buttons have a subtle magnetic pull toward the cursor",
+      "implementation": {
+        "radius": "30px",
+        "pull_strength": 0.25,
+        "spring": { "damping": 15, "stiffness": 150 }
+      },
+      "when_to_use": "Primary action buttons, FABs, important CTAs"
+    },
+
+    "stagger_animations": {
+      "description": "Elements enter with a beautiful cascade effect",
+      "implementation": {
+        "container": { "staggerChildren": 0.05, "delayChildren": 0.1 },
+        "item": {
+          "hidden": { "opacity": 0, "y": 20 },
+          "visible": { "opacity": 1, "y": 0, "transition": { "type": "spring", "damping": 25, "stiffness": 200 } }
+        }
+      }
+    },
+
+    "haptic_patterns": {
+      "light": "10ms, 0.3 intensity - used for hover feedback",
+      "medium": "20ms, 0.5 intensity - used for button taps",
+      "heavy": "30ms, 0.8 intensity - used for important actions",
+      "breathing": {
+        "inhale": "gentle ramp up over 4s",
+        "hold": "subtle continuous vibration",
+        "exhale": "gentle ramp down over 4s"
+      },
+      "sos": "distinct pattern that confirms action"
+    },
+
+    "scroll_effects": {
+      "parallax_background": "Background blobs move at 0.3x scroll speed",
+      "fade_masks": "Top and bottom fade to transparent for content overflow",
+      "sticky_header": "Header fades to glass on scroll past threshold"
+    }
+  },
+
+  "neuro_adaptive_integration": {
+    "description": "The UI physically changes based on detected cognitive state",
+    "source_file": "src/lib/neuro-adaptive-engine.ts",
+    "ui_adaptations": {
+      "calm": {
+        "background_speed": "45s (slow drift)",
+        "glow_intensity": 0.15,
+        "accent_color": "#6366f1",
+        "font_weight": 200,
+        "animation_speed": 1.0,
+        "layout": "full feature access, exploration mode"
+      },
+      "maintenance": {
+        "background_speed": "30s",
+        "glow_intensity": 0.25,
+        "accent_color": "#8b5cf6",
+        "font_weight": 300,
+        "animation_speed": 0.9,
+        "layout": "journaling prompts, pattern reflections"
+      },
+      "high_stress": {
+        "background_speed": "15s (faster, anxious)",
+        "glow_intensity": 0.4,
+        "accent_color": "#f43f5e",
+        "font_weight": 400,
+        "animation_speed": 0.7,
+        "layout": "simplified, 40% larger touch targets, breathing prominent"
+      },
+      "crisis": {
+        "background_speed": "8s (urgent pulse)",
+        "glow_intensity": 0.6,
+        "accent_color": "#ef4444",
+        "font_weight": 600,
+        "animation_speed": 0.5,
+        "layout": "maximum simplification, SOS only, crisis contacts prominent",
+        "special": "Disable all non-essential UI, show only crisis resources"
+      }
+    }
+  },
+
+  "accessibility_requirements": {
+    "wcag_level": "AAA for crisis pathways, AA minimum for all else",
+    "touch_targets": {
+      "minimum": "44px",
+      "recommended": "56px",
+      "crisis_state": "80px"
+    },
+    "contrast_ratios": {
+      "normal_text": "7:1",
+      "large_text": "4.5:1",
+      "ui_components": "3:1"
+    },
+    "reduced_motion": {
+      "detection": "prefers-reduced-motion media query",
+      "fallback": "Disable all animations except essential state indicators"
+    },
+    "screen_reader": {
+      "all_interactive_elements": "aria-label required",
+      "live_regions": "for dynamic content updates",
+      "focus_management": "logical focus order, visible focus rings"
+    },
+    "keyboard_navigation": {
+      "tab_order": "logical flow",
+      "shortcuts": {
+        "s": "SOS (with confirmation)",
+        "b": "Breathing",
+        "g": "Grounding",
+        "j": "Journal",
+        "escape": "Close any overlay"
+      }
+    }
+  },
+
+  "implementation_checklist": {
+    "phase_1_foundation": [
+      { "task": "Create CosmicBackground.tsx with WebGL/Canvas nebula effect", "priority": "high" },
+      { "task": "Implement glass style system as CSS custom properties + Tailwind utilities", "priority": "high" },
+      { "task": "Set up typography system with variable font weights", "priority": "high" },
+      { "task": "Create color system as CSS custom properties", "priority": "high" }
+    ],
+    "phase_2_core_components": [
+      { "task": "Build BiometricOrb with all layers and BPM sync", "priority": "high" },
+      { "task": "Create FloatingDock navigation with hover expansion", "priority": "high" },
+      { "task": "Implement BentoToolGrid with all card variants", "priority": "high" },
+      { "task": "Build SOSButton with hold-to-activate", "priority": "critical" }
+    ],
+    "phase_3_layout": [
+      { "task": "Create desktop Observatory layout", "priority": "high" },
+      { "task": "Create mobile Pocket Sanctuary layout", "priority": "high" },
+      { "task": "Implement responsive breakpoints and transitions", "priority": "medium" }
+    ],
+    "phase_4_interactions": [
+      { "task": "Add magnetic button physics", "priority": "medium" },
+      { "task": "Implement stagger animations throughout", "priority": "medium" },
+      { "task": "Integrate haptic feedback patterns", "priority": "medium" },
+      { "task": "Add scroll-based parallax effects", "priority": "low" }
+    ],
+    "phase_5_neuro_adaptive": [
+      { "task": "Connect UI to neuro-adaptive-engine states", "priority": "high" },
+      { "task": "Implement state-based UI adaptations", "priority": "high" },
+      { "task": "Test transitions between states", "priority": "high" }
+    ],
+    "phase_6_polish": [
+      { "task": "Accessibility audit and fixes", "priority": "critical" },
+      { "task": "Performance optimization (lazy loading, code splitting)", "priority": "high" },
+      { "task": "Cross-browser testing", "priority": "high" },
+      { "task": "Mobile device testing", "priority": "high" }
+    ]
+  },
+
+  "file_structure": {
+    "new_files_to_create": [
+      "src/components/atmosphere/CosmicBackground.tsx",
+      "src/components/sanctuary/BiometricOrb.tsx",
+      "src/components/navigation/FloatingDock.tsx",
+      "src/components/navigation/MobileTabBar.tsx",
+      "src/components/tools/BentoToolGrid.tsx",
+      "src/components/tools/BentoToolCard.tsx",
+      "src/components/insights/InsightsDrawer.tsx",
+      "src/components/layout/ObservatoryLayout.tsx",
+      "src/components/layout/PocketSanctuaryLayout.tsx",
+      "src/styles/glass.css",
+      "src/styles/animations.css"
+    ],
+    "files_to_update": [
+      "src/app/globals.css - Add CSS custom properties",
+      "src/app/page.tsx - Use new layouts",
+      "tailwind.config.ts - Add custom utilities"
+    ]
+  },
+
+  "technology_stack": {
+    "framework": "Next.js 15+ with App Router",
+    "ui": "React 19+",
+    "styling": "Tailwind CSS 4+ with custom utilities",
+    "animation": "Framer Motion 11+",
+    "icons": "Lucide React (1.5 stroke weight for elegance)",
+    "fonts": "Google Fonts: Inter (variable), Bricolage Grotesque",
+    "optional_3d": "Three.js or react-three-fiber for advanced background effects"
+  }
+}

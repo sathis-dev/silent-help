@@ -565,7 +565,9 @@ function FloatingSOSButton({ onActivate }: { onActivate: () => void }) {
         });
       }, 100);
     } else {
-      setHoldProgress(0);
+      // Defer state update to avoid synchronous setState in effect
+      const timeout = setTimeout(() => setHoldProgress(0), 0);
+      return () => clearTimeout(timeout);
     }
     
     return () => clearInterval(interval);

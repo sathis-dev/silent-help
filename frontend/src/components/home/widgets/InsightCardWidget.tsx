@@ -45,11 +45,12 @@ const PERSONA_INSIGHTS: Record<UserPersona, { icon: string; title: string; messa
 
 export function InsightCardWidget({
   persona,
-  accentColor,
 }: InsightCardWidgetProps) {
   const insight = useMemo(() => {
     const insights = PERSONA_INSIGHTS[persona] || PERSONA_INSIGHTS.curious_explorer;
-    return insights[Math.floor(Math.random() * insights.length)];
+    // Use deterministic selection based on persona hash to avoid Math.random
+    const hash = persona.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return insights[hash % insights.length];
   }, [persona]);
 
   return (

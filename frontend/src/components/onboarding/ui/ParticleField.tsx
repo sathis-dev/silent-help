@@ -29,16 +29,22 @@ export function ParticleField({
   color = '#B4A7D6',
   particleCount = 30,
 }: ParticleFieldProps) {
-  // Generate particles
+  // Generate particles with deterministic pseudo-random values
   const particles = useMemo<Particle[]>(() => {
+    // Seeded random function for deterministic results
+    const seededRandom = (seed: number) => {
+      const x = Math.sin(seed * 9999) * 10000;
+      return x - Math.floor(x);
+    };
+    
     return Array.from({ length: Math.floor(particleCount * intensity) }).map((_, i) => ({
       id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: Math.random() * 3 + 1,
-      duration: Math.random() * 20 + 15,
-      delay: Math.random() * 5,
-      opacity: Math.random() * 0.3 + 0.1,
+      x: seededRandom(i * 6) * 100,
+      y: seededRandom(i * 6 + 1) * 100,
+      size: seededRandom(i * 6 + 2) * 3 + 1,
+      duration: seededRandom(i * 6 + 3) * 20 + 15,
+      delay: seededRandom(i * 6 + 4) * 5,
+      opacity: seededRandom(i * 6 + 5) * 0.3 + 0.1,
     }));
   }, [particleCount, intensity]);
 

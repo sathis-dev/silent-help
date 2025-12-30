@@ -52,8 +52,12 @@ export function PersonalizationStep() {
   const [value, setValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [interactionStart] = useState(Date.now());
+  const interactionStartRef = useRef<number>(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    interactionStartRef.current = Date.now();
+  }, []);
 
   const isNameStep = currentStep?.id === 'personalization_name';
   const isTimeStep = currentStep?.id === 'personalization_time';
@@ -74,13 +78,13 @@ export function PersonalizationStep() {
     submitResponse({
       stepId: 'personalization_name',
       value: displayName,
-      interactionTime: Date.now() - interactionStart,
+      interactionTime: Date.now() - interactionStartRef.current,
       hesitationCount: 0,
       confidence: value.trim() ? 0.9 : 0.7,
     });
 
     nextStep();
-  }, [value, updateUserName, submitResponse, nextStep, interactionStart]);
+  }, [value, updateUserName, submitResponse, nextStep]);
 
   // Handle time selection
   const handleTimeSelect = useCallback((time: string) => {
@@ -91,7 +95,7 @@ export function PersonalizationStep() {
     submitResponse({
       stepId: 'personalization_time',
       value: time,
-      interactionTime: Date.now() - interactionStart,
+      interactionTime: Date.now() - interactionStartRef.current,
       hesitationCount: 0,
       confidence: 0.85,
     });
@@ -99,7 +103,7 @@ export function PersonalizationStep() {
     setTimeout(() => {
       nextStep();
     }, 500);
-  }, [updatePreferences, submitResponse, nextStep, interactionStart]);
+  }, [updatePreferences, submitResponse, nextStep]);
 
   // Handle key press
   const handleKeyDown = (e: React.KeyboardEvent) => {

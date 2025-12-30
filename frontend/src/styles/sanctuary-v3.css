@@ -1,0 +1,725 @@
+/* ============================================================================
+   SILENT HELP - SANCTUARY V3 DESIGN SYSTEM
+   "The Invisible Fortress" - Liquid Sanctuary Architecture
+   
+   Design Philosophy:
+   - The UI behaves like water - flows around the user, never pushes
+   - Zero sharp edges, zero jarring transitions, zero cognitive demands
+   - Parasympathetic Nervous System activation through visual softness
+   - Target: 60 seconds to calm
+   ============================================================================ */
+
+/* ============================================================================
+   CSS CUSTOM PROPERTIES - Complete Design Token System
+   ============================================================================ */
+
+:root {
+  /* === VOID BASE === */
+  --void: #020408;
+  --void-soft: #0a0d14;
+  
+  /* === LIQUID GLASS SYSTEM === */
+  --glass-card-bg: rgba(255, 255, 255, 0.03);
+  --glass-card-elevated-bg: rgba(255, 255, 255, 0.05);
+  --glass-card-floating-bg: rgba(255, 255, 255, 0.02);
+  --glass-pill-bg: rgba(255, 255, 255, 0.08);
+  --glass-rail-bg: rgba(13, 17, 23, 0.6);
+  
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-border-top: rgba(255, 255, 255, 0.1);
+  --glass-border-hover: rgba(255, 255, 255, 0.15);
+  
+  --glass-blur-sm: 16px;
+  --glass-blur-md: 20px;
+  --glass-blur-lg: 30px;
+  --glass-blur-xl: 40px;
+  
+  /* === SEMANTIC COLORS === */
+  /* Sanctuary - Home state (peaceful indigo) */
+  --sanctuary-primary: #6366f1;
+  --sanctuary-secondary: #818cf8;
+  --sanctuary-glow: rgba(99, 102, 241, 0.3);
+  --sanctuary-subtle: rgba(99, 102, 241, 0.1);
+  
+  /* Calm - Healing teal/mint */
+  --calm-primary: #14b8a6;
+  --calm-secondary: #5eead4;
+  --calm-glow: rgba(20, 184, 166, 0.3);
+  --calm-subtle: rgba(20, 184, 166, 0.1);
+  
+  /* Bridge - Warm amber */
+  --bridge-primary: #f59e0b;
+  --bridge-secondary: #fcd34d;
+  --bridge-glow: rgba(245, 158, 11, 0.3);
+  --bridge-subtle: rgba(245, 158, 11, 0.1);
+  
+  /* Alert - Soft rose */
+  --alert-primary: #f43f5e;
+  --alert-secondary: #fb7185;
+  --alert-glow: rgba(244, 63, 94, 0.3);
+  --alert-subtle: rgba(244, 63, 94, 0.1);
+  
+  /* Crisis - Urgent but not alarming */
+  --crisis-primary: #ef4444;
+  --crisis-secondary: #fca5a5;
+  --crisis-glow: rgba(239, 68, 68, 0.4);
+  --crisis-subtle: rgba(239, 68, 68, 0.15);
+  
+  /* Journal - Creative pink */
+  --journal-primary: #ec4899;
+  --journal-secondary: #f472b6;
+  --journal-glow: rgba(236, 72, 153, 0.3);
+  --journal-subtle: rgba(236, 72, 153, 0.1);
+  
+  /* Grounding - Stable violet */
+  --grounding-primary: #8b5cf6;
+  --grounding-secondary: #a78bfa;
+  --grounding-glow: rgba(139, 92, 246, 0.3);
+  --grounding-subtle: rgba(139, 92, 246, 0.1);
+  
+  /* === NEUTRAL PALETTE === */
+  --neutral-white: #ffffff;
+  --neutral-100: #f1f5f9;
+  --neutral-200: #e2e8f0;
+  --neutral-300: #cbd5e1;
+  --neutral-400: #94a3b8;
+  --neutral-500: #64748b;
+  --neutral-600: #475569;
+  --neutral-700: #334155;
+  --neutral-800: #1e293b;
+  --neutral-900: #0f172a;
+  --neutral-950: #020617;
+  
+  /* === PREMIUM SHADOWS === */
+  --shadow-card: 0 4px 30px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-card-elevated: 0 8px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --shadow-card-floating: 0 20px 60px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 30px var(--sanctuary-glow);
+  
+  /* === MOTION PHYSICS === */
+  --spring-bounce: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --spring-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --spring-enter: cubic-bezier(0, 0.55, 0.45, 1);
+  
+  /* === TYPOGRAPHY === */
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  
+  /* === NEURO-ADAPTIVE STATE SPEEDS === */
+  --nebula-speed: 45s;
+  --glow-intensity: 0.15;
+  --animation-speed: 1;
+}
+
+/* === STATE-BASED ADAPTATIONS === */
+[data-cognitive-state="calm"] {
+  --nebula-speed: 45s;
+  --glow-intensity: 0.15;
+  --current-accent: var(--sanctuary-primary);
+  --current-glow: var(--sanctuary-glow);
+}
+
+[data-cognitive-state="maintenance"] {
+  --nebula-speed: 30s;
+  --glow-intensity: 0.25;
+  --current-accent: var(--grounding-primary);
+  --current-glow: var(--grounding-glow);
+}
+
+[data-cognitive-state="high_stress"] {
+  --nebula-speed: 15s;
+  --glow-intensity: 0.4;
+  --current-accent: var(--alert-primary);
+  --current-glow: var(--alert-glow);
+}
+
+[data-cognitive-state="crisis"] {
+  --nebula-speed: 8s;
+  --glow-intensity: 0.6;
+  --current-accent: var(--crisis-primary);
+  --current-glow: var(--crisis-glow);
+}
+
+/* ============================================================================
+   LIQUID GLASS COMPONENTS
+   ============================================================================ */
+
+.liquid-glass-card {
+  background: var(--glass-card-bg);
+  backdrop-filter: blur(var(--glass-blur-md));
+  -webkit-backdrop-filter: blur(var(--glass-blur-md));
+  border: 1px solid var(--glass-border);
+  border-top-color: var(--glass-border-top);
+  box-shadow: var(--shadow-card);
+  border-radius: 24px;
+  transition: all 0.3s var(--spring-bounce);
+}
+
+.liquid-glass-card:hover {
+  border-color: var(--glass-border-hover);
+  box-shadow: var(--shadow-card), var(--shadow-glow);
+  transform: translateY(-2px) scale(1.01);
+}
+
+.liquid-glass-card:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
+}
+
+.liquid-glass-elevated {
+  background: var(--glass-card-elevated-bg);
+  backdrop-filter: blur(var(--glass-blur-lg));
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top-color: rgba(255, 255, 255, 0.15);
+  box-shadow: var(--shadow-card-elevated);
+  border-radius: 28px;
+}
+
+.liquid-glass-floating {
+  background: var(--glass-card-floating-bg);
+  backdrop-filter: blur(var(--glass-blur-xl));
+  -webkit-backdrop-filter: blur(var(--glass-blur-xl));
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: var(--shadow-card-floating);
+  border-radius: 32px;
+}
+
+.liquid-glass-pill {
+  background: var(--glass-pill-bg);
+  backdrop-filter: blur(var(--glass-blur-sm));
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+}
+
+.liquid-glass-rail {
+  background: var(--glass-rail-bg);
+  backdrop-filter: blur(var(--glass-blur-lg));
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-card);
+}
+
+/* ============================================================================
+   COSMIC BACKGROUND ANIMATIONS
+   ============================================================================ */
+
+@keyframes nebula-drift {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(5%, 3%) scale(1.02);
+  }
+  50% {
+    transform: translate(2%, 6%) scale(1);
+  }
+  75% {
+    transform: translate(-3%, 2%) scale(1.01);
+  }
+}
+
+@keyframes nebula-drift-reverse {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(-4%, -2%) scale(1.01);
+  }
+  50% {
+    transform: translate(-2%, -5%) scale(1);
+  }
+  75% {
+    transform: translate(3%, -3%) scale(1.02);
+  }
+}
+
+@keyframes conic-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes gentle-pulse {
+  0%, 100% {
+    opacity: var(--glow-intensity);
+    transform: scale(1);
+  }
+  50% {
+    opacity: calc(var(--glow-intensity) * 1.5);
+    transform: scale(1.05);
+  }
+}
+
+@keyframes star-twinkle {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes bpm-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 0.8;
+  }
+}
+
+@keyframes ring-expand {
+  0% {
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+/* ============================================================================
+   TYPOGRAPHY SYSTEM
+   ============================================================================ */
+
+.text-hero {
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-weight: 200;
+}
+
+.text-h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-weight: 300;
+}
+
+.text-h2 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  font-weight: 400;
+}
+
+.text-body {
+  font-size: 1rem;
+  line-height: 1.6;
+  letter-spacing: 0;
+}
+
+.text-small {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+}
+
+.text-caption {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+}
+
+.text-gradient-hero {
+  background: linear-gradient(135deg, #ffffff 0%, #94a3b8 50%, #64748b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ============================================================================
+   MAGNETIC BUTTON PHYSICS
+   ============================================================================ */
+
+.magnetic-pull {
+  transition: transform 0.3s var(--spring-bounce);
+}
+
+.magnetic-pull:hover {
+  transform: translateY(-2px) scale(1.02);
+}
+
+.magnetic-pull:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
+}
+
+/* ============================================================================
+   ACCESSIBILITY - WCAG AAA for Crisis Pathways
+   ============================================================================ */
+
+/* Touch targets */
+.touch-44 { min-height: 44px; min-width: 44px; }
+.touch-56 { min-height: 56px; min-width: 56px; }
+.touch-80 { min-height: 80px; min-width: 80px; } /* Crisis state */
+
+/* Focus rings */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--sanctuary-primary);
+  outline-offset: 2px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .nebula-orb,
+  .conic-ring,
+  .pulse-ring {
+    animation: none !important;
+  }
+}
+
+/* ============================================================================
+   BENTO GRID SYSTEM
+   ============================================================================ */
+
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1rem;
+}
+
+.bento-span-3 { grid-column: span 3; }
+.bento-span-4 { grid-column: span 4; }
+.bento-span-6 { grid-column: span 6; }
+.bento-span-12 { grid-column: span 12; }
+
+@media (max-width: 1024px) {
+  .bento-span-3, .bento-span-4 { grid-column: span 6; }
+  .bento-span-6 { grid-column: span 12; }
+}
+
+@media (max-width: 640px) {
+  .bento-grid { grid-template-columns: 1fr; }
+  .bento-span-3, .bento-span-4, .bento-span-6 { grid-column: span 1; }
+}
+
+/* ============================================================================
+   DOCK NAVIGATION
+   ============================================================================ */
+
+.dock-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 16px;
+  transition: all 0.2s var(--spring-smooth);
+  cursor: pointer;
+}
+
+.dock-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.dock-item.active {
+  background: var(--sanctuary-subtle);
+}
+
+.dock-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 24px;
+  background: var(--sanctuary-primary);
+  border-radius: 0 3px 3px 0;
+}
+
+.dock-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  transition: all 0.2s var(--spring-bounce);
+}
+
+.dock-item:hover .dock-icon {
+  transform: scale(1.1);
+}
+
+.dock-item.active .dock-icon {
+  box-shadow: 0 0 20px var(--sanctuary-glow);
+}
+
+.dock-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all 0.2s var(--spring-smooth);
+}
+
+.dock-expanded .dock-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ============================================================================
+   BIOMETRIC ORB
+   ============================================================================ */
+
+.bio-orb-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bio-orb-aura {
+  position: absolute;
+  inset: -20%;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--current-glow) 0%, transparent 70%);
+  animation: gentle-pulse 4s ease-in-out infinite;
+}
+
+.bio-orb-conic {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    var(--sanctuary-primary),
+    var(--sanctuary-secondary),
+    var(--sanctuary-primary)
+  );
+  opacity: 0.25;
+  animation: conic-rotate 25s linear infinite;
+}
+
+.bio-orb-dark-ring {
+  position: absolute;
+  inset: 5%;
+  border-radius: 50%;
+  background: var(--void);
+  border: 2px solid rgba(99, 102, 241, 0.4);
+}
+
+.bio-orb-core {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 80%;
+  height: 80%;
+  border-radius: 50%;
+}
+
+.bio-orb-bpm {
+  font-size: clamp(3rem, 8vw, 5rem);
+  font-weight: 200;
+  color: var(--neutral-white);
+  animation: bpm-pulse 1s ease-in-out infinite;
+}
+
+.bio-orb-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--neutral-400);
+}
+
+/* ============================================================================
+   TOOL CARD VISUAL EFFECTS
+   ============================================================================ */
+
+.tool-card-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--card-accent), transparent);
+  border-radius: 24px 24px 0 0;
+}
+
+.tool-card-visual {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  opacity: 0.3;
+  transition: opacity 0.3s ease;
+}
+
+.liquid-glass-card:hover .tool-card-visual {
+  opacity: 0.6;
+}
+
+/* Waveform effect for breathing */
+.waveform-effect {
+  width: 80px;
+  height: 40px;
+}
+
+.waveform-path {
+  stroke: var(--calm-primary);
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+}
+
+/* Ripple effect for grounding */
+.ripple-effect {
+  position: relative;
+  width: 60px;
+  height: 60px;
+}
+
+.ripple-ring {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--grounding-primary);
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+.ripple-ring:nth-child(1) { animation: ring-expand 3s ease-out infinite; }
+.ripple-ring:nth-child(2) { animation: ring-expand 3s ease-out infinite 1s; }
+.ripple-ring:nth-child(3) { animation: ring-expand 3s ease-out infinite 2s; }
+
+/* ============================================================================
+   SOS BUTTON
+   ============================================================================ */
+
+.sos-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 9999px;
+  color: var(--crisis-secondary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s var(--spring-smooth);
+  overflow: hidden;
+}
+
+.sos-button:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
+  box-shadow: 0 0 30px var(--crisis-glow);
+}
+
+.sos-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--crisis-primary);
+  transition: width 0.1s linear;
+}
+
+.sos-hint {
+  font-size: 0.625rem;
+  color: var(--neutral-500);
+  letter-spacing: 0.05em;
+}
+
+/* ============================================================================
+   INSIGHTS DRAWER
+   ============================================================================ */
+
+.insights-fab {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--sanctuary-subtle);
+  border: 1px solid var(--sanctuary-glow);
+  color: var(--sanctuary-primary);
+  cursor: pointer;
+  transition: all 0.3s var(--spring-bounce);
+  z-index: 50;
+}
+
+.insights-fab:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 30px var(--sanctuary-glow);
+}
+
+.insights-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(400px, 90vw);
+  background: var(--void);
+  border-left: 1px solid var(--glass-border);
+  z-index: 100;
+}
+
+/* ============================================================================
+   MOBILE TAB BAR
+   ============================================================================ */
+
+.mobile-tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  padding: 0.5rem;
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  background: var(--glass-rail-bg);
+  backdrop-filter: blur(var(--glass-blur-lg));
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg));
+  border-top: 1px solid var(--glass-border);
+  z-index: 50;
+}
+
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  color: var(--neutral-400);
+  transition: all 0.2s var(--spring-smooth);
+}
+
+.tab-item.active {
+  color: var(--sanctuary-primary);
+}
+
+.tab-item.active .tab-icon {
+  transform: translateY(-2px);
+}
+
+.tab-label {
+  font-size: 0.625rem;
+  font-weight: 500;
+}

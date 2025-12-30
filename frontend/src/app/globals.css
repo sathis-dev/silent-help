@@ -1,14 +1,15 @@
 @import "tailwindcss";
+@import "../styles/sanctuary-v3.css";
 
 /* ============================================================================
-   Silent Help - ULTRA UPGRADE 2025
-   "Neural Sanctuary Architecture"
+   Silent Help - SANCTUARY V3
+   "The Invisible Fortress" - Liquid Sanctuary Architecture
    
    Design Philosophy:
-   - Zero-Gravity Design: No sharp edges, no high-contrast white-on-black
-   - Cognitive Load Decompression & Parasympathetic Activation
-   - Low-Pass Visual Filter: Everything feels softer, floatier
-   - Glassmorphism + Bio-Responsive UI
+   - The UI behaves like water - flows around users, never pushes
+   - Zero sharp edges, zero jarring transitions, zero cognitive demands
+   - Parasympathetic Nervous System activation through visual softness
+   - Target: 60 seconds to calm
    ============================================================================ */
 
 :root {

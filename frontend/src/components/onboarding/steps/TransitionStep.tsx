@@ -49,23 +49,17 @@ const STAGES = [
 export function TransitionStep() {
   const { session, completeOnboarding } = useOnboarding();
   const [currentStage, setCurrentStage] = useState(0);
-  const [isComplete, setIsComplete] = useState(false);
-  const [userName, setUserName] = useState('friend');
   const [showFinalMessage, setShowFinalMessage] = useState(false);
 
-  // Get user name from session
-  useEffect(() => {
-    if (session.userName) {
-      setUserName(session.userName);
-    } else if (session.userPreferences.displayName) {
-      setUserName(session.userPreferences.displayName);
-    }
-  }, [session]);
+  // Compute userName from session (derived state, no effect needed)
+  const userName = session.userName || session.userPreferences.displayName || 'friend';
+
+  // Compute isComplete from currentStage (derived state)
+  const isComplete = currentStage >= STAGES.length;
 
   // Progress through stages
   useEffect(() => {
     if (currentStage >= STAGES.length) {
-      setIsComplete(true);
       return;
     }
 
@@ -80,14 +74,18 @@ export function TransitionStep() {
   // Complete onboarding when stages are done
   useEffect(() => {
     if (isComplete) {
-      setShowFinalMessage(true);
+      // Defer state update to avoid synchronous setState in effect
+      const showTimer = setTimeout(() => setShowFinalMessage(true), 0);
       
       // Delay before completing
-      const timer = setTimeout(async () => {
+      const completeTimer = setTimeout(async () => {
         await completeOnboarding();
       }, 2000);
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(showTimer);
+        clearTimeout(completeTimer);
+      };
     }
   }, [isComplete, completeOnboarding]);
 
@@ -232,7 +230,7 @@ export function TransitionStep() {
                   WebkitTextFillColor: 'transparent',
                 }}
               >
-                I'll remember you, {userName}
+                I&apos;ll remember you, {userName}
               </h2>
               <p className="text-slate-400 text-lg">
                 Your space is ready

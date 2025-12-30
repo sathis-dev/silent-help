@@ -1,12 +1,13 @@
 /**
  * Atmosphere Components
  * 
- * NEURAL SANCTUARY - 2025 Ultra Upgrade
- * Dynamic Mesh Gradient + Glassmorphism
+ * SANCTUARY V3 - The Invisible Fortress
+ * Living Nebula Background + Liquid Glass System
  * Neuro-Adaptive Visual Engine
  */
 
 export { AtmosphericBackground, NeuralMeshBackground } from './AtmosphericBackground';
+export { CosmicBackground } from './CosmicBackground';
 export { BioPulse } from './BioPulse';
 export { MemoryGreeting } from './MemoryGreeting';
 export { PathwayGrid } from './PathwayGrid';

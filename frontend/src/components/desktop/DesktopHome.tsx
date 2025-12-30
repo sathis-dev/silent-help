@@ -12,7 +12,7 @@
  * - Personalized based on onboarding results
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { DesktopNavigation } from './navigation/DesktopNavigation';
 import { SanctuaryCenter } from './sanctuary/SanctuaryCenter';
@@ -63,10 +63,8 @@ interface Particle {
 }
 
 function AmbientParticles({ persona }: { persona: UserPersona }) {
-  const [particles, setParticles] = useState<Particle[]>([]);
-
-  // Generate particles based on persona
-  useEffect(() => {
+  // Generate particles based on persona using useMemo to avoid setState in effect
+  const particles = useMemo(() => {
     const colors = {
       crisis_seeker: ['rgba(229, 57, 53, 0.15)', 'rgba(244, 114, 182, 0.1)'],
       anxiety_manager: ['rgba(180, 167, 214, 0.15)', 'rgba(139, 127, 184, 0.1)'],
@@ -78,18 +76,23 @@ function AmbientParticles({ persona }: { persona: UserPersona }) {
 
     const personaColors = colors[persona] || colors.curious_explorer;
     
-    const newParticles: Particle[] = Array.from({ length: 50 }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: Math.random() * 4 + 2,
-      opacity: Math.random() * 0.5 + 0.2,
-      duration: Math.random() * 20 + 15,
-      delay: Math.random() * -20,
-      color: personaColors[Math.floor(Math.random() * personaColors.length)],
-    }));
+    // Use deterministic pseudo-random based on persona to avoid hydration mismatch
+    const seed = persona.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const seededRandom = (i: number) => {
+      const x = Math.sin(seed + i * 9999) * 10000;
+      return x - Math.floor(x);
+    };
     
-    setParticles(newParticles);
+    return Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      x: seededRandom(i * 5) * 100,
+      y: seededRandom(i * 5 + 1) * 100,
+      size: seededRandom(i * 5 + 2) * 4 + 2,
+      opacity: seededRandom(i * 5 + 3) * 0.5 + 0.2,
+      duration: seededRandom(i * 5 + 4) * 20 + 15,
+      delay: seededRandom(i * 5 + 5) * -20,
+      color: personaColors[Math.floor(seededRandom(i * 5 + 6) * personaColors.length)],
+    }));
   }, [persona]);
 
   return (
@@ -107,7 +110,7 @@ function AmbientParticles({ persona }: { persona: UserPersona }) {
           }}
           animate={{
             y: [0, -200, 0],
-            x: [0, Math.random() * 100 - 50, 0],
+            x: [0, (particle.x % 100) - 50, 0],
             opacity: [0, particle.opacity, 0],
           }}
           transition={{
@@ -653,7 +656,7 @@ function GroundingView({ onBack }: { onBack: () => void }) {
         </div>
         
         <p className="text-slate-400">
-          Take your time to notice each sensation. There's no rush.
+          Take your time to notice each sensation. There&apos;s no rush.
         </p>
       </div>
     </motion.div>
@@ -759,9 +762,9 @@ function SOSView({ onBack }: { onBack: () => void }) {
           🆘
         </motion.div>
         
-        <h2 className="text-3xl font-semibold text-white mb-4">You're Not Alone</h2>
+        <h2 className="text-3xl font-semibold text-white mb-4">You&apos;re Not Alone</h2>
         <p className="text-slate-300 mb-8">
-          If you're in crisis, please reach out. Help is available 24/7.
+          If you&apos;re in crisis, please reach out. Help is available 24/7.
         </p>
         
         <div className="grid gap-4">

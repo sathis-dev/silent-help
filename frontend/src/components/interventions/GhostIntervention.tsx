@@ -194,7 +194,7 @@ function BreathingExercise({
           onClick={onComplete}
           whileTap={{ scale: 0.95 }}
         >
-          I'm feeling better
+          I&apos;m feeling better
         </motion.button>
       )}
     </div>

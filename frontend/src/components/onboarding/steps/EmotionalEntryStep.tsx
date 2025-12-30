@@ -11,7 +11,7 @@
  * - Tracks hesitation for persona detection
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOnboarding, useCurrentOnboardingStep } from '../OnboardingProvider';
 import { EmotionOrb } from '../ui/EmotionOrb';
@@ -41,7 +41,11 @@ export function EmotionalEntryStep() {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [hoveredOption, setHoveredOption] = useState<string | null>(null);
   const [hesitationCount, setHesitationCount] = useState(0);
-  const [interactionStart] = useState(Date.now());
+  const interactionStartRef = useRef<number>(0);
+
+  useEffect(() => {
+    interactionStartRef.current = Date.now();
+  }, []);
 
   // Handle option hover (tracks hesitation)
   const handleHover = useCallback((optionId: string) => {
@@ -59,7 +63,7 @@ export function EmotionalEntryStep() {
     submitResponse({
       stepId: 'emotional_entry',
       value: option.id,
-      interactionTime: Date.now() - interactionStart,
+      interactionTime: Date.now() - interactionStartRef.current,
       hesitationCount,
       confidence: hesitationCount < 2 ? 0.9 : hesitationCount < 4 ? 0.7 : 0.5,
     });
@@ -68,7 +72,7 @@ export function EmotionalEntryStep() {
     setTimeout(() => {
       nextStep();
     }, 600);
-  }, [submitResponse, nextStep, interactionStart, hesitationCount]);
+  }, [submitResponse, nextStep, hesitationCount]);
 
   if (!currentStep?.options) return null;
 
@@ -130,7 +134,7 @@ export function EmotionalEntryStep() {
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8 }}
       >
-        There's no wrong answer. This helps me understand how to support you.
+        There&apos;s no wrong answer. This helps me understand how to support you.
       </motion.p>
     </div>
   );

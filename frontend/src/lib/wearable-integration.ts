@@ -546,10 +546,13 @@ export function useWearables() {
     const unsubBiometrics = manager.subscribe(setBiometrics);
     const unsubTriggers = manager.onTrigger(setLatestTrigger);
     
-    // Initial state
-    setConnections(manager.getConnections());
+    // Initial state - defer to avoid synchronous setState in effect
+    const timeout = setTimeout(() => {
+      setConnections(manager.getConnections());
+    }, 0);
 
     return () => {
+      clearTimeout(timeout);
       unsubBiometrics();
       unsubTriggers();
     };
