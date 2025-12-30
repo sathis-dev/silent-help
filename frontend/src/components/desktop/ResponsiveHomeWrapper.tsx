@@ -6,12 +6,12 @@
  * 
  * Detects viewport size and renders the appropriate UI:
  * - Mobile (< 1024px): Original mobile app UI
- * - Desktop (≥ 1024px): Website-style UI with panels
+ * - Desktop (≥ 1024px): Ultra Desktop - Midnight Stealth UI
  */
 
 import React, { useState, useEffect, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DesktopHome } from './DesktopHome';
+import { UltraDesktopHome } from './UltraDesktopHome';
 import type { UserProfile } from '@/lib/types/onboarding';
 
 // ============================================================================
@@ -106,7 +106,7 @@ export function ResponsiveHomeWrapper({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <DesktopHome userProfile={userProfile} />
+          <UltraDesktopHome userProfile={userProfile} />
         </motion.div>
       ) : (
         <motion.div

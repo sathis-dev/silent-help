@@ -1,8 +1,9 @@
 /**
  * Silent Help - Desktop Components
- * Premium website-style UI for desktop viewports
+ * Ultra Upgrade - Midnight Stealth UI
  */
 
+export { UltraDesktopHome } from './UltraDesktopHome';
 export { DesktopHome } from './DesktopHome';
 export { DesktopNavigation } from './navigation/DesktopNavigation';
 export { SanctuaryCenter } from './sanctuary/SanctuaryCenter';
