@@ -1,23 +1,60 @@
 @import "tailwindcss";
 
 /* ============================================================================
-   Silent Help - Global Styles
-   "The Midnight Sanctuary" - Atmospheric Depth, Biological Regulation
+   Silent Help - ULTRA UPGRADE 2025
+   "Neural Sanctuary Architecture"
    
    Design Philosophy:
-   - Slate-950 (#020617) as base - the void should feel alive, not threatening
-   - Indigo-900 radial gradients at 15% for "breathing" atmosphere
-   - Spring physics for all motion - elements float as if underwater
-   - WCAG 2.2 AA compliance: 4.5:1 contrast, 18px minimum for actions
-   
-   2025 Wellness Color Trends:
-   - Digital Lavender (#E6E6FA → #B4A7D6) - Luxury calm, spiritual wellness
-   - Neo-Mint (#AAFFC6 → #7FDBCA) - Fresh vitality, nature-tech fusion
+   - Zero-Gravity Design: No sharp edges, no high-contrast white-on-black
+   - Cognitive Load Decompression & Parasympathetic Activation
+   - Low-Pass Visual Filter: Everything feels softer, floatier
+   - Glassmorphism + Bio-Responsive UI
    ============================================================================ */
 
 :root {
+  /* === HIGH TECH GLASS PALETTE === */
+  --glass-bg: rgba(13, 17, 23, 0.4);
+  --glass-bg-solid: rgba(255, 255, 255, 0.03);
+  --glass-bg-elevated: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-hover: rgba(255, 255, 255, 0.15);
+  --glass-blur: 24px;
+  --glass-blur-heavy: 32px;
+  
+  /* === ACCENT GLOWS === */
+  --accent-glow: rgba(99, 102, 241, 0.4);
+  --accent-glow-soft: rgba(99, 102, 241, 0.2);
+  --accent-indigo: #6366F1;
+  --accent-violet: #8B5CF6;
+  --accent-rose: #F43F5E;
+  
+  /* === NEURAL MESH COLORS === */
+  --mesh-base: #02040A;
+  --mesh-blob-1: #1E1B4B;
+  --mesh-blob-2: #0F172A;
+  --mesh-blob-3: #312E81;
+  
+  /* === PREMIUM SHADOWS === */
+  --shadow-premium: 0 20px 50px rgba(0, 0, 0, 0.5);
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --shadow-glow-indigo: 0 0 60px rgba(99, 102, 241, 0.3);
+  --shadow-glow-rose: 0 0 60px rgba(244, 63, 94, 0.3);
+  
+  /* === NEURO-ADAPTIVE UI STATES === */
+  --state-calm-speed: 40s;
+  --state-calm-glow: 0.2;
+  --state-calm-color: #6366F1;
+  
+  --state-anxious-speed: 10s;
+  --state-anxious-glow: 0.6;
+  --state-anxious-color: #F43F5E;
+  
+  --state-crisis-speed: 5s;
+  --state-crisis-glow: 1.0;
+  --state-crisis-color: #DC2626;
+  
   /* Midnight Sanctuary Base */
-  --sanctuary-base: #020617;
+  --sanctuary-base: #02040A;
   --sanctuary-glow: rgba(49, 46, 129, 0.15);
   
   /* 2025 Wellness Palette */
@@ -36,48 +73,30 @@
   --lifebuoy-glow: rgba(229, 57, 53, 0.4);
   
   /* Legacy light fallbacks */
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #02040A;
+  --foreground: #F1F5F9;
 }
 
-/* Light Theme - Rarely used, sanctuary is dark-first */
-:root[data-theme="light"] {
-  --bg: #FAFAF9;
-  --surface: #FFFFFF;
-  --surface-2: #F3F4F6;
-  --text: #0F172A;
-  --text-muted: #475569;
-  --primary: var(--neo-mint-deep);
-  --on-primary: #0F172A;
+/* Dark Theme - The Neural Sanctuary */
+:root[data-theme="dark"], :root:not([data-theme]) {
+  --bg: #02040A;
+  --surface: rgba(255, 255, 255, 0.03);
+  --surface-2: rgba(255, 255, 255, 0.05);
+  --text: #F1F5F9;
+  --text-muted: #94A3B8;
+  --primary: var(--accent-indigo);
+  --on-primary: #FFFFFF;
   --secondary: var(--digital-lavender);
-  --accent: var(--neo-mint);
-  --success: #10B981;
+  --accent: var(--accent-violet);
+  --success: var(--neo-mint-deep);
   --warning: var(--digital-lavender-deep);
   --danger: var(--lifebuoy-red);
-  --border: #E5E7EB;
-  --focus: var(--neo-mint);
-}
-
-/* Dark Theme - The Midnight Sanctuary */
-:root[data-theme="dark"], :root:not([data-theme]) {
-  --bg: #020617; /* Slate-950 - Deep sanctuary */
-  --surface: #0F172A; /* Slate-900 */
-  --surface-2: #1E293B; /* Slate-800 */
-  --text: #F1F5F9; /* Slate-100 - High contrast for accessibility */
-  --text-muted: #CBD5E1; /* Slate-300 - Improved contrast 4.5:1+ */
-  --primary: var(--neo-mint); /* Neo-Mint - Calm, fresh */
-  --on-primary: #0F172A;
-  --secondary: var(--digital-lavender); /* Digital Lavender - Luxury */
-  --accent: var(--neo-mint-soft);
-  --success: var(--neo-mint-deep);
-  --warning: var(--digital-lavender-deep); /* Lavender for bridge state */
-  --danger: var(--lifebuoy-red); /* Lifebuoy Red for SOS */
-  --border: #334155; /* Slate-700 */
-  --focus: var(--neo-mint);
+  --border: var(--glass-border);
+  --focus: var(--accent-indigo);
 }
 
 html, body { 
-  background: #020617 !important;  /* Force slate-950 - TRUE Midnight Sanctuary */
+  background: var(--mesh-base) !important;
   color: var(--text);
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
@@ -85,11 +104,89 @@ html, body {
 }
 
 body {
-  font-family: var(--font-geist-sans), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   min-height: 100vh;
   min-height: 100dvh;
-  background: #020617 !important;  /* Enforce dark background */
+  background: var(--mesh-base) !important;
+}
+
+/* ============================================================================
+   GLASSMORPHIC COMPONENT SYSTEM
+   ============================================================================ */
+
+.glass-card {
+  background: var(--glass-bg-solid);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-glass);
+  border-radius: 24px;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.glass-card:hover {
+  border-color: var(--glass-border-hover);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-glow-indigo);
+}
+
+.glass-card-elevated {
+  background: var(--glass-bg-elevated);
+  backdrop-filter: blur(var(--glass-blur-heavy));
+  -webkit-backdrop-filter: blur(var(--glass-blur-heavy));
+  border: 1px solid var(--glass-border);
+  border-top-color: rgba(255, 255, 255, 0.12);
+  border-left-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    var(--shadow-premium),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  border-radius: 24px;
+}
+
+.glass-rail {
+  background: rgba(13, 17, 23, 0.6);
+  backdrop-filter: blur(var(--glass-blur-heavy));
+  -webkit-backdrop-filter: blur(var(--glass-blur-heavy));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-glass);
+}
+
+/* ============================================================================
+   MAGNETIC BUTTON EFFECT
+   ============================================================================ */
+
+.magnetic-button {
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.magnetic-button:hover {
+  transform: scale(1.02) translateY(-2px);
+}
+
+.magnetic-button:active {
+  transform: scale(0.98);
+}
+
+/* ============================================================================
+   FADE SCROLL MASKS
+   ============================================================================ */
+
+.fade-scroll-mask {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 8%,
+    black 92%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 8%,
+    black 92%,
+    transparent 100%
+  );
 }
 
 /* Safe area padding utility */

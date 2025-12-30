@@ -6,12 +6,12 @@
  * 
  * Detects viewport size and renders the appropriate UI:
  * - Mobile (< 1024px): Original mobile app UI
- * - Desktop (≥ 1024px): Ultra Desktop - Midnight Stealth UI
+ * - Desktop (≥ 1024px): Neural Sanctuary - God-Tier 2025
  */
 
 import React, { useState, useEffect, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UltraDesktopHome } from './UltraDesktopHome';
+import { NeuralSanctuary } from './NeuralSanctuary';
 import type { UserProfile } from '@/lib/types/onboarding';
 
 // ============================================================================
@@ -106,7 +106,7 @@ export function ResponsiveHomeWrapper({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <UltraDesktopHome userProfile={userProfile} />
+          <NeuralSanctuary userProfile={userProfile} />
         </motion.div>
       ) : (
         <motion.div

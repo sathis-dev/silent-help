@@ -1,11 +1,12 @@
 /**
  * Atmosphere Components
  * 
- * The "Midnight Sanctuary" design system.
- * Atmospheric depth, spring physics, biological regulation.
+ * NEURAL SANCTUARY - 2025 Ultra Upgrade
+ * Dynamic Mesh Gradient + Glassmorphism
+ * Neuro-Adaptive Visual Engine
  */
 
-export { AtmosphericBackground } from './AtmosphericBackground';
+export { AtmosphericBackground, NeuralMeshBackground } from './AtmosphericBackground';
 export { BioPulse } from './BioPulse';
 export { MemoryGreeting } from './MemoryGreeting';
 export { PathwayGrid } from './PathwayGrid';

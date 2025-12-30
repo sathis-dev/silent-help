@@ -1,8 +1,12 @@
 /**
  * Silent Help - Desktop Components
- * Ultra Upgrade - Midnight Stealth UI
+ * NEURAL SANCTUARY - God-Tier 2025 Upgrade
+ * 
+ * Architecture: Zero-Gravity Design
+ * Visual Engine: Dynamic Mesh Gradient + Glassmorphism
  */
 
+export { NeuralSanctuary } from './NeuralSanctuary';
 export { UltraDesktopHome } from './UltraDesktopHome';
 export { DesktopHome } from './DesktopHome';
 export { DesktopNavigation } from './navigation/DesktopNavigation';
