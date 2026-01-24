@@ -14,6 +14,8 @@
  * - Dates that could identify individuals
  */
 
+import crypto from 'crypto';
+
 // UK-specific patterns
 const UK_PATTERNS = {
   // NHS Number: 10 digits, often formatted with spaces
@@ -242,7 +244,7 @@ function scrubPotentialNames(text: string, matches: PIIMatch[]): string {
 /**
  * Heuristic to determine if a word in context is likely a name.
  */
-function isLikelyName(context: string, word: string): boolean {
+function isLikelyName(context: string, _word: string): boolean {
   // Check for name indicators in context
   const nameIndicators = ['my', 'called', 'named', 'name is', 'i\'m', 'he\'s', 'she\'s'];
   const contextLower = context.toLowerCase();
@@ -284,6 +286,5 @@ export function containsPII(text: string): boolean {
  * without exposing the original content.
  */
 export function hashForDedup(text: string): string {
-  const crypto = require('crypto');
   return crypto.createHash('sha256').update(text).digest('hex').slice(0, 16);
 }

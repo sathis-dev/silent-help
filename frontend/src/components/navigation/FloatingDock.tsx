@@ -24,6 +24,7 @@ import {
   Activity,
   Settings,
   Sparkles,
+  LogOut,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -102,6 +103,13 @@ const DOCK_ITEMS: DockItem[] = [
     accent: '#64748b',
     position: 'bottom',
     separated: true,
+  },
+  {
+    id: 'logout',
+    label: 'Log Out',
+    icon: LogOut,
+    accent: '#ef4444',
+    position: 'bottom',
   },
 ];
 
@@ -233,11 +241,28 @@ export const FloatingDock: React.FC<FloatingDockProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  const handleLogout = useCallback(() => {
+    // Clear all auth-related data from localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('silent_help_auth_user');
+      localStorage.removeItem('silent_help_guest_user');
+      localStorage.removeItem('silent_help_onboarding_complete');
+      localStorage.removeItem('silent_help_user_preferences');
+      
+      // Redirect to home page to restart onboarding
+      window.location.href = '/';
+    }
+  }, []);
+
   const handleNavigate = useCallback(
     (id: string) => {
+      if (id === 'logout') {
+        handleLogout();
+        return;
+      }
       onNavigate?.(id);
     },
-    [onNavigate]
+    [onNavigate, handleLogout]
   );
 
   // Separate items by position
@@ -258,7 +283,7 @@ export const FloatingDock: React.FC<FloatingDockProps> = ({
       transition={springConfig}
     >
       <div
-        className="flex flex-col rounded-2xl"
+        className="flex flex-col rounded-2xl overflow-visible"
         style={{
           padding: '10px 6px',
           background: 'rgba(10, 15, 20, 0.85)',
@@ -296,9 +321,9 @@ export const FloatingDock: React.FC<FloatingDockProps> = ({
           ))}
         </div>
 
-        {/* Bottom section (Settings) */}
+        {/* Bottom section (Settings + Logout) */}
         {bottomItems.length > 0 && (
-          <div className="pt-2 mt-2 border-t border-white/10">
+          <div className="pt-2 mt-2 border-t border-white/10 space-y-1">
             {bottomItems.map((item) => (
               <DockItemButton
                 key={item.id}

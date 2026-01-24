@@ -1,3 +1,4 @@
+export * from './auth';
 export * from './crisis';
 export * from './breathing';
 export * from './grounding';

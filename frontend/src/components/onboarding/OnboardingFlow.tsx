@@ -18,6 +18,7 @@ import { WelcomeStep } from './steps/WelcomeStep';
 import { EmotionalEntryStep } from './steps/EmotionalEntryStep';
 import { ContextualStep } from './steps/ContextualStep';
 import { PersonalizationStep } from './steps/PersonalizationStep';
+import { AccountStep } from './steps/AccountStep';
 import { TransitionStep } from './steps/TransitionStep';
 import { ParticleField } from './ui/ParticleField';
 import { ProgressRing } from './ui/ProgressRing';
@@ -237,6 +238,8 @@ function renderStep(stepType: string) {
       return <ContextualStep />;
     case 'personalization':
       return <PersonalizationStep />;
+    case 'account':
+      return <AccountStep />;
     case 'transition':
       return <TransitionStep />;
     default:

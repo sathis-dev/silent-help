@@ -52,7 +52,7 @@ export type CopingPreference =
  */
 export interface OnboardingStep {
   id: string;
-  type: 'welcome' | 'emotional_entry' | 'contextual' | 'personalization' | 'transition';
+  type: 'welcome' | 'emotional_entry' | 'contextual' | 'personalization' | 'account' | 'transition';
   title: string;
   subtitle?: string;
   options?: OnboardingOption[];
@@ -529,6 +529,13 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     subtitle: 'I\'ll be gentler during these hours',
     inputType: 'time',
     required: false,
+  },
+  {
+    id: 'account',
+    type: 'account',
+    title: 'Save Your Sanctuary',
+    subtitle: 'Create an account or continue as guest',
+    required: true,
   },
   {
     id: 'transition',

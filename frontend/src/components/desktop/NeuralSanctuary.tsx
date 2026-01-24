@@ -27,7 +27,7 @@ import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from
 import { 
   Home, Wind, Anchor, PenLine, Activity, 
   Sparkles, Heart, Settings, X, ChevronRight,
-  Moon, Waves
+  Moon, Waves, LogOut
 } from 'lucide-react';
 import { NeuralMeshBackground } from '@/components/atmosphere/AtmosphericBackground';
 import type { UserProfile } from '@/lib/types/onboarding';
@@ -259,6 +259,22 @@ function VanishingRail({
           className="w-12 h-12 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors"
         >
           <Settings size={20} strokeWidth={1.5} />
+        </MagneticButton>
+        
+        {/* Logout */}
+        <MagneticButton
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('silent_help_auth_user');
+              localStorage.removeItem('silent_help_guest_user');
+              localStorage.removeItem('silent_help_onboarding_complete');
+              localStorage.removeItem('silent_help_user_preferences');
+              window.location.href = '/';
+            }
+          }}
+          className="w-12 h-12 rounded-xl flex items-center justify-center text-slate-500 hover:text-red-400 transition-colors"
+        >
+          <LogOut size={20} strokeWidth={1.5} />
         </MagneticButton>
       </div>
     </motion.nav>
