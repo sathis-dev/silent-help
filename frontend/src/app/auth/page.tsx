@@ -156,7 +156,7 @@ export default function AuthDemoPage() {
               }}
             >
               <svg 
-                className="w-5 h-5 text-amber-400 flex-shrink-0" 
+                className="w-5 h-5 text-amber-400 shrink-0" 
                 fill="none" 
                 viewBox="0 0 24 24" 
                 stroke="currentColor" 

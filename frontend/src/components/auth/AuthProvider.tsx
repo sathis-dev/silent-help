@@ -279,33 +279,66 @@ export function AuthProvider({ children, onAuthComplete }: AuthProviderProps) {
       return;
     }
 
-    // Simulate API call (frontend only for now)
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      // Call backend API
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+        }),
+      });
 
-    const user: AuthUser = {
-      id: generateUserId(),
-      email: data.email,
-      displayName: data.email.split('@')[0],
-      isGuest: false,
-      createdAt: new Date(),
-      lastLoginAt: new Date(),
-    };
+      const result = await response.json();
 
-    if (data.rememberMe) {
-      localStorage.setItem(STORAGE_KEYS.REMEMBER_EMAIL, data.email);
+      if (!response.ok) {
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          errors: [{ field: 'form', message: result.error || 'Login failed' }],
+        }));
+        return;
+      }
+
+      // Create user object from API response
+      const user: AuthUser = {
+        id: result.user.id,
+        email: result.user.email,
+        displayName: result.user.name || result.user.email.split('@')[0],
+        isGuest: false,
+        createdAt: new Date(result.user.createdAt),
+        lastLoginAt: new Date(),
+      };
+
+      if (data.rememberMe) {
+        localStorage.setItem(STORAGE_KEYS.REMEMBER_EMAIL, data.email);
+      }
+
+      saveUser(user);
+
+      // Store auth token
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('silent_help_auth_token', result.token);
+      }
+
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        isAuthenticated: true,
+        user,
+        mode: 'choice',
+      }));
+
+      onAuthComplete?.(user);
+    } catch (error) {
+      console.error('Login error:', error);
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        errors: [{ field: 'form', message: 'Network error. Please try again.' }],
+      }));
     }
-
-    saveUser(user);
-
-    setState(prev => ({
-      ...prev,
-      isLoading: false,
-      isAuthenticated: true,
-      user,
-      mode: 'choice',
-    }));
-
-    onAuthComplete?.(user);
   }, [onAuthComplete]);
 
   // Signup
@@ -318,29 +351,64 @@ export function AuthProvider({ children, onAuthComplete }: AuthProviderProps) {
       return;
     }
 
-    // Simulate API call (frontend only for now)
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      // Call backend API
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          displayName: data.displayName,
+          birthday: data.birthday || null,
+        }),
+      });
 
-    const user: AuthUser = {
-      id: generateUserId(),
-      email: data.email,
-      displayName: data.displayName || data.email.split('@')[0],
-      isGuest: false,
-      createdAt: new Date(),
-      lastLoginAt: new Date(),
-    };
+      const result = await response.json();
 
-    saveUser(user);
+      if (!response.ok) {
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          errors: [{ field: 'form', message: result.error || 'Registration failed' }],
+        }));
+        return;
+      }
 
-    setState(prev => ({
-      ...prev,
-      isLoading: false,
-      isAuthenticated: true,
-      user,
-      mode: 'choice',
-    }));
+      // Create user object from API response
+      const user: AuthUser = {
+        id: result.user.id,
+        email: result.user.email,
+        displayName: result.user.name || result.user.email.split('@')[0],
+        isGuest: false,
+        createdAt: new Date(result.user.createdAt),
+        lastLoginAt: new Date(),
+      };
 
-    onAuthComplete?.(user);
+      saveUser(user);
+
+      // Store auth token
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('silent_help_auth_token', result.token);
+      }
+
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        isAuthenticated: true,
+        user,
+        mode: 'choice',
+      }));
+
+      onAuthComplete?.(user);
+    } catch (error) {
+      console.error('Signup error:', error);
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        errors: [{ field: 'form', message: 'Network error. Please try again.' }],
+      }));
+    }
   }, [onAuthComplete]);
 
   // Continue as Guest

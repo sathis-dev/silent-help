@@ -179,7 +179,7 @@ export function OnboardingFlow() {
       </header>
 
       {/* Step Content */}
-      <main className="relative z-10 flex flex-col items-center justify-center min-h-[calc(100vh-120px)] px-6">
+      <main className="relative z-10 flex flex-col items-center justify-center min-h-[calc(100vh-120px)] px-6 overflow-y-auto">
         <AnimatePresence mode="wait" custom={animationDirection}>
           <motion.div
             key={currentStep.id}

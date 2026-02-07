@@ -55,6 +55,7 @@ export interface SignupFormData {
   password: string;
   confirmPassword: string;
   displayName: string;
+  birthday?: string;
   agreeToTerms: boolean;
   agreeToPrivacy: boolean;
 }
@@ -214,6 +215,7 @@ export const DEFAULT_SIGNUP_FORM: SignupFormData = {
   password: '',
   confirmPassword: '',
   displayName: '',
+  birthday: '',
   agreeToTerms: false,
   agreeToPrivacy: false,
 };

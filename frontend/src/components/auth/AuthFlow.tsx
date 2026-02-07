@@ -180,7 +180,7 @@ function AuthFlowInner() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden" style={{ background: AUTH_COLORS.void.deep }}>
+    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: AUTH_COLORS.void.deep }}>
       {/* Atmospheric Background */}
       <div className="absolute inset-0">
         <ParticleField intensity={0.5} color={AUTH_COLORS.lavender.primary} />

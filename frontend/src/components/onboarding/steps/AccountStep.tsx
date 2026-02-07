@@ -97,6 +97,7 @@ export function AccountStep() {
   const { nextStep, session, updateUserName } = useOnboarding();
   const [mode, setMode] = useState<AccountMode>('choice');
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string>('');
   const interactionStartRef = useRef<number>(0);
 
   // Get the name from the previous personalization step
@@ -111,6 +112,8 @@ export function AccountStep() {
     email: '',
     password: '',
     confirmPassword: '',
+    displayName: userName || '',
+    birthday: '',
     agreeToTerms: false,
   });
   const [loginData, setLoginData] = useState({
@@ -118,6 +121,17 @@ export function AccountStep() {
     password: '',
     rememberMe: false,
   });
+
+  // Clear login error when user starts typing
+  const handleLoginEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setLoginData(prev => ({ ...prev, email: e.target.value }));
+    setLoginError('');
+  }, []);
+
+  const handleLoginPasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setLoginData(prev => ({ ...prev, password: e.target.value }));
+    setLoginError('');
+  }, []);
 
   const passwordStrength = calculatePasswordStrength(signupData.password);
 
@@ -148,47 +162,95 @@ export function AccountStep() {
     
     setIsLoading(true);
     
-    // Simulate signup (replace with real auth later)
-    await new Promise(resolve => setTimeout(resolve, 1200));
-    
-    const authUser = {
-      id: `user_${Date.now()}`,
-      email: signupData.email,
-      displayName: userName || signupData.email.split('@')[0],
-      isGuest: false,
-      createdAt: new Date(),
-    };
-    localStorage.setItem('silent_help_auth_user', JSON.stringify(authUser));
-    
-    setIsLoading(false);
-    nextStep();
-  }, [signupData, userName, nextStep]);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: signupData.email,
+          password: signupData.password,
+          displayName: signupData.displayName,
+          birthday: signupData.birthday || null,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error('Signup failed:', result.error);
+        setIsLoading(false);
+        return;
+      }
+
+      // Store user data
+      const authUser = {
+        id: result.user.id,
+        email: result.user.email,
+        displayName: result.user.name,
+        isGuest: false,
+        createdAt: new Date(result.user.createdAt),
+      };
+      localStorage.setItem('silent_help_auth_user', JSON.stringify(authUser));
+      localStorage.setItem('silent_help_auth_token', result.token);
+      
+      setIsLoading(false);
+      nextStep();
+    } catch (error) {
+      console.error('Signup error:', error);
+      setIsLoading(false);
+    }
+  }, [signupData, nextStep]);
 
   // Handle login
   const handleLogin = useCallback(async () => {
+    setLoginError('');
     setIsLoading(true);
     
-    // Simulate login (replace with real auth later)
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const authUser = {
-      id: `user_${Date.now()}`,
-      email: loginData.email,
-      displayName: userName || loginData.email.split('@')[0],
-      isGuest: false,
-      createdAt: new Date(),
-    };
-    localStorage.setItem('silent_help_auth_user', JSON.stringify(authUser));
-    
-    if (loginData.rememberMe) {
-      localStorage.setItem('silent_help_remember_email', loginData.email);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: loginData.email,
+          password: loginData.password,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error('Login failed:', result.error);
+        setLoginError(result.error || 'Login failed. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Store user data
+      const authUser = {
+        id: result.user.id,
+        email: result.user.email,
+        displayName: result.user.name,
+        isGuest: false,
+        createdAt: new Date(result.user.createdAt),
+      };
+      localStorage.setItem('silent_help_auth_user', JSON.stringify(authUser));
+      localStorage.setItem('silent_help_auth_token', result.token);
+
+      if (loginData.rememberMe) {
+        localStorage.setItem('silent_help_remember_email', loginData.email);
+      }
+      
+      setIsLoading(false);
+      nextStep();
+    } catch (error) {
+      console.error('Login error:', error);
+      setLoginError('Network error. Please check your connection and try again.');
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
-    nextStep();
-  }, [loginData, userName, nextStep]);
+  }, [loginData, nextStep]);
 
   const canSignup = signupData.email && 
+    signupData.displayName &&
     signupData.password && 
     signupData.password === signupData.confirmPassword &&
     passwordStrength.score >= 30 &&
@@ -256,7 +318,7 @@ export function AccountStep() {
         <PrimaryButton
           variant="primary"
           size="lg"
-          onClick={() => setMode('signup')}
+          onClick={() => { setLoginError(''); setMode('signup'); }}
           icon={
             <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -272,7 +334,7 @@ export function AccountStep() {
         <PrimaryButton
           variant="secondary"
           size="lg"
-          onClick={() => setMode('login')}
+          onClick={() => { setLoginError(''); setMode('login'); }}
           icon={
             <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
@@ -396,6 +458,33 @@ export function AccountStep() {
       </motion.div>
 
       <FloatingInput
+        label="Display name"
+        type="text"
+        value={signupData.displayName}
+        onChange={(e) => setSignupData(prev => ({ ...prev, displayName: e.target.value }))}
+        placeholder="Your name or nickname"
+        autoComplete="name"
+        icon={
+          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+          </svg>
+        }
+      />
+
+      <FloatingInput
+        label="Birthday (optional)"
+        type="date"
+        value={signupData.birthday}
+        onChange={(e) => setSignupData(prev => ({ ...prev, birthday: e.target.value }))}
+        autoComplete="bday"
+        icon={
+          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+          </svg>
+        }
+      />
+
+      <FloatingInput
         label="Email address"
         type="email"
         value={signupData.email}
@@ -450,7 +539,7 @@ export function AccountStep() {
       />
 
       <div className="flex gap-2 sm:gap-3 pt-2">
-        <PrimaryButton variant="ghost" onClick={() => setMode('choice')}>
+        <PrimaryButton variant="ghost" onClick={() => { setLoginError(''); setMode('choice'); }}>
           Back
         </PrimaryButton>
         <PrimaryButton
@@ -504,7 +593,7 @@ export function AccountStep() {
         label="Email address"
         type="email"
         value={loginData.email}
-        onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
+        onChange={handleLoginEmailChange}
         icon={
           <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
@@ -515,7 +604,8 @@ export function AccountStep() {
       <PasswordInput
         label="Password"
         value={loginData.password}
-        onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
+        onChange={handleLoginPasswordChange}
+        error={loginError ? loginError : undefined}
         icon={
           <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
@@ -533,7 +623,7 @@ export function AccountStep() {
       </div>
 
       <div className="flex gap-2 sm:gap-3 pt-2">
-        <PrimaryButton variant="ghost" onClick={() => setMode('choice')}>
+        <PrimaryButton variant="ghost" onClick={() => { setLoginError(''); setMode('choice'); }}>
           Back
         </PrimaryButton>
         <PrimaryButton
