@@ -1,5 +1,5 @@
 generator client {
-  provider        = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -8,456 +8,118 @@ datasource db {
 }
 
 // ============================================================================
-// ENUMS - The Three-Tier Contextual States
-// ============================================================================
-
-enum CrisisLevel {
-  low       // Maintenance mode - calm, reflective
-  medium    // Mid pathway - overwhelmed, brain fog
-  high      // High pathway - panic, acute anxiety
-  emergency // Priority Zero - immediate crisis
-}
-
-enum StressPathway {
-  HIGH // Panic, acute anxiety, crisis - Zero AI, deterministic
-  MID  // Overwhelmed, stuck, brain fog - Guided labels
-  LOW  // Calm, reflective, maintenance - Semantic Journal
-}
-
-enum SafetyTriggerType {
-  KEYWORD_MATCH      // Regex/keyword gate triggered
-  LLM_INTENT         // LLM classifier detected risk
-  MANUAL_ESCALATION  // User manually escalated
-  PATTERN_DETECTED   // Historical pattern triggered
-}
-
-enum HazardSeverity {
-  LOW
-  MEDIUM
-  HIGH
-  CRITICAL
-}
-
-// ============================================================================
-// USER & PREFERENCES - The Foundation
+// USER & AUTH
 // ============================================================================
 
 model User {
-  id                String   @id @default(uuid()) @db.Uuid
-  email             String   @unique @db.VarChar(255)
-  passwordHash      String   @map("password_hash") @db.VarChar(255)
-  name              String   @db.VarChar(255)
-  birthday          DateTime? @db.Date
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  // Current Contextual State (Three-Tier Engine)
-  currentPathway    StressPathway @default(LOW) @map("current_pathway")
-  lastPathwayChange DateTime      @default(now()) @map("last_pathway_change") @db.Timestamptz(6)
-
-  // Mental Health Context
-  stressLevel       String?  @default("mid") @map("stress_level") @db.VarChar(20)
-  crisisContacts    Json?    @map("crisis_contacts") @db.JsonB
-  accessibility     Json?    @map("accessibility_preferences") @db.JsonB
-
-  // UK GDPR Compliance
-  dataRetentionDays Int      @default(30)    @map("data_retention_days")
-  allowAiTraining   Boolean  @default(false) @map("allow_ai_training")
-  lastConsentUpdate DateTime @default(now()) @map("last_consent_update") @db.Timestamptz(6)
-
-  // Encryption key reference (actual key stored securely)
-  encryptionKeyId   String?  @map("encryption_key_id") @db.VarChar(64)
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  name         String   @db.VarChar(255)
+  avatarUrl    String?  @map("avatar_url") @db.VarChar(500)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   // Relations
-  preferences           UserPreferences?
-  crisisInterventions   CrisisIntervention[]
-  moodLogs              MoodLog[]
-  journalEntries        JournalEntry[]
-  semanticEmbeddings    SemanticEmbedding[]
-  clinicalHazardLogs    ClinicalHazardLog[]
-  toolUsageLogs         ToolUsageLog[]
+  conversations  Conversation[]
+  journalEntries JournalEntry[]
+  moodLogs       MoodLog[]
+  wellnessProfile WellnessProfile?
 
   @@map("users")
 }
 
-// User Preferences - Safety Contacts & Trigger Opt-outs
-model UserPreferences {
-  id                    String   @id @default(uuid()) @db.Uuid
-  userId                String   @unique @map("user_id") @db.Uuid
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+// ============================================================================
+// WELLNESS PROFILE — AI-Generated from 6-Step Onboarding
+// ============================================================================
 
-  // Safety Contacts (UK-specific)
-  primarySafetyContact  Json?    @map("primary_safety_contact") @db.JsonB
-  secondaryContacts     Json?    @map("secondary_contacts") @db.JsonB
-  gpContactInfo         Json?    @map("gp_contact_info") @db.JsonB
-  crisisTeamInfo        Json?    @map("crisis_team_info") @db.JsonB
+model WellnessProfile {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @unique @map("user_id") @db.Uuid
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Raw 6-step dynamic answers
+  energy          String   @db.VarChar(20)   // high | moderate | low
+  concern         String   @db.VarChar(50)   // dynamic — varies by energy level
+  context         String   @db.VarChar(50)   // dynamic — varies by energy + concern
+  approach        String   @db.VarChar(50)   // dynamic — what they need
+  supportStyle    String   @map("support_style") @db.VarChar(50) // how they want AI to communicate
+  timeAvailable   String   @map("time_available") @db.VarChar(10) // 1 | 3 | 5 | 10
 
-  // Trigger Opt-outs (personalization)
-  triggerOptOuts        String[] @map("trigger_opt_outs") @db.Text
-  preferredCopingTools  String[] @map("preferred_coping_tools") @db.Text
-  avoidanceWords        String[] @map("avoidance_words") @db.Text
+  // AI-generated profile (JSON)
+  profile         Json     @db.JsonB // Full recommendation profile
+  aiInsight       String   @map("ai_insight") @db.Text // AI-written personalized insight
+  
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  // UI Preferences (Low-load UX)
-  enableHaptics         Boolean  @default(true) @map("enable_haptics")
-  enableSoundFeedback   Boolean  @default(false) @map("enable_sound_feedback")
-  preferredVoice        String?  @map("preferred_voice") @db.VarChar(50)
-  textSize              String   @default("medium") @map("text_size") @db.VarChar(20)
-  highContrastMode      Boolean  @default(false) @map("high_contrast_mode")
-  reducedMotion         Boolean  @default(false) @map("reduced_motion")
-
-  // Notification Preferences
-  checkInReminders      Boolean  @default(true) @map("check_in_reminders")
-  reminderTime          String?  @map("reminder_time") @db.VarChar(10)
-  quietHoursStart       String?  @map("quiet_hours_start") @db.VarChar(10)
-  quietHoursEnd         String?  @map("quiet_hours_end") @db.VarChar(10)
-
-  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  @@map("user_preferences")
+  @@map("wellness_profiles")
 }
 
 // ============================================================================
-// MOOD LOGS - Resolution Efficiency Tracking
+// CONVERSATIONS & MESSAGES — The Core AI Chat
 // ============================================================================
 
-model MoodLog {
-  id                  String        @id @default(uuid()) @db.Uuid
-  userId              String        @map("user_id") @db.Uuid
-  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Conversation {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?  @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  // Three-Tier Context
-  pathway             StressPathway @map("pathway")
-
-  // Intensity Tracking (for measuring tool effectiveness)
-  intensityStart      Int           @map("intensity_start") @db.SmallInt
-  intensityEnd        Int?          @map("intensity_end") @db.SmallInt
-  intensityDelta      Int?          @map("intensity_delta") @db.SmallInt
-
-  // Emotional Context
-  primaryEmotion      String        @map("primary_emotion") @db.VarChar(50)
-  secondaryEmotions   String[]      @map("secondary_emotions") @db.Text
-  physicalSymptoms    String[]      @map("physical_symptoms") @db.Text
-  triggerCategory     String?       @map("trigger_category") @db.VarChar(50)
-  triggerDescription  String?       @map("trigger_description") @db.Text
-
-  // Tool Usage & Effectiveness
-  toolUsed            String?       @map("tool_used") @db.VarChar(100)
-  toolDurationSeconds Int?          @map("tool_duration_seconds")
-  timeToCalm          Int?          @map("time_to_calm") @db.SmallInt
-
-  // Resolution Metrics
-  resolutionSuccess   Boolean?      @map("resolution_success")
-  followUpNeeded      Boolean       @default(false) @map("follow_up_needed")
-
-  // Timestamps
-  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  resolvedAt          DateTime?     @map("resolved_at") @db.Timestamptz(6)
-  autoDeleteAt        DateTime      @default(dbgenerated("now() + interval '30 days'")) @map("auto_delete_at") @db.Timestamptz(6)
+  messages Message[]
 
   @@index([userId])
-  @@index([pathway])
+  @@index([updatedAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(uuid()) @db.Uuid
+  conversationId String       @map("conversation_id") @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String       @db.VarChar(20) // 'user' | 'assistant' | 'system'
+  content        String       @db.Text
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([conversationId])
   @@index([createdAt])
-  @@index([autoDeleteAt])
-  @@map("mood_logs")
-}
-
-// Tool Usage Log - Track what works for each user
-model ToolUsageLog {
-  id                  String        @id @default(uuid()) @db.Uuid
-  userId              String        @map("user_id") @db.Uuid
-  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  toolName            String        @map("tool_name") @db.VarChar(100)
-  pathway             StressPathway @map("pathway")
-
-  // Usage Metrics
-  usageCount          Int           @default(1) @map("usage_count")
-  totalDurationSeconds Int          @default(0) @map("total_duration_seconds")
-  successRate         Float?        @map("success_rate")
-  averageIntensityReduction Float?  @map("avg_intensity_reduction")
-
-  lastUsedAt          DateTime      @default(now()) @map("last_used_at") @db.Timestamptz(6)
-  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  @@unique([userId, toolName])
-  @@index([userId])
-  @@map("tool_usage_logs")
+  @@map("messages")
 }
 
 // ============================================================================
-// JOURNAL & SEMANTIC EMBEDDINGS - The Semantic Journal
+// JOURNAL — Encrypted Personal Entries
 // ============================================================================
 
 model JournalEntry {
-  id                  String        @id @default(uuid()) @db.Uuid
-  userId              String        @map("user_id") @db.Uuid
-  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Content (Field-Level Encrypted using AES-256-GCM)
-  contentEncrypted    String        @map("content_encrypted") @db.Text
-  contentIv           String        @map("content_iv") @db.VarChar(32)
-  contentTag          String        @map("content_tag") @db.VarChar(32)
-
-  // Metadata (not encrypted, used for queries)
-  wordCount           Int           @map("word_count")
-  entryType           String        @default("freeform") @map("entry_type") @db.VarChar(50)
-  moodSnapshot        String?       @map("mood_snapshot") @db.VarChar(50)
-  pathway             StressPathway @map("pathway")
-
-  // AI Processing Flags (GDPR compliant)
-  aiProcessed         Boolean       @default(false) @map("ai_processed")
-  piiScrubbed         Boolean       @default(false) @map("pii_scrubbed")
-
-  // Semantic relation
-  embedding           SemanticEmbedding?
-
-  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
-  autoDeleteAt        DateTime      @default(dbgenerated("now() + interval '30 days'")) @map("auto_delete_at") @db.Timestamptz(6)
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  mood      String?  @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([userId])
   @@index([createdAt])
-  @@index([pathway])
-  @@index([autoDeleteAt])
   @@map("journal_entries")
 }
 
-// Semantic Embeddings - Vector representations for pattern recognition
-model SemanticEmbedding {
-  id                  String                 @id @default(uuid()) @db.Uuid
-  userId              String                 @map("user_id") @db.Uuid
-  user                User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  journalEntryId      String?                @unique @map("journal_entry_id") @db.Uuid
-  journalEntry        JournalEntry?          @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
-
-  // Vector embedding (1536 dimensions for OpenAI ada-002) - stored as JSON array
-  embedding           Json?
-
-  // Metadata for semantic search
-  dominantEmotion     String?                @map("dominant_emotion") @db.VarChar(50)
-  emotionIntensity    Float?                 @map("emotion_intensity")
-  themes              String[]               @map("themes") @db.Text
-  triggers            String[]               @map("triggers") @db.Text
-
-  // Pattern Recognition Data
-  similarityCluster   String?                @map("similarity_cluster") @db.VarChar(50)
-  patternStrength     Float?                 @map("pattern_strength")
-
-  createdAt           DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
-  autoDeleteAt        DateTime               @default(dbgenerated("now() + interval '30 days'")) @map("auto_delete_at") @db.Timestamptz(6)
-
-  @@index([userId])
-  @@index([dominantEmotion])
-  @@index([autoDeleteAt])
-  @@map("semantic_embeddings")
-}
-
 // ============================================================================
-// CRISIS INTERVENTION - The Safety Switch
+// MOOD LOGS — Track Emotional State
 // ============================================================================
 
-model CrisisIntervention {
-  id                   String        @id @default(uuid()) @db.Uuid
-  userId               String        @map("user_id") @db.Uuid
-  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  crisisLevel          CrisisLevel   @map("crisis_level")
-  detectedKeywords     String[]      @map("detected_keywords") @db.Text
-  userInput            String        @map("user_input") @db.Text
-  aiResponse           String        @map("ai_response") @db.Text
-
-  // UK Crisis Resources Tracking
-  nhs111Redirected     Boolean       @default(false) @map("nhs_111_redirected")
-  samaritansRedirected Boolean       @default(false) @map("samaritans_redirected")
-  emergencyCalled      Boolean       @default(false) @map("emergency_called")
-  shoutTextUsed        Boolean       @default(false) @map("shout_text_used")
-  calmZoneUsed         Boolean       @default(false) @map("calm_zone_used")
-
-  // Response Metrics
-  responseTimeMs       Int?          @map("response_time_ms")
-  sessionKilled        Boolean       @default(false) @map("session_killed")
-
-  createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  autoDeleteAt         DateTime      @default(dbgenerated("now() + interval '7 days'")) @map("auto_delete_at") @db.Timestamptz(6)
-
-  // Link to hazard log if safety was triggered
-  hazardLogs           ClinicalHazardLog[]
+model MoodLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mood           String   @db.VarChar(50)
+  intensity      Int      @db.SmallInt // 1-10
+  note           String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([userId])
-  @@index([crisisLevel])
-  @@index([autoDeleteAt])
-  @@map("crisis_interventions")
-}
-
-// Clinical Hazard Log - Track every Safety Switch trigger
-model ClinicalHazardLog {
-  id                   String              @id @default(uuid()) @db.Uuid
-  userId               String              @map("user_id") @db.Uuid
-  user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Link to intervention if applicable
-  interventionId       String?             @map("intervention_id") @db.Uuid
-  intervention         CrisisIntervention? @relation(fields: [interventionId], references: [id], onDelete: SetNull)
-
-  // Hazard Details
-  triggerType          SafetyTriggerType   @map("trigger_type")
-  severity             HazardSeverity      @map("severity")
-  triggerSource        String              @map("trigger_source") @db.VarChar(100)
-
-  // What was detected (anonymized)
-  detectedPattern      String              @map("detected_pattern") @db.Text
-  confidenceScore      Float?              @map("confidence_score")
-
-  // Actions Taken
-  actionsTaken         String[]            @map("actions_taken") @db.Text
-  aiSessionKilled      Boolean             @default(false) @map("ai_session_killed")
-  clinicalCardShown    Boolean             @default(false) @map("clinical_card_shown")
-  resourcesProvided    String[]            @map("resources_provided") @db.Text
-
-  // Outcome Tracking
-  userEngagedResource  Boolean?            @map("user_engaged_resource")
-  escalatedExternally  Boolean             @default(false) @map("escalated_externally")
-  falsePositive        Boolean?            @map("false_positive")
-
-  // Audit Trail
-  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  reviewedAt           DateTime?           @map("reviewed_at") @db.Timestamptz(6)
-  reviewedBy           String?             @map("reviewed_by") @db.VarChar(100)
-  reviewNotes          String?             @map("review_notes") @db.Text
-
-  // GDPR: Keep hazard logs longer for safety auditing
-  autoDeleteAt         DateTime            @default(dbgenerated("now() + interval '365 days'")) @map("auto_delete_at") @db.Timestamptz(6)
-
-  @@index([userId])
-  @@index([triggerType])
-  @@index([severity])
   @@index([createdAt])
-  @@index([autoDeleteAt])
-  @@map("clinical_hazard_logs")
-}
-
-// ============================================================================
-// UK MENTAL HEALTH KNOWLEDGE BASE (RAG)
-// ============================================================================
-
-model UKMentalHealthContent {
-  id          String                 @id @default(uuid()) @db.Uuid
-  source      String                 @db.VarChar(100)
-  contentType String                 @map("content_type") @db.VarChar(50)
-  content     String                 @db.Text
-  embedding   Json?
-  
-  // Categorization
-  pathway     StressPathway?         @map("pathway")
-  isUrgent    Boolean                @default(false) @map("is_urgent")
-  
-  createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  @@index([pathway])
-  @@index([contentType])
-  @@map("uk_mental_health_content")
-}
-
-// ============================================================================
-// AI DECISION LOGS - MHRA AUDITABILITY
-// ============================================================================
-
-// Required for MHRA Software and AI as Medical Device compliance
-// Every AI decision is logged for audit and continuous improvement
-model AiDecisionLog {
-  id              String   @id @default(uuid()) @db.Uuid
-  timestamp       DateTime @default(now()) @db.Timestamptz(6)
-  
-  // Session Context
-  userId          String   @map("user_id") @db.Uuid
-  sessionId       String   @map("session_id") @db.Uuid
-  
-  // Input (Privacy-Preserving)
-  inputTextHash   String   @map("input_text_hash") @db.VarChar(64)  // SHA-256, never plain text
-  inputLength     Int      @map("input_length")
-  pathwayAtInput  StressPathway @map("pathway_at_input")
-  
-  // Crisis Interceptor Results
-  keywordGateTriggered    Boolean  @map("keyword_gate_triggered")
-  keywordsMatched         String[] @map("keywords_matched") @db.Text
-  llmIntentScore          Decimal? @map("llm_intent_score") @db.Decimal(4, 3)
-  llmModelVersion         String?  @map("llm_model_version") @db.VarChar(50)
-  llmConfidenceLevel      String?  @map("llm_confidence_level") @db.VarChar(20)
-  
-  // Semantic Memory Results (if invoked)
-  semanticSearchInvoked   Boolean  @default(false) @map("semantic_search_invoked")
-  patternsFound           Int      @default(0) @map("patterns_found")
-  topSimilarityScore      Decimal? @map("top_similarity_score") @db.Decimal(4, 3)
-  
-  // Action Taken
-  actionTaken             String   @map("action_taken") @db.VarChar(50)  // CONTINUE, SAFETY_CARD, HARD_REDIRECT
-  pathwayAfter            StressPathway @map("pathway_after")
-  safetyCardShown         Boolean  @default(false) @map("safety_card_shown")
-  safetyCardTone          String?  @map("safety_card_tone") @db.VarChar(20)
-  
-  // Override Tracking
-  overrideApplied         Boolean  @default(false) @map("override_applied")
-  overrideReason          String?  @map("override_reason") @db.VarChar(100)
-  
-  // Performance Metrics
-  processingTimeMs        Int      @map("processing_time_ms")
-  apiCallsMade            Int      @default(0) @map("api_calls_made")
-  
-  // Audit Fields
-  auditStatus             String   @default("PENDING") @map("audit_status") @db.VarChar(20)
-  reviewedAt              DateTime? @map("reviewed_at") @db.Timestamptz(6)
-  reviewedBy              String?  @map("reviewed_by") @db.VarChar(100)
-  falsePositive           Boolean? @map("false_positive")
-  falseNegative           Boolean? @map("false_negative")
-  auditNotes              String?  @map("audit_notes") @db.Text
-  
-  // MHRA Compliance: Retain for 2 years minimum
-  autoDeleteAt            DateTime @default(dbgenerated("now() + interval '730 days'")) @map("auto_delete_at") @db.Timestamptz(6)
-
-  @@index([userId])
-  @@index([sessionId])
-  @@index([timestamp])
-  @@index([actionTaken])
-  @@index([keywordGateTriggered])
-  @@index([auditStatus])
-  @@index([autoDeleteAt])
-  @@map("ai_decision_logs")
-}
-
-// AI Performance Metrics - Aggregated for monitoring
-model AiPerformanceMetric {
-  id                String   @id @default(uuid()) @db.Uuid
-  date              DateTime @db.Date
-  hour              Int      @db.SmallInt
-  
-  // Crisis Detection Metrics
-  crisisDetectedKeyword   Int @default(0) @map("crisis_detected_keyword")
-  crisisDetectedLlm       Int @default(0) @map("crisis_detected_llm")
-  crisisDetectedBoth      Int @default(0) @map("crisis_detected_both")
-  totalInputsProcessed    Int @default(0) @map("total_inputs_processed")
-  
-  // Safety Card Metrics
-  safetyCardsShown        Int @default(0) @map("safety_cards_shown")
-  safetyCardsDismissed    Int @default(0) @map("safety_cards_dismissed")
-  sosButtonPressed        Int @default(0) @map("sos_button_pressed")
-  
-  // Latency Metrics
-  avgProcessingTimeMs     Decimal @default(0) @map("avg_processing_time_ms") @db.Decimal(10, 2)
-  p95ProcessingTimeMs     Decimal @default(0) @map("p95_processing_time_ms") @db.Decimal(10, 2)
-  p99ProcessingTimeMs     Decimal @default(0) @map("p99_processing_time_ms") @db.Decimal(10, 2)
-  
-  // Pathway Transitions
-  pathwayTransitionsLowToMid   Int @default(0) @map("pathway_low_to_mid")
-  pathwayTransitionsMidToHigh  Int @default(0) @map("pathway_mid_to_high")
-  pathwayTransitionsHighToMid  Int @default(0) @map("pathway_high_to_mid")
-  
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  @@unique([date, hour])
-  @@index([date])
-  @@map("ai_performance_metrics")
+  @@map("mood_logs")
 }

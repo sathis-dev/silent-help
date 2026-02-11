@@ -1,277 +1,289 @@
 /**
- * API Client for Silent Help Backend
- * 
- * All API calls go through this module for consistent error handling
- * and safety check integration.
+ * Silent Help API Client
+ * All backend communication goes through this module.
  */
-
-import type { 
-  StressPathway, 
-  SafetyCheckResult, 
-  PatternInsight,
-  PathwayConfig 
-} from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-// ============================================================================
-// SAFETY API
-// ============================================================================
+function getAuthHeaders(): Record<string, string> {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('sh_token') : null;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return headers;
+}
 
-/**
- * Quick safety check using keyword gate only (no API calls that can fail)
- */
-export async function quickSafetyCheck(text: string): Promise<SafetyCheckResult> {
-  try {
-    const response = await fetch(`${API_BASE}/api/crisis/detect`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, quickCheck: true }),
+async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const res = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        headers: { ...getAuthHeaders(), ...options.headers },
     });
-    
-    if (!response.ok) {
-      // On API failure, assume safe to not block user but flag for review
-      return { safe: true, severity: 'LOW', action: 'continue' };
+
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Request failed' }));
+        throw new Error(data.error || `HTTP ${res.status}`);
     }
-    
-    return response.json();
-  } catch {
-    // Network failure - assume safe to not block, but be cautious
-    return { safe: true, severity: 'LOW', action: 'continue' };
-  }
+
+    return res.json();
 }
 
-/**
- * Full safety check with dual-gate system
- */
-export async function fullSafetyCheck(
-  text: string, 
-  userId?: string
-): Promise<SafetyCheckResult> {
-  try {
-    const response = await fetch(`${API_BASE}/api/crisis/detect`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, userId, quickCheck: false }),
+// ─── Auth ────────────────────────────────────────────────────
+
+export async function register(email: string, password: string, name: string) {
+    return apiFetch<{ token: string; user: User }>('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, name }),
     });
-    
-    if (!response.ok) {
-      return { safe: true, severity: 'MEDIUM', action: 'continue' };
+}
+
+export async function login(email: string, password: string) {
+    return apiFetch<{ token: string; user: User }>('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+    });
+}
+
+export async function getMe() {
+    return apiFetch<{ user: User }>('/api/auth/me');
+}
+
+// ─── Conversations ──────────────────────────────────────────
+
+export async function listConversations() {
+    return apiFetch<{ conversations: ConversationPreview[] }>('/api/conversations');
+}
+
+export async function createConversation(title?: string) {
+    return apiFetch<{ conversation: Conversation }>('/api/chat', {
+        method: 'POST',
+        body: JSON.stringify({ title }),
+    });
+}
+
+export async function getConversation(id: string) {
+    return apiFetch<{ conversation: Conversation }>(`/api/chat/${id}`);
+}
+
+export async function deleteConversation(id: string) {
+    return apiFetch<{ success: boolean }>(`/api/chat/${id}`, { method: 'DELETE' });
+}
+
+// ─── Chat Messages (Streaming) ──────────────────────────────
+
+export async function sendMessage(
+    conversationId: string,
+    content: string,
+    onChunk: (text: string) => void,
+    onDone: (data: { messageId: string; crisis?: CrisisInfo | null }) => void,
+    onError: (error: string) => void,
+) {
+    try {
+        const token = localStorage.getItem('sh_token');
+        const res = await fetch(`${API_BASE}/api/chat/${conversationId}/message`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ content }),
+        });
+
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({ error: 'Failed' }));
+            onError(data.error || 'Failed to send message');
+            return;
+        }
+
+        const contentType = res.headers.get('content-type') || '';
+
+        // Non-streaming response (when no OpenAI key)
+        if (contentType.includes('application/json')) {
+            const data = await res.json();
+            if (data.message) {
+                onChunk(data.message.content);
+                onDone({ messageId: data.message.id, crisis: data.crisis });
+            }
+            return;
+        }
+
+        // SSE streaming response
+        const reader = res.body?.getReader();
+        if (!reader) { onError('No response stream'); return; }
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        if (data.content) onChunk(data.content);
+                        if (data.done) onDone({ messageId: data.messageId, crisis: data.crisis });
+                        if (data.error) onError(data.error);
+                    } catch { /* skip malformed */ }
+                }
+            }
+        }
+    } catch (err) {
+        onError(err instanceof Error ? err.message : 'Network error');
     }
-    
-    return response.json();
-  } catch {
-    return { safe: true, severity: 'MEDIUM', action: 'continue' };
-  }
 }
 
-// ============================================================================
-// PATHWAY API
-// ============================================================================
+// ─── Journal ────────────────────────────────────────────────
 
-/**
- * Get pathway configuration
- */
-export async function getPathwayConfig(pathway: StressPathway): Promise<PathwayConfig | null> {
-  try {
-    const response = await fetch(`${API_BASE}/api/pathway?pathway=${pathway}`);
-    
-    if (!response.ok) return null;
-    
-    const data = await response.json();
-    return data.pathway;
-  } catch {
-    return null;
-  }
+export async function listJournalEntries() {
+    return apiFetch<{ entries: JournalEntry[] }>('/api/journal');
 }
 
-/**
- * Update user's current pathway
- */
-export async function updatePathway(
-  userId: string, 
-  pathway: StressPathway,
-  intensityLevel?: number
-): Promise<boolean> {
-  try {
-    const response = await fetch(`${API_BASE}/api/pathway`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, pathway, intensityLevel }),
+export async function createJournalEntry(content: string, mood?: string) {
+    return apiFetch<{ entry: JournalEntry }>('/api/journal', {
+        method: 'POST',
+        body: JSON.stringify({ content, mood }),
     });
-    
-    return response.ok;
-  } catch {
-    return false;
-  }
 }
 
-// ============================================================================
-// JOURNAL API
-// ============================================================================
+// ─── Mood ───────────────────────────────────────────────────
 
-/**
- * Create a new journal entry
- */
-export async function createJournalEntry(
-  userId: string,
-  content: string,
-  options: {
-    entryType?: 'freeform' | 'guided' | 'voice';
-    moodSnapshot?: string;
-    pathway?: StressPathway;
-    triggerCategory?: string;
-  } = {}
-): Promise<{ success: boolean; entryId?: string; connection?: string }> {
-  try {
-    const response = await fetch(`${API_BASE}/api/journal`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId,
-        content,
-        entryType: options.entryType || 'freeform',
-        moodSnapshot: options.moodSnapshot,
-        pathway: options.pathway || 'LOW',
-        triggerCategory: options.triggerCategory,
-      }),
+export async function logMood(mood: string, intensity: number, note?: string) {
+    return apiFetch<{ moodLog: MoodLog }>('/api/mood', {
+        method: 'POST',
+        body: JSON.stringify({ mood, intensity, note }),
     });
-    
-    if (!response.ok) {
-      return { success: false };
-    }
-    
-    const data = await response.json();
-    return {
-      success: true,
-      entryId: data.entryId,
-      connection: data.connection,
-    };
-  } catch {
-    return { success: false };
-  }
 }
 
-// ============================================================================
-// SEARCH API
-// ============================================================================
+// ─── Onboarding ─────────────────────────────────────────────
 
-/**
- * Semantic search for journal entries by feeling
- */
-export async function searchByFeeling(
-  userId: string,
-  feeling: string
-): Promise<PatternInsight[]> {
-  try {
-    const response = await fetch(`${API_BASE}/api/search`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, query: feeling, type: 'feeling' }),
+export interface OnboardingAnswers {
+    energy: string;
+    concern: string;
+    context: string;
+    approach: string;
+    support_style: string;
+    time: string;
+}
+
+export async function submitOnboarding(answers: OnboardingAnswers) {
+    return apiFetch<{ success: boolean; profile: WellnessProfile }>('/api/onboarding', {
+        method: 'POST',
+        body: JSON.stringify(answers),
     });
-    
-    if (!response.ok) return [];
-    
-    const data = await response.json();
-    return data.insights || [];
-  } catch {
-    return [];
-  }
 }
 
-/**
- * Get pattern insights for user
- */
-export async function getPatternInsights(
-  userId: string,
-  daysBack: number = 30
-): Promise<PatternInsight[]> {
-  try {
-    const response = await fetch(
-      `${API_BASE}/api/search/patterns?userId=${userId}&daysBack=${daysBack}`
-    );
-    
-    if (!response.ok) return [];
-    
-    const data = await response.json();
-    return data.patterns || [];
-  } catch {
-    return [];
-  }
+export async function getWellnessProfile() {
+    return apiFetch<{ hasProfile: boolean; profile: WellnessProfile | null }>('/api/onboarding');
 }
 
-// ============================================================================
-// MOOD API
-// ============================================================================
+// ─── Health ─────────────────────────────────────────────────
 
-/**
- * Log a mood entry
- */
-export async function logMood(
-  userId: string,
-  data: {
-    pathway: StressPathway;
-    intensityStart: number;
-    primaryEmotion: string;
-    secondaryEmotions?: string[];
-    physicalSymptoms?: string[];
-    triggerCategory?: string;
-  }
-): Promise<{ success: boolean; moodLogId?: string }> {
-  try {
-    const response = await fetch(`${API_BASE}/api/mood`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, ...data }),
-    });
-    
-    if (!response.ok) return { success: false };
-    
-    const result = await response.json();
-    return { success: true, moodLogId: result.moodLogId };
-  } catch {
-    return { success: false };
-  }
+export async function checkHealth() {
+    return apiFetch<{ status: string; database: string }>('/api/health');
 }
 
-/**
- * Update mood log with resolution data
- */
-export async function resolveMood(
-  moodLogId: string,
-  data: {
-    intensityEnd: number;
-    toolUsed?: string;
-    toolDurationSeconds?: number;
-    timeToCalm?: number;
-    resolutionSuccess?: boolean;
-  }
-): Promise<boolean> {
-  try {
-    const response = await fetch(`${API_BASE}/api/mood/${moodLogId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    
-    return response.ok;
-  } catch {
-    return false;
-  }
+// ─── Types ──────────────────────────────────────────────────
+
+export interface User {
+    id: string;
+    email: string;
+    name: string;
+    avatarUrl?: string;
+    createdAt?: string;
 }
 
-// ============================================================================
-// HEALTH API
-// ============================================================================
-
-/**
- * Check backend health
- */
-export async function checkHealth(): Promise<boolean> {
-  try {
-    const response = await fetch(`${API_BASE}/api/db/health`);
-    return response.ok;
-  } catch {
-    return false;
-  }
+export interface ConversationPreview {
+    id: string;
+    title: string;
+    lastMessage: string | null;
+    lastMessageRole: string | null;
+    createdAt: string;
+    updatedAt: string;
 }
+
+export interface Conversation {
+    id: string;
+    title: string | null;
+    createdAt: string;
+    updatedAt: string;
+    messages: Message[];
+}
+
+export interface Message {
+    id: string;
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    createdAt: string;
+}
+
+export interface JournalEntry {
+    id: string;
+    content: string;
+    mood: string | null;
+    createdAt: string;
+}
+
+export interface MoodLog {
+    id: string;
+    mood: string;
+    intensity: number;
+    note: string | null;
+    createdAt: string;
+}
+
+export interface CrisisInfo {
+    isCrisis: boolean;
+    severity: string;
+    resources: Record<string, { name: string; number: string; description: string }>;
+    safetyMessage: string;
+}
+
+export interface WellnessTool {
+    id: string;
+    name: string;
+    description: string;
+    icon: string;
+    duration: number;
+    priority: number;
+    category: string;
+    technique: string;
+    instructions: string;
+}
+
+export interface DashboardTheme {
+    gradient: string;
+    accent: string;
+    mood: string;
+    greeting: string;
+    ambiance: string;
+}
+
+export interface AIPersonality {
+    tone: string;
+    style: string;
+    systemPromptBase: string;
+    openingMessage: string;
+    avoidTopics: string[];
+}
+
+export interface WellnessProfile {
+    archetype: string;
+    state: string;
+    urgencyLevel: string;
+    tools: WellnessTool[];
+    primaryTool: WellnessTool;
+    quickRelief: WellnessTool;
+    deeperWork: WellnessTool;
+    theme: DashboardTheme;
+    aiPersonality: AIPersonality;
+    journalPrompt: string;
+    affirmation: string;
+    bodyFocus: string;
+    aiInsight: string;
+    answers: OnboardingAnswers;
+}
+
