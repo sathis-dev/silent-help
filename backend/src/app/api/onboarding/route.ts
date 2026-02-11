@@ -4,7 +4,9 @@ import { prisma } from '@/lib/prisma';
 import { generateWellnessProfile, buildAIAnalysisPrompt, type OnboardingAnswers } from '@/lib/recommendations';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+function getOpenAI() {
+    return new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
+}
 
 // Valid energy values (step 1 is always fixed)
 const VALID_ENERGY = ['high', 'moderate', 'low'];
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
         // Layer 2: AI-generated personalized insight
         let aiInsight = '';
         try {
-            const aiResponse = await openai.chat.completions.create({
+            const aiResponse = await getOpenAI().chat.completions.create({
                 model: 'gpt-4o-mini',
                 messages: [
                     { role: 'user', content: buildAIAnalysisPrompt(answers, profile.archetype) },
