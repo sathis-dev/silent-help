@@ -1,0 +1,15 @@
+{
+  "name": "Silent Help",
+  "short_name": "Silent Help",
+  "description": "Mental health support when you need it most. Crisis intervention, coping tools, and reflective journaling.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAF9",
+  "theme_color": "#12A594",
+  "orientation": "portrait",
+  "categories": ["health", "medical", "lifestyle"],
+  "lang": "en-GB",
+  "icons": [],
+  "screenshots": [],
+  "shortcuts": []
+}

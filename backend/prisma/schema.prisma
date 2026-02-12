@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USER & AUTH
+// ============================================================================
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  name         String   @db.VarChar(255)
+  avatarUrl    String?  @map("avatar_url") @db.VarChar(500)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  conversations  Conversation[]
+  journalEntries JournalEntry[]
+  moodLogs       MoodLog[]
+  wellnessProfile WellnessProfile?
+
+  @@map("users")
+}
+
+// ============================================================================
+// WELLNESS PROFILE — AI-Generated from 6-Step Onboarding
+// ============================================================================
+
+model WellnessProfile {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @unique @map("user_id") @db.Uuid
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Raw 6-step dynamic answers
+  energy          String   @db.VarChar(20)   // high | moderate | low
+  concern         String   @db.VarChar(50)   // dynamic — varies by energy level
+  context         String   @db.VarChar(50)   // dynamic — varies by energy + concern
+  approach        String   @db.VarChar(50)   // dynamic — what they need
+  supportStyle    String   @map("support_style") @db.VarChar(50) // how they want AI to communicate
+  timeAvailable   String   @map("time_available") @db.VarChar(10) // 1 | 3 | 5 | 10
+
+  // AI-generated profile (JSON)
+  profile         Json     @db.JsonB // Full recommendation profile
+  aiInsight       String   @map("ai_insight") @db.Text // AI-written personalized insight
+  
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("wellness_profiles")
+}
+
+// ============================================================================
+// CONVERSATIONS & MESSAGES — The Core AI Chat
+// ============================================================================
+
+model Conversation {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?  @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  messages Message[]
+
+  @@index([userId])
+  @@index([updatedAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(uuid()) @db.Uuid
+  conversationId String       @map("conversation_id") @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String       @db.VarChar(20) // 'user' | 'assistant' | 'system'
+  content        String       @db.Text
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([conversationId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+// ============================================================================
+// JOURNAL — Encrypted Personal Entries
+// ============================================================================
+
+model JournalEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  mood      String?  @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("journal_entries")
+}
+
+// ============================================================================
+// MOOD LOGS — Track Emotional State
+// ============================================================================
+
+model MoodLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mood           String   @db.VarChar(50)
+  intensity      Int      @db.SmallInt // 1-10
+  note           String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("mood_logs")
+}
