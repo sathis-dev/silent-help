@@ -50,10 +50,41 @@ model WellnessProfile {
   profile         Json     @db.JsonB // Full recommendation profile
   aiInsight       String   @map("ai_insight") @db.Text // AI-written personalized insight
   
+  // New Adaptive Tree Data
+  adaptiveAnswers Json?    @map("adaptive_answers") @db.JsonB
+  
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("wellness_profiles")
+}
+
+// ============================================================================
+// ONBOARDING ASSESSMENT (6-Step Guided Tree)
+// ============================================================================
+
+model AssessmentQuestion {
+  id             String  @id @default(uuid()) @db.Uuid
+  stepNumber     Int     @map("step_number") @db.SmallInt
+  routeGroup     String  @map("route_group") @db.VarChar(10) // shared, R1, R2, R3, R4, R5
+  questionText   String  @map("question_text") @db.Text
+  
+  answerAText    String  @map("answer_a_text") @db.Text
+  nextRouteA     String  @map("next_route_a") @db.VarChar(50)
+  safetyFlagA    Boolean @map("safety_flag_a") @default(false)
+  
+  answerBText    String  @map("answer_b_text") @db.Text
+  nextRouteB     String  @map("next_route_b") @db.VarChar(50)
+  safetyFlagB    Boolean @map("safety_flag_b") @default(false)
+  
+  answerCText    String  @map("answer_c_text") @db.Text
+  nextRouteC     String  @map("next_route_c") @db.VarChar(50)
+  safetyFlagC    Boolean @map("safety_flag_c") @default(false)
+
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([stepNumber, routeGroup])
+  @@map("assessment_questions")
 }
 
 // ============================================================================
