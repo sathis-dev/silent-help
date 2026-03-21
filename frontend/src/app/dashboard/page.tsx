@@ -1,89 +1,255 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useWellness } from '@/components/wellness/WellnessProvider';
-import type { WellnessProfile, WellnessTool } from '@/lib/api';
+import type { WellnessProfile } from '@/lib/api';
 
 /* ═══════════════════════════════════════════════
-   Helper: Urgency badge color
+   Quick Action Widget Data
    ═══════════════════════════════════════════════ */
-function urgencyColor(level: string): string {
-    switch (level) {
-        case 'crisis': return '#ef4444';
-        case 'high': return '#f97316';
-        case 'moderate': return '#fbbf24';
-        case 'low': return '#2dd4bf';
-        default: return '#94a3b8';
-    }
+const defaultWidgets = [
+    { id: 'stress', icon: '🌊', label: 'Stress Relief', desc: 'Calm techniques', color: '#4a9fa4' },
+    { id: 'reflect', icon: '📝', label: 'Daily Reflection', desc: 'Journal prompts', color: '#818cf8' },
+    { id: 'focus', icon: '🎯', label: 'Focus Mode', desc: 'Deep concentration', color: '#f59e0b' },
+    { id: 'sleep', icon: '🌙', label: 'Sleep Aid', desc: 'Rest preparation', color: '#8b5cf6' },
+    { id: 'breathe', icon: '🧘', label: 'Breathing', desc: 'Box breathing', color: '#2dd4bf' },
+    { id: 'move', icon: '🏃', label: 'Movement', desc: 'Gentle exercise', color: '#f472b6' },
+];
+
+/* ═══════════════════════════════════════════════
+   Time-based Greeting
+   ═══════════════════════════════════════════════ */
+function getGreeting(): string {
+    const hour = new Date().getHours();
+    if (hour < 6) return 'Rest well';
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    if (hour < 21) return 'Good evening';
+    return 'Good night';
 }
 
 /* ═══════════════════════════════════════════════
-   Helper: Category label
+   Wellness State Messages
    ═══════════════════════════════════════════════ */
-function categoryLabel(cat: string): string {
-    const map: Record<string, string> = {
-        breathing: 'Breathing',
-        grounding: 'Grounding',
-        movement: 'Movement',
-        journaling: 'Journaling',
-        cognitive: 'Cognitive',
-        rest: 'Rest',
-        social: 'Social',
+function getWellnessMessage(archetype: string): string {
+    const messages: Record<string, string> = {
+        'Calm Seeker': "Let's find your inner peace today.",
+        'Anxious Mind': "Let's ease the tension together.",
+        'Restless Spirit': "Let's channel your energy positively.",
+        'Overwhelmed Soul': "Let's break things into smaller steps.",
+        'Tired Warrior': "Let's restore your strength gently.",
+        'Scattered Thinker': "Let's bring clarity to your thoughts.",
     };
-    return map[cat] || cat;
+    return messages[archetype] || "Let's nurture your wellbeing today.";
 }
 
 /* ═══════════════════════════════════════════════
-   Tool Card Component
+   Bento Widget Card
    ═══════════════════════════════════════════════ */
-function ToolCard({ tool, accent, isPrimary, delay }: { tool: WellnessTool; accent: string; isPrimary?: boolean; delay: number }) {
-    const [expanded, setExpanded] = useState(false);
-
+function BentoWidget({ 
+    widget, 
+    index, 
+    isEditing, 
+    onDragStart, 
+    onDragOver, 
+    onDrop 
+}: { 
+    widget: typeof defaultWidgets[0]; 
+    index: number; 
+    isEditing: boolean;
+    onDragStart: (index: number) => void;
+    onDragOver: (e: React.DragEvent) => void;
+    onDrop: (index: number) => void;
+}) {
     return (
         <div
-            className="dash-tool-card"
-            style={{
-                animationDelay: `${delay}ms`,
-                borderColor: isPrimary ? accent : undefined,
-                boxShadow: isPrimary ? `0 0 20px ${accent}20` : undefined,
-            }}
-            onClick={() => setExpanded(!expanded)}
+            className={`bento-widget ${isEditing ? 'editing' : ''}`}
+            style={{ 
+                '--widget-color': widget.color,
+                animationDelay: `${index * 80}ms`,
+            } as React.CSSProperties}
+            draggable={isEditing}
+            onDragStart={() => onDragStart(index)}
+            onDragOver={onDragOver}
+            onDrop={() => onDrop(index)}
         >
-            {isPrimary && (
-                <div className="dash-tool-badge" style={{ background: accent }}>
-                    Recommended First
+            <div className="bento-widget-glow" />
+            <div className="bento-widget-content">
+                <div className="bento-widget-icon">{widget.icon}</div>
+                <div className="bento-widget-text">
+                    <span className="bento-widget-label">{widget.label}</span>
+                    <span className="bento-widget-desc">{widget.desc}</span>
+                </div>
+            </div>
+            {isEditing && (
+                <div className="bento-widget-drag">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="9" cy="5" r="1" fill="currentColor" />
+                        <circle cx="9" cy="12" r="1" fill="currentColor" />
+                        <circle cx="9" cy="19" r="1" fill="currentColor" />
+                        <circle cx="15" cy="5" r="1" fill="currentColor" />
+                        <circle cx="15" cy="12" r="1" fill="currentColor" />
+                        <circle cx="15" cy="19" r="1" fill="currentColor" />
+                    </svg>
                 </div>
             )}
-            <div className="dash-tool-header">
-                <span className="dash-tool-icon">{tool.icon}</span>
-                <div className="dash-tool-info">
-                    <h4 className="dash-tool-name">{tool.name}</h4>
-                    <span className="dash-tool-meta">
-                        <span className="dash-tool-cat">{categoryLabel(tool.category)}</span>
-                        <span className="dash-tool-dur">{tool.duration} min</span>
+        </div>
+    );
+}
+
+/* ═══════════════════════════════════════════════
+   Embedded AI Chat Widget
+   ═══════════════════════════════════════════════ */
+function AIChatWidget({ accent, onExpand }: { accent: string; onExpand: () => void }) {
+    const [message, setMessage] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
+    const [aiResponse, setAiResponse] = useState<string | null>(null);
+    
+    const suggestions = [
+        "How can I reduce stress today?",
+        "I need help sleeping better",
+        "Help me focus on my work",
+    ];
+
+    const handleSend = () => {
+        if (!message.trim()) return;
+        setIsTyping(true);
+        setAiResponse(null);
+        
+        // Simulate AI response
+        setTimeout(() => {
+            setIsTyping(false);
+            setAiResponse("I hear you. Let me suggest a quick breathing exercise that can help center your thoughts. Would you like to try the 4-7-8 technique together?");
+        }, 1500);
+    };
+
+    return (
+        <div className="ai-chat-widget">
+            <div className="ai-chat-header">
+                <div className="ai-chat-avatar" style={{ background: `${accent}20` }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2">
+                        <path d="M12 2a7 7 0 017 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 01-2 2h-4a2 2 0 01-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 017-7z" />
+                        <path d="M9 21h6" />
+                    </svg>
+                </div>
+                <div className="ai-chat-title">
+                    <h4>AI Companion</h4>
+                    <span className="ai-status">
+                        <span className="ai-status-dot" style={{ background: accent }} />
+                        Online
                     </span>
                 </div>
-                <svg
-                    className={`dash-tool-chevron ${expanded ? 'open' : ''}`}
-                    width="16" height="16" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" strokeWidth="2"
-                >
-                    <path d="M6 9l6 6 6-6" />
-                </svg>
+                <button className="ai-chat-expand" onClick={onExpand}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M15 3h6v6M14 10l7-7M9 21H3v-6M10 14l-7 7" />
+                    </svg>
+                </button>
             </div>
-            <p className="dash-tool-desc">{tool.description}</p>
-            {expanded && (
-                <div className="dash-tool-expand">
-                    <div className="dash-tool-technique">
-                        <strong>Technique:</strong> {tool.technique}
+
+            <div className="ai-chat-body">
+                {!aiResponse && !isTyping && (
+                    <div className="ai-chat-suggestions">
+                        <p>Quick suggestions:</p>
+                        {suggestions.map((suggestion, i) => (
+                            <button 
+                                key={i} 
+                                className="ai-suggestion"
+                                onClick={() => setMessage(suggestion)}
+                            >
+                                {suggestion}
+                            </button>
+                        ))}
                     </div>
-                    <div className="dash-tool-instructions">
-                        <strong>How to:</strong> {tool.instructions}
+                )}
+
+                {isTyping && (
+                    <div className="ai-typing-response">
+                        <div className="ai-typing-avatar" style={{ background: `${accent}20` }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2">
+                                <path d="M12 2a7 7 0 017 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 01-2 2h-4a2 2 0 01-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 017-7z" />
+                            </svg>
+                        </div>
+                        <div className="ai-typing-bubble">
+                            <span className="typing-dot" />
+                            <span className="typing-dot" />
+                            <span className="typing-dot" />
+                        </div>
                     </div>
+                )}
+
+                {aiResponse && (
+                    <div className="ai-response-message">
+                        <div className="ai-response-avatar" style={{ background: `${accent}20` }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2">
+                                <path d="M12 2a7 7 0 017 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 01-2 2h-4a2 2 0 01-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 017-7z" />
+                            </svg>
+                        </div>
+                        <div className="ai-response-bubble" style={{ borderColor: `${accent}30` }}>
+                            {aiResponse}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <div className="ai-chat-input-area">
+                <input
+                    type="text"
+                    placeholder="Ask me anything about your wellness..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                />
+                <button 
+                    className="ai-send-btn"
+                    style={{ background: accent }}
+                    onClick={handleSend}
+                    disabled={!message.trim()}
+                >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    );
+}
+
+/* ═══════════════════════════════════════════════
+   Insight Card Component
+   ═══════════════════════════════════════════════ */
+function InsightCard({ profile, accent }: { profile: WellnessProfile; accent: string }) {
+    return (
+        <div className="insight-card" style={{ '--accent': accent } as React.CSSProperties}>
+            <div className="insight-header">
+                <div className="insight-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2">
+                        <path d="M12 2a7 7 0 017 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 01-2 2h-4a2 2 0 01-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 017-7z" />
+                        <path d="M9 21h6M10 17h4" />
+                    </svg>
                 </div>
-            )}
+                <span>AI Insight</span>
+            </div>
+            <p className="insight-text">{profile.aiInsight}</p>
+            <div className="insight-glow" style={{ background: `radial-gradient(circle, ${accent}15, transparent 70%)` }} />
+        </div>
+    );
+}
+
+/* ═══════════════════════════════════════════════
+   Stats Mini Card
+   ═══════════════════════════════════════════════ */
+function StatsMiniCard({ label, value, icon, accent }: { label: string; value: string; icon: React.ReactNode; accent: string }) {
+    return (
+        <div className="stats-mini-card">
+            <div className="stats-icon" style={{ background: `${accent}15`, color: accent }}>
+                {icon}
+            </div>
+            <div className="stats-content">
+                <span className="stats-value">{value}</span>
+                <span className="stats-label">{label}</span>
+            </div>
         </div>
     );
 }
@@ -95,8 +261,13 @@ export default function DashboardPage() {
     const router = useRouter();
     const { user, isAuthenticated, isLoading: authLoading } = useAuth();
     const { profile, isLoading: wellnessLoading, loadProfile } = useWellness();
+    
     const [show, setShow] = useState(false);
-    const [activeTab, setActiveTab] = useState<'tools' | 'insight' | 'ai'>('tools');
+    const [widgets, setWidgets] = useState(defaultWidgets);
+    const [isEditing, setIsEditing] = useState(false);
+    const [dragIndex, setDragIndex] = useState<number | null>(null);
+    
+    const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) {
@@ -121,17 +292,38 @@ export default function DashboardPage() {
         router.push('/onboarding');
     }, [router]);
 
-    const handleChat = useCallback(() => {
+    const handleExpandChat = useCallback(() => {
         router.push('/chat');
     }, [router]);
+
+    const handleDragStart = (index: number) => {
+        setDragIndex(index);
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+    };
+
+    const handleDrop = (dropIndex: number) => {
+        if (dragIndex === null || dragIndex === dropIndex) return;
+        const newWidgets = [...widgets];
+        const [removed] = newWidgets.splice(dragIndex, 1);
+        newWidgets.splice(dropIndex, 0, removed);
+        setWidgets(newWidgets);
+        setDragIndex(null);
+    };
 
     // Loading state
     if (authLoading || wellnessLoading || !profile) {
         return (
-            <div className="dash-loading">
-                <div className="dash-loading-content">
-                    <div className="loading-dots"><span /><span /><span /></div>
-                    <p>Analyzing your responses...</p>
+            <div className="dashboard-loading">
+                <div className="dashboard-loading-content">
+                    <div className="dashboard-loading-orb">
+                        <div className="loading-orb-inner" />
+                        <div className="loading-orb-ring" />
+                        <div className="loading-orb-ring ring-2" />
+                    </div>
+                    <p>Preparing your wellness hub...</p>
                 </div>
             </div>
         );
@@ -139,267 +331,179 @@ export default function DashboardPage() {
 
     const p = profile as WellnessProfile;
     const accent = p.theme.accent;
+    const userName = user?.name || 'Friend';
+    const greeting = getGreeting();
+    const wellnessMessage = getWellnessMessage(p.archetype);
 
     return (
-        <div className="dash-page" style={{ background: p.theme.gradient }}>
-            {/* Ambient glow */}
-            <div className="dash-ambient">
-                <div className="dash-glow" style={{ background: `radial-gradient(circle, ${accent}12, transparent 70%)` }} />
-                <div className="dash-glow-2" style={{ background: `radial-gradient(circle, ${accent}08, transparent 60%)` }} />
+        <div 
+            className="dashboard-page" 
+            ref={containerRef}
+            style={{ 
+                '--mood-gradient': p.theme.gradient,
+                '--accent-color': accent,
+            } as React.CSSProperties}
+        >
+            {/* Ambient Background */}
+            <div className="dashboard-ambient">
+                <div className="ambient-orb orb-1" style={{ background: `radial-gradient(circle, ${accent}25, transparent 70%)` }} />
+                <div className="ambient-orb orb-2" style={{ background: `radial-gradient(circle, ${accent}15, transparent 60%)` }} />
+                <div className="ambient-orb orb-3" />
             </div>
 
-            {/* Main content */}
-            <div className={`dash-container ${show ? 'visible' : ''}`}>
-                {/* Header */}
-                <header className="dash-header">
-                    <div className="dash-header-left">
-                        <div className="dash-avatar" style={{ borderColor: accent }}>
-                            {user?.name?.charAt(0).toUpperCase() || '?'}
+            {/* Main Content */}
+            <div className={`dashboard-container ${show ? 'visible' : ''}`}>
+                {/* Header Section */}
+                <header className="dashboard-header">
+                    <div className="header-left">
+                        <div className="user-avatar" style={{ borderColor: accent }}>
+                            {userName.charAt(0).toUpperCase()}
                         </div>
-                        <div>
-                            <h2 className="dash-greeting">{p.theme.greeting}</h2>
-                            <p className="dash-user-name">{user?.name || 'Friend'}</p>
+                        <div className="header-greeting">
+                            <h1>
+                                {greeting}, <span style={{ color: accent }}>{userName}</span>
+                            </h1>
+                            <p>{wellnessMessage}</p>
                         </div>
                     </div>
-                    <div className="dash-header-actions">
-                        <button className="dash-btn-ghost" onClick={handleReassess}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <div className="header-actions">
+                        <button className="header-btn" onClick={handleReassess}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path d="M1 4v6h6M23 20v-6h-6" />
                                 <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" />
                             </svg>
-                            Re-assess
+                            <span>Re-assess</span>
                         </button>
                     </div>
                 </header>
 
-                {/* Archetype Card */}
-                <div className="dash-archetype" style={{ borderColor: `${accent}40` }}>
-                    <div className="dash-archetype-top">
-                        <div>
-                            <span className="dash-archetype-label" style={{ color: accent }}>Your State</span>
-                            <h1 className="dash-archetype-name">{p.archetype}</h1>
-                            <p className="dash-archetype-state">{p.state}</p>
-                        </div>
-                        <div className="dash-urgency" style={{ background: `${urgencyColor(p.urgencyLevel)}20`, color: urgencyColor(p.urgencyLevel) }}>
-                            <span className="dash-urgency-dot" style={{ background: urgencyColor(p.urgencyLevel) }} />
-                            {p.urgencyLevel.charAt(0).toUpperCase() + p.urgencyLevel.slice(1)} Intensity
-                        </div>
+                {/* Wellness State Banner */}
+                <div className="wellness-state-banner" style={{ borderColor: `${accent}30` }}>
+                    <div className="state-info">
+                        <span className="state-label" style={{ color: accent }}>Current State</span>
+                        <h2 className="state-archetype">{p.archetype}</h2>
+                        <p className="state-description">{p.state}</p>
                     </div>
-
-                    {/* AI Insight */}
-                    {p.aiInsight && (
-                        <div className="dash-insight" style={{ borderColor: `${accent}30` }}>
-                            <div className="dash-insight-icon" style={{ color: accent }}>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M12 2a7 7 0 017 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 01-2 2h-4a2 2 0 01-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 017-7z" />
-                                    <path d="M9 21h6M10 17h4" />
-                                </svg>
-                                AI Insight
-                            </div>
-                            <p className="dash-insight-text">{p.aiInsight}</p>
-                        </div>
-                    )}
-                </div>
-
-                {/* Affirmation */}
-                <div className="dash-affirmation" style={{ background: `${accent}08`, borderColor: `${accent}20` }}>
-                    <span className="dash-affirmation-icon">💫</span>
-                    <p>{p.affirmation}</p>
-                </div>
-
-                {/* Quick Actions Row */}
-                <div className="dash-quick-row">
-                    <div className="dash-quick-card" style={{ borderColor: `${accent}30` }} onClick={handleChat}>
-                        <span className="dash-quick-icon">{p.primaryTool.icon}</span>
-                        <div>
-                            <h4>Start Here</h4>
-                            <p>{p.primaryTool.name}</p>
-                        </div>
-                    </div>
-                    <div className="dash-quick-card" style={{ borderColor: `${accent}30` }}>
-                        <span className="dash-quick-icon">{p.quickRelief.icon}</span>
-                        <div>
-                            <h4>Quick Relief</h4>
-                            <p>{p.quickRelief.name}</p>
-                        </div>
-                    </div>
-                    <div className="dash-quick-card" style={{ borderColor: `${accent}30` }}>
-                        <span className="dash-quick-icon">{p.deeperWork.icon}</span>
-                        <div>
-                            <h4>Deeper Work</h4>
-                            <p>{p.deeperWork.name}</p>
-                        </div>
+                    <div className="state-affirmation" style={{ background: `${accent}10`, borderColor: `${accent}25` }}>
+                        <span className="affirmation-icon">✨</span>
+                        <p>{p.affirmation}</p>
                     </div>
                 </div>
 
-                {/* Tabs */}
-                <div className="dash-tabs">
-                    <button
-                        className={`dash-tab ${activeTab === 'tools' ? 'active' : ''}`}
-                        style={activeTab === 'tools' ? { color: accent, borderColor: accent } : undefined}
-                        onClick={() => setActiveTab('tools')}
-                    >
-                        Your Tools
-                    </button>
-                    <button
-                        className={`dash-tab ${activeTab === 'insight' ? 'active' : ''}`}
-                        style={activeTab === 'insight' ? { color: accent, borderColor: accent } : undefined}
-                        onClick={() => setActiveTab('insight')}
-                    >
-                        Body & Journal
-                    </button>
-                    <button
-                        className={`dash-tab ${activeTab === 'ai' ? 'active' : ''}`}
-                        style={activeTab === 'ai' ? { color: accent, borderColor: accent } : undefined}
-                        onClick={() => setActiveTab('ai')}
-                    >
-                        AI Companion
-                    </button>
+                {/* Mini Stats Row */}
+                <div className="stats-row">
+                    <StatsMiniCard 
+                        label="Energy Level"
+                        value={p.answers.energy?.replace('_', ' ') || 'Balanced'}
+                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>}
+                        accent={accent}
+                    />
+                    <StatsMiniCard 
+                        label="Time Available"
+                        value={`${p.answers.time} min`}
+                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>}
+                        accent={accent}
+                    />
+                    <StatsMiniCard 
+                        label="Focus Area"
+                        value={p.answers.concern?.replace(/_/g, ' ') || 'General'}
+                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></svg>}
+                        accent={accent}
+                    />
                 </div>
 
-                {/* Tab Content: Tools */}
-                {activeTab === 'tools' && (
-                    <div className="dash-tools-grid">
-                        {p.tools.map((tool, i) => (
-                            <ToolCard
-                                key={tool.id}
-                                tool={tool}
-                                accent={accent}
-                                isPrimary={i === 0}
-                                delay={i * 80}
+                {/* AI Insight Card */}
+                {p.aiInsight && <InsightCard profile={p} accent={accent} />}
+
+                {/* Bento Grid Section */}
+                <div className="bento-section">
+                    <div className="bento-header">
+                        <h3>Quick Actions</h3>
+                        <button 
+                            className={`customize-btn ${isEditing ? 'active' : ''}`}
+                            onClick={() => setIsEditing(!isEditing)}
+                            style={isEditing ? { background: `${accent}20`, color: accent, borderColor: accent } : {}}
+                        >
+                            {isEditing ? (
+                                <>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M20 6L9 17l-5-5" />
+                                    </svg>
+                                    Done
+                                </>
+                            ) : (
+                                <>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M12 3v18M3 12h18" />
+                                    </svg>
+                                    Customize
+                                </>
+                            )}
+                        </button>
+                    </div>
+                    <div className={`bento-grid ${isEditing ? 'editing' : ''}`}>
+                        {widgets.map((widget, index) => (
+                            <BentoWidget
+                                key={widget.id}
+                                widget={widget}
+                                index={index}
+                                isEditing={isEditing}
+                                onDragStart={handleDragStart}
+                                onDragOver={handleDragOver}
+                                onDrop={handleDrop}
                             />
                         ))}
                     </div>
-                )}
+                </div>
 
-                {/* Tab Content: Body & Journal */}
-                {activeTab === 'insight' && (
-                    <div className="dash-insight-tab">
-                        <div className="dash-body-card" style={{ borderColor: `${accent}30` }}>
-                            <h3>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2">
-                                    <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
-                                </svg>
-                                Body Focus
-                            </h3>
-                            <p>{p.bodyFocus}</p>
-                        </div>
+                {/* AI Chat Widget */}
+                <div className="chat-section">
+                    <h3>Talk to Your AI Companion</h3>
+                    <AIChatWidget accent={accent} onExpand={handleExpandChat} />
+                </div>
 
-                        <div className="dash-journal-card" style={{ borderColor: `${accent}30` }}>
-                            <h3>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2">
-                                    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
-                                </svg>
-                                Journal Prompt
-                            </h3>
-                            <p className="dash-journal-prompt">{p.journalPrompt}</p>
-                            <button
-                                className="dash-btn-accent"
-                                style={{ background: `${accent}20`, color: accent, borderColor: `${accent}40` }}
-                                onClick={() => router.push('/journal')}
-                            >
-                                Open Journal
-                            </button>
-                        </div>
-
-                        <div className="dash-answers-card" style={{ borderColor: `${accent}30` }}>
-                            <h3>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <path d="M12 16v-4M12 8h.01" />
-                                </svg>
-                                Your 6-Step Profile
-                            </h3>
-                            <div className="dash-answers-grid">
-                                <div className="dash-answer">
-                                    <span className="dash-answer-label">Energy</span>
-                                    <span className="dash-answer-value" style={{ color: accent }}>{p.answers.energy}</span>
-                                </div>
-                                <div className="dash-answer">
-                                    <span className="dash-answer-label">Concern</span>
-                                    <span className="dash-answer-value" style={{ color: accent }}>{p.answers.concern?.replace(/_/g, ' ')}</span>
-                                </div>
-                                <div className="dash-answer">
-                                    <span className="dash-answer-label">Context</span>
-                                    <span className="dash-answer-value" style={{ color: accent }}>{p.answers.context?.replace(/_/g, ' ')}</span>
-                                </div>
-                                <div className="dash-answer">
-                                    <span className="dash-answer-label">Approach</span>
-                                    <span className="dash-answer-value" style={{ color: accent }}>{p.answers.approach?.replace(/_/g, ' ')}</span>
-                                </div>
-                                <div className="dash-answer">
-                                    <span className="dash-answer-label">Support</span>
-                                    <span className="dash-answer-value" style={{ color: accent }}>{p.answers.support_style?.replace(/_/g, ' ')}</span>
-                                </div>
-                                <div className="dash-answer">
-                                    <span className="dash-answer-label">Time</span>
-                                    <span className="dash-answer-value" style={{ color: accent }}>{p.answers.time} min</span>
-                                </div>
+                {/* Recommended Tools */}
+                <div className="tools-section">
+                    <h3>Personalized Tools</h3>
+                    <div className="tools-grid">
+                        <div className="tool-card primary" style={{ borderColor: accent, boxShadow: `0 0 30px ${accent}15` }}>
+                            <div className="tool-badge" style={{ background: accent }}>Recommended</div>
+                            <span className="tool-icon">{p.primaryTool.icon}</span>
+                            <div className="tool-info">
+                                <h4>{p.primaryTool.name}</h4>
+                                <p>{p.primaryTool.description}</p>
                             </div>
+                            <span className="tool-duration">{p.primaryTool.duration} min</span>
+                        </div>
+                        <div className="tool-card" style={{ borderColor: `${accent}30` }}>
+                            <span className="tool-icon">{p.quickRelief.icon}</span>
+                            <div className="tool-info">
+                                <h4>{p.quickRelief.name}</h4>
+                                <p>Quick relief technique</p>
+                            </div>
+                            <span className="tool-duration">{p.quickRelief.duration} min</span>
+                        </div>
+                        <div className="tool-card" style={{ borderColor: `${accent}30` }}>
+                            <span className="tool-icon">{p.deeperWork.icon}</span>
+                            <div className="tool-info">
+                                <h4>{p.deeperWork.name}</h4>
+                                <p>For deeper exploration</p>
+                            </div>
+                            <span className="tool-duration">{p.deeperWork.duration} min</span>
                         </div>
                     </div>
-                )}
-
-                {/* Tab Content: AI Companion */}
-                {activeTab === 'ai' && (
-                    <div className="dash-ai-tab">
-                        <div className="dash-ai-preview" style={{ borderColor: `${accent}30` }}>
-                            <div className="dash-ai-header">
-                                <div className="dash-ai-avatar" style={{ background: `${accent}20`, color: accent }}>
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-                                    </svg>
-                                </div>
-                                <div>
-                                    <h4>Your AI Companion</h4>
-                                    <p className="dash-ai-tone">Tone: {p.aiPersonality.tone}</p>
-                                </div>
-                            </div>
-                            <div className="dash-ai-message" style={{ background: `${accent}08`, borderColor: `${accent}20` }}>
-                                <p>{p.aiPersonality.openingMessage}</p>
-                            </div>
-                            <button
-                                className="dash-btn-primary"
-                                style={{ background: accent }}
-                                onClick={handleChat}
-                            >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-                                </svg>
-                                Start Conversation
-                            </button>
-                        </div>
-
-                        <div className="dash-ai-details" style={{ borderColor: `${accent}30` }}>
-                            <h4>How Your AI Adapts</h4>
-                            <div className="dash-ai-detail-row">
-                                <span className="dash-ai-detail-label">Communication Style</span>
-                                <p>{p.aiPersonality.style}</p>
-                            </div>
-                            {p.aiPersonality.avoidTopics.length > 0 && (
-                                <div className="dash-ai-detail-row">
-                                    <span className="dash-ai-detail-label">Topics Handled Carefully</span>
-                                    <div className="dash-ai-tags">
-                                        {p.aiPersonality.avoidTopics.map(topic => (
-                                            <span key={topic} className="dash-ai-tag">{topic}</span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
+                </div>
 
                 {/* Footer */}
-                <div className="dash-footer">
-                    <p className="dash-footer-text">
-                        Your dashboard is uniquely generated from your 6-step assessment.
-                        <br />
-                        <button className="dash-link" style={{ color: accent }} onClick={handleReassess}>
-                            Take it again
-                        </button> to get a fresh, personalized experience.
+                <footer className="dashboard-footer">
+                    <p>
+                        Your dashboard adapts to your wellness profile.{' '}
+                        <button onClick={handleReassess} style={{ color: accent }}>
+                            Take the assessment again
+                        </button>{' '}
+                        for a fresh experience.
                     </p>
-                </div>
+                </footer>
             </div>
         </div>
     );
