@@ -68,18 +68,30 @@ model AssessmentQuestion {
   stepNumber     Int     @map("step_number") @db.SmallInt
   routeGroup     String  @map("route_group") @db.VarChar(10) // shared, R1, R2, R3, R4, R5
   questionText   String  @map("question_text") @db.Text
-  
+
+  // Option A
   answerAText    String  @map("answer_a_text") @db.Text
+  meaningA       String  @map("meaning_a") @db.VarChar(100)
   nextRouteA     String  @map("next_route_a") @db.VarChar(50)
-  safetyFlagA    Boolean @map("safety_flag_a") @default(false)
-  
+  scoreDimA      String  @map("score_dim_a") @db.VarChar(20)  // intensity | impact | control | duration | symptoms | coping | safety
+  scoreValA      Int     @map("score_val_a") @db.SmallInt      // 0, 1, 2, or 3
+  safetyFlagA    String  @map("safety_flag_a") @default("none") @db.VarChar(10) // none | soft | medium | hard
+
+  // Option B
   answerBText    String  @map("answer_b_text") @db.Text
+  meaningB       String  @map("meaning_b") @db.VarChar(100)
   nextRouteB     String  @map("next_route_b") @db.VarChar(50)
-  safetyFlagB    Boolean @map("safety_flag_b") @default(false)
-  
+  scoreDimB      String  @map("score_dim_b") @db.VarChar(20)
+  scoreValB      Int     @map("score_val_b") @db.SmallInt
+  safetyFlagB    String  @map("safety_flag_b") @default("none") @db.VarChar(10)
+
+  // Option C
   answerCText    String  @map("answer_c_text") @db.Text
+  meaningC       String  @map("meaning_c") @db.VarChar(100)
   nextRouteC     String  @map("next_route_c") @db.VarChar(50)
-  safetyFlagC    Boolean @map("safety_flag_c") @default(false)
+  scoreDimC      String  @map("score_dim_c") @db.VarChar(20)
+  scoreValC      Int     @map("score_val_c") @db.SmallInt
+  safetyFlagC    String  @map("safety_flag_c") @default("none") @db.VarChar(10)
 
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
