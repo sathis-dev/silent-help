@@ -79,7 +79,7 @@ export default function Home() {
 
                 <button
                     className="landing-cta"
-                    onClick={() => router.push('/onboarding')}
+                    onClick={() => router.push('/auth')}
                 >
                     <span>Get Started</span>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -89,7 +89,7 @@ export default function Home() {
 
                 <p className="landing-login-link">
                     Already have an account?{' '}
-                    <a onClick={() => router.push('/auth/login')} style={{ cursor: 'pointer' }}>Sign in</a>
+                    <a onClick={() => router.push('/auth')} style={{ cursor: 'pointer' }}>Sign in</a>
                 </p>
             </div>
         </div>
