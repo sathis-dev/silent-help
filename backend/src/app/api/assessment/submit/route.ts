@@ -10,6 +10,7 @@ function getOpenAI() {
 
 /* ─── Types ─── */
 interface ScoreBreakdown {
+    [key: string]: number;
     intensity: number;
     impact: number;
     control: number;
@@ -85,7 +86,7 @@ function calculateWeightedTotal(scores: ScoreBreakdown): number {
 export async function POST(req: NextRequest) {
     try {
         const payload = getUserFromRequest(req);
-        if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
 
         const body = await req.json();
         const { finalRoute, answerLog, answerDetails } = body;
@@ -153,53 +154,67 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // Save everything
-        await prisma.wellnessProfile.upsert({
-            where: { userId: payload.userId },
-            create: {
-                userId: payload.userId,
-                energy: answers.energy,
-                concern: answers.concern,
-                context: answers.context,
-                approach: answers.approach,
-                supportStyle: answers.support_style,
-                timeAvailable: answers.time,
-                profile: JSON.parse(JSON.stringify(profile)),
-                aiInsight,
-                adaptiveAnswers: {
-                    version: 2,
-                    finalRoute,
-                    outcome: outcome.level,
-                    enhanced: outcome.enhanced,
-                    weightedTotal: outcome.weightedTotal,
-                    maxSafetyFlag,
-                    scores,
-                    answerLog: answerLog || {},
-                    answerDetails: answerDetails || [],
+        // Save everything if registered user
+        if (payload) {
+            // Implicitly ensure the user exists in database to satisfy foreign keys
+            await prisma.user.upsert({
+                where: { id: payload.userId },
+                create: {
+                    id: payload.userId,
+                    email: payload.email || `clerk_${payload.userId.substring(0,8)}@temp.silenthelp.com`,
+                    passwordHash: 'clerk-auth',
+                    name: 'Silent Help User'
                 },
-            },
-            update: {
-                energy: answers.energy,
-                concern: answers.concern,
-                context: answers.context,
-                approach: answers.approach,
-                supportStyle: answers.support_style,
-                timeAvailable: answers.time,
-                profile: JSON.parse(JSON.stringify(profile)),
-                aiInsight,
-                adaptiveAnswers: {
-                    version: 2,
-                    finalRoute,
-                    outcome: outcome.level,
-                    enhanced: outcome.enhanced,
-                    weightedTotal: outcome.weightedTotal,
-                    maxSafetyFlag,
-                    scores,
-                    answerLog: answerLog || {},
-                    answerDetails: answerDetails || [],
+                update: {}
+            });
+
+            await prisma.wellnessProfile.upsert({
+                where: { userId: payload.userId },
+                create: {
+                    userId: payload.userId,
+                    energy: answers.energy,
+                    concern: answers.concern,
+                    context: answers.context,
+                    approach: answers.approach,
+                    supportStyle: answers.support_style,
+                    timeAvailable: answers.time,
+                    profile: JSON.parse(JSON.stringify(profile)),
+                    aiInsight,
+                    adaptiveAnswers: {
+                        version: 2,
+                        finalRoute,
+                        outcome: outcome.level,
+                        enhanced: outcome.enhanced,
+                        weightedTotal: outcome.weightedTotal,
+                        maxSafetyFlag,
+                        scores,
+                        answerLog: answerLog || {},
+                        answerDetails: answerDetails || [],
+                    },
                 },
-            },
-        });
+                update: {
+                    energy: answers.energy,
+                    concern: answers.concern,
+                    context: answers.context,
+                    approach: answers.approach,
+                    supportStyle: answers.support_style,
+                    timeAvailable: answers.time,
+                    profile: JSON.parse(JSON.stringify(profile)),
+                    aiInsight,
+                    adaptiveAnswers: {
+                        version: 2,
+                        finalRoute,
+                        outcome: outcome.level,
+                        enhanced: outcome.enhanced,
+                        weightedTotal: outcome.weightedTotal,
+                        maxSafetyFlag,
+                        scores,
+                        answerLog: answerLog || {},
+                        answerDetails: answerDetails || [],
+                    },
+                },
+            });
+        }
 
         return NextResponse.json({
             success: true,

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/components/auth/AuthProvider';
+import { useUser, UserButton } from '@clerk/nextjs';
 import { useWellness } from '@/components/wellness/WellnessProvider';
 import type { WellnessProfile } from '@/lib/api';
 
@@ -259,7 +259,9 @@ function StatsMiniCard({ label, value, icon, accent }: { label: string; value: s
    ═══════════════════════════════════════════════ */
 export default function DashboardPage() {
     const router = useRouter();
-    const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+    const { user, isSignedIn, isLoaded: authLoaded } = useUser();
+    const authLoading = !authLoaded;
+    const isAuthenticated = !!isSignedIn;
     const { profile, isLoading: wellnessLoading, loadProfile } = useWellness();
     
     const [show, setShow] = useState(false);
@@ -270,11 +272,12 @@ export default function DashboardPage() {
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!authLoading && !isAuthenticated) {
+        const isGuest = !isAuthenticated && typeof window !== 'undefined' && !!localStorage.getItem('sh_guest_name');
+        if (!authLoading && !isAuthenticated && !isGuest) {
             router.replace('/');
             return;
         }
-        if (isAuthenticated && !profile) {
+        if ((isAuthenticated || isGuest) && !profile) {
             loadProfile().then((p) => {
                 if (!p) router.replace('/onboarding');
             });
@@ -331,7 +334,7 @@ export default function DashboardPage() {
 
     const p = profile as WellnessProfile;
     const accent = p.theme.accent;
-    const userName = user?.name || 'Friend';
+    const userName = user?.firstName || (typeof window !== 'undefined' ? localStorage.getItem('sh_guest_name') : null) || 'Friend';
     const greeting = getGreeting();
     const wellnessMessage = getWellnessMessage(p.archetype);
 
@@ -356,9 +359,15 @@ export default function DashboardPage() {
                 {/* Header Section */}
                 <header className="dashboard-header">
                     <div className="header-left">
-                        <div className="user-avatar" style={{ borderColor: accent }}>
-                            {userName.charAt(0).toUpperCase()}
-                        </div>
+                        {isSignedIn ? (
+                            <div className="user-avatar" style={{ borderColor: accent, background: 'transparent', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <UserButton appearance={{ elements: { userButtonAvatarBox: "w-10 h-10 rounded-full", userButtonTrigger: "focus:shadow-none" } }} />
+                            </div>
+                        ) : (
+                            <div className="user-avatar" style={{ borderColor: accent }}>
+                                {userName.charAt(0).toUpperCase()}
+                            </div>
+                        )}
                         <div className="header-greeting">
                             <h1>
                                 {greeting}, <span style={{ color: accent }}>{userName}</span>

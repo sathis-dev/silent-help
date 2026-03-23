@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/components/auth/AuthProvider';
+import { useUser } from '@clerk/nextjs';
 
 export default function Home() {
     const router = useRouter();
-    const { isAuthenticated, isLoading } = useAuth();
+    const { isSignedIn, isLoaded } = useUser();
     const [show, setShow] = useState(false);
 
     useEffect(() => {
-        if (!isLoading) {
-            if (isAuthenticated) {
+        if (isLoaded) {
+            if (isSignedIn) {
                 router.replace('/dashboard');
                 return;
             }
@@ -19,9 +19,9 @@ export default function Home() {
         // Trigger entrance animation
         const t = setTimeout(() => setShow(true), 100);
         return () => clearTimeout(t);
-    }, [isAuthenticated, isLoading, router]);
+    }, [isSignedIn, isLoaded, router]);
 
-    if (isLoading) {
+    if (!isLoaded) {
         return (
             <div className="auth-container">
                 <div className="loading-dots"><span /><span /><span /></div>
@@ -79,7 +79,7 @@ export default function Home() {
 
                 <button
                     className="landing-cta"
-                    onClick={() => router.push('/auth')}
+                    onClick={() => router.push('/onboarding')}
                 >
                     <span>Get Started</span>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

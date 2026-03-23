@@ -122,15 +122,16 @@ export default function OnboardingFlow() {
     setAnswerDetails(updatedDetails);
 
     // Terminal node?
-    if (nextRoute.startsWith('FINISH_') || nextRoute.startsWith('URGENT')) {
+    const rUpper = nextRoute.toUpperCase();
+    if (rUpper.startsWith('FINISH') || rUpper.startsWith('URGENT') || rUpper.includes('SAFETY') || stepNumber >= 6) {
       setSubmitting(true);
       try {
-        await fetch('/api/assessment/submit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ finalRoute: nextRoute, answerLog: updatedLog, answerDetails: updatedDetails }),
-        });
-        setTimeout(() => router.push('/dashboard'), 2400);
+        const payload = { finalRoute: nextRoute, answerLog: updatedLog, answerDetails: updatedDetails };
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('sh_pending_assessment', JSON.stringify(payload));
+        }
+
+        setTimeout(() => router.push('/auth'), 2400);
       } catch { setSubmitting(false); }
       return;
     }

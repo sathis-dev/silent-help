@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { AuthProvider } from '@/components/auth/AuthProvider';
+import { ClerkProvider, Show, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs';
 import { WellnessProvider } from '@/components/wellness/WellnessProvider';
 
 const inter = Inter({ 
@@ -22,14 +22,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body className="font-sans antialiased">
-        <AuthProvider>
+    <ClerkProvider>
+      <html lang="en" className={inter.variable}>
+        <body className="font-sans antialiased">
           <WellnessProvider>
             {children}
           </WellnessProvider>
-        </AuthProvider>
-      </body>
-    </html>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
