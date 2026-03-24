@@ -114,11 +114,29 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ hasProfile: false, profile: null });
         }
 
+        // Derive stressLevel from saved adaptive answers
+        const adaptive = saved.adaptiveAnswers as Record<string, unknown> | null;
+        let stressLevel: 'low' | 'mid-low' | 'mid-high' | 'high' = 'low';
+        if (adaptive) {
+            const outcomeLevel = adaptive.outcome as string || 'low';
+            const weightedTotal = (adaptive.weightedTotal as number) || 0;
+            if (outcomeLevel === 'urgent' || outcomeLevel === 'high') stressLevel = 'high';
+            else if (outcomeLevel === 'low') stressLevel = 'low';
+            else if (weightedTotal <= 16) stressLevel = 'mid-low';
+            else stressLevel = 'mid-high';
+        } else {
+            // Legacy profiles without adaptive answers — use energy as heuristic
+            if (saved.energy === 'high') stressLevel = 'high';
+            else if (saved.energy === 'moderate') stressLevel = 'mid-low';
+            else stressLevel = 'low';
+        }
+
         return NextResponse.json({
             hasProfile: true,
             profile: {
                 ...saved.profile as Record<string, unknown>,
                 aiInsight: saved.aiInsight,
+                stressLevel,
                 answers: {
                     energy: saved.energy,
                     concern: saved.concern,

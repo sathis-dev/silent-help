@@ -3,11 +3,13 @@
 import { useState, FormEvent, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { SignUpButton, SignInButton, useUser, useAuth } from '@clerk/nextjs';
+import { useWellness } from '@/components/wellness/WellnessProvider';
 
 function AuthForms() {
     const router = useRouter();
     const { isSignedIn } = useUser();
     const { getToken } = useAuth();
+    const { setContextProfile } = useWellness();
     const [guestName, setGuestName] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -41,6 +43,7 @@ function AuthForms() {
                 if (!token) {
                     localStorage.setItem('sh_guest_profile', JSON.stringify(data.profile));
                 }
+                setContextProfile(data.profile);
                 localStorage.removeItem('sh_pending_assessment');
             }
         } catch (e) {

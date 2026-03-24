@@ -71,6 +71,15 @@ function determineOutcome(
     return { level: 'high', enhanced, weightedTotal: total };
 }
 
+/* ─── Compute 4-tier stress level for dashboard ─── */
+function computeStressLevel(outcome: { level: string; weightedTotal: number }): 'low' | 'mid-low' | 'mid-high' | 'high' {
+    if (outcome.level === 'urgent' || outcome.level === 'high') return 'high';
+    if (outcome.level === 'low') return 'low';
+    // Split 'mid' into mid-low / mid-high based on weighted score
+    if (outcome.weightedTotal <= 16) return 'mid-low';
+    return 'mid-high';
+}
+
 function calculateWeightedTotal(scores: ScoreBreakdown): number {
     return (
         scores.intensity * STEP_WEIGHTS[1] +
@@ -216,15 +225,18 @@ export async function POST(req: NextRequest) {
             });
         }
 
+        const stressLevel = computeStressLevel(outcome);
+
         return NextResponse.json({
             success: true,
             outcome: {
                 level: outcome.level,
                 enhanced: outcome.enhanced,
                 weightedTotal: outcome.weightedTotal,
+                stressLevel,
                 scores,
             },
-            profile: { ...profile, aiInsight },
+            profile: { ...profile, aiInsight, stressLevel },
             finalRoute,
         });
     } catch (error) {

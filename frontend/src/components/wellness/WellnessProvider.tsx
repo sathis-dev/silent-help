@@ -12,6 +12,7 @@ interface WellnessContextType {
     loadProfile: () => Promise<WellnessProfile | null>;
     submitAnswers: (answers: OnboardingAnswers) => Promise<WellnessProfile | null>;
     clearProfile: () => void;
+    setContextProfile: (profile: WellnessProfile) => void;
 }
 
 const WellnessContext = createContext<WellnessContextType>({
@@ -22,6 +23,7 @@ const WellnessContext = createContext<WellnessContextType>({
     loadProfile: async () => null,
     submitAnswers: async () => null,
     clearProfile: () => { },
+    setContextProfile: () => { },
 });
 
 export function WellnessProvider({ children }: { children: ReactNode }) {
@@ -95,6 +97,7 @@ export function WellnessProvider({ children }: { children: ReactNode }) {
             loadProfile,
             submitAnswers,
             clearProfile,
+            setContextProfile: setProfile,
         }}>
             {children}
         </WellnessContext.Provider>
