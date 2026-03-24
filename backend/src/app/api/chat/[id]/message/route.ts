@@ -3,12 +3,13 @@ import OpenAI from 'openai';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest, unauthorizedResponse } from '@/lib/auth';
 import { checkForCrisis, getCrisisSystemPrompt } from '@/lib/crisis';
+import { computeUserState, generateDynamicSystemPrompt, generateOpeningContext } from '@/lib/ai-engine';
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || '',
 });
 
-const DEFAULT_SYSTEM_PROMPT = `You are Silent Help — a compassionate, intelligent AI companion focused on mental wellness and emotional support. You are NOT a therapist or medical professional. You are a warm, understanding friend who listens deeply.
+const FALLBACK_SYSTEM_PROMPT = `You are Silent Help — a compassionate, intelligent AI companion focused on mental wellness and emotional support. You are NOT a therapist or medical professional. You are a warm, understanding friend who listens deeply.
 
 Your personality:
 - Empathetic and gentle, but not patronizing
@@ -56,19 +57,33 @@ export async function POST(
             return Response.json({ error: 'Conversation not found' }, { status: 404 });
         }
 
-        // Load personalized system prompt from wellness profile (if exists)
-        let systemPrompt = DEFAULT_SYSTEM_PROMPT;
-        const wellnessProfile = await prisma.wellnessProfile.findUnique({
-            where: { userId: payload.userId },
-        });
+        // ═══ AI Engine: Compute dynamic system prompt ═══
+        let systemPrompt = FALLBACK_SYSTEM_PROMPT;
+        try {
+            const [userState, wellnessProfile] = await Promise.all([
+                computeUserState(payload.userId),
+                prisma.wellnessProfile.findUnique({ where: { userId: payload.userId } }),
+            ]);
 
-        if (wellnessProfile) {
-            const profile = wellnessProfile.profile as Record<string, unknown>;
-            const aiPersonality = profile.aiPersonality as Record<string, unknown> | undefined;
-            if (aiPersonality?.systemPromptBase) {
-                systemPrompt = `${aiPersonality.systemPromptBase}\n\n${getCrisisSystemPrompt()}`;
+            if (wellnessProfile) {
+                systemPrompt = generateDynamicSystemPrompt(userState, {
+                    profile: wellnessProfile.profile as Record<string, unknown>,
+                    energy: wellnessProfile.energy,
+                    concern: wellnessProfile.concern,
+                    aiInsight: wellnessProfile.aiInsight,
+                });
+
+                // Add opening context for returning users
+                const openingCtx = generateOpeningContext(userState);
+                if (openingCtx) {
+                    systemPrompt += '\n\n' + openingCtx;
+                }
             }
+        } catch (engineErr) {
+            console.error('AI Engine error (falling back to static prompt):', engineErr);
+            // Graceful degradation — use the fallback prompt
         }
+
 
         // Crisis check
         const crisisResult = checkForCrisis(content);

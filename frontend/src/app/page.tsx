@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/components/auth/AuthProvider';
+import { useUser } from '@clerk/nextjs';
 
 export default function Home() {
     const router = useRouter();
-    const { isAuthenticated, isLoading } = useAuth();
+    const { isSignedIn, isLoaded } = useUser();
     const [show, setShow] = useState(false);
 
     useEffect(() => {
-        if (!isLoading) {
-            if (isAuthenticated) {
+        if (isLoaded) {
+            if (isSignedIn) {
                 router.replace('/dashboard');
                 return;
             }
@@ -19,9 +19,9 @@ export default function Home() {
         // Trigger entrance animation
         const t = setTimeout(() => setShow(true), 100);
         return () => clearTimeout(t);
-    }, [isAuthenticated, isLoading, router]);
+    }, [isSignedIn, isLoaded, router]);
 
-    if (isLoading) {
+    if (!isLoaded) {
         return (
             <div className="auth-container">
                 <div className="loading-dots"><span /><span /><span /></div>
@@ -89,7 +89,7 @@ export default function Home() {
 
                 <p className="landing-login-link">
                     Already have an account?{' '}
-                    <a onClick={() => router.push('/auth/login')} style={{ cursor: 'pointer' }}>Sign in</a>
+                    <a onClick={() => router.push('/auth')} style={{ cursor: 'pointer' }}>Sign in</a>
                 </p>
             </div>
         </div>

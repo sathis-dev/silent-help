@@ -23,8 +23,9 @@ model User {
   // Relations
   conversations  Conversation[]
   journalEntries JournalEntry[]
-  moodLogs       MoodLog[]
+   moodLogs       MoodLog[]
   wellnessProfile WellnessProfile?
+  userState      UserState?
 
   @@map("users")
 }
@@ -50,10 +51,53 @@ model WellnessProfile {
   profile         Json     @db.JsonB // Full recommendation profile
   aiInsight       String   @map("ai_insight") @db.Text // AI-written personalized insight
   
+  // New Adaptive Tree Data
+  adaptiveAnswers Json?    @map("adaptive_answers") @db.JsonB
+  
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("wellness_profiles")
+}
+
+// ============================================================================
+// ONBOARDING ASSESSMENT (6-Step Guided Tree)
+// ============================================================================
+
+model AssessmentQuestion {
+  id             String  @id @default(uuid()) @db.Uuid
+  stepNumber     Int     @map("step_number") @db.SmallInt
+  routeGroup     String  @map("route_group") @db.VarChar(10) // shared, R1, R2, R3, R4, R5
+  questionText   String  @map("question_text") @db.Text
+
+  // Option A
+  answerAText    String  @map("answer_a_text") @db.Text
+  meaningA       String  @map("meaning_a") @db.VarChar(100)
+  nextRouteA     String  @map("next_route_a") @db.VarChar(50)
+  scoreDimA      String  @map("score_dim_a") @db.VarChar(20)  // intensity | impact | control | duration | symptoms | coping | safety
+  scoreValA      Int     @map("score_val_a") @db.SmallInt      // 0, 1, 2, or 3
+  safetyFlagA    String  @map("safety_flag_a") @default("none") @db.VarChar(10) // none | soft | medium | hard
+
+  // Option B
+  answerBText    String  @map("answer_b_text") @db.Text
+  meaningB       String  @map("meaning_b") @db.VarChar(100)
+  nextRouteB     String  @map("next_route_b") @db.VarChar(50)
+  scoreDimB      String  @map("score_dim_b") @db.VarChar(20)
+  scoreValB      Int     @map("score_val_b") @db.SmallInt
+  safetyFlagB    String  @map("safety_flag_b") @default("none") @db.VarChar(10)
+
+  // Option C
+  answerCText    String  @map("answer_c_text") @db.Text
+  meaningC       String  @map("meaning_c") @db.VarChar(100)
+  nextRouteC     String  @map("next_route_c") @db.VarChar(50)
+  scoreDimC      String  @map("score_dim_c") @db.VarChar(20)
+  scoreValC      Int     @map("score_val_c") @db.SmallInt
+  safetyFlagC    String  @map("safety_flag_c") @default("none") @db.VarChar(10)
+
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([stepNumber, routeGroup])
+  @@map("assessment_questions")
 }
 
 // ============================================================================
@@ -123,3 +167,48 @@ model MoodLog {
   @@index([createdAt])
   @@map("mood_logs")
 }
+
+// ============================================================================
+// AI ENGINE — Living User State (evolves each session)
+// ============================================================================
+
+model UserState {
+  id                   String   @id @default(uuid()) @db.Uuid
+  userId               String   @unique @map("user_id") @db.Uuid
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  currentArchetype     String   @map("current_archetype") @db.VarChar(100)
+  emotionalTrajectory  Json     @map("emotional_trajectory") @db.JsonB   // { direction, last7: number[], trend }
+  sessionCount         Int      @default(0) @map("session_count")
+  lastCrisisFlag       DateTime? @map("last_crisis_flag") @db.Timestamptz(6)
+  copingStrength       Float    @default(0.5) @map("coping_strength")    // 0–1
+  engagementPattern    Json     @default("{}") @map("engagement_pattern") @db.JsonB  // { toolsUsed, toolsSkipped, favorites }
+  contextWindow        Json     @default("[]") @map("context_window") @db.JsonB      // last 5 interaction summaries
+
+  computedAt           DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("user_states")
+}
+
+// ============================================================================
+// TOOL USAGE — Track which wellness tools users complete/skip
+// ============================================================================
+
+model ToolUsage {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  toolId     String   @map("tool_id") @db.VarChar(50)    // e.g. 'box_breathing'
+  action     String   @db.VarChar(20)                     // 'started' | 'completed' | 'skipped'
+  duration   Int?     @db.SmallInt                        // seconds spent (if completed)
+  moodBefore Int?     @map("mood_before") @db.SmallInt    // 1-10 mood before
+  moodAfter  Int?     @map("mood_after") @db.SmallInt     // 1-10 mood after
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([toolId])
+  @@index([createdAt])
+  @@map("tool_usage")
+}
+
