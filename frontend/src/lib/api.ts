@@ -5,20 +5,17 @@
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-async function getAuthHeaders(): Promise<Record<string, string>> {
+function getAuthHeaders(): Record<string, string> {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('sh_token') : null;
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (typeof window !== 'undefined' && (window as any).Clerk?.session) {
-        const token = await (window as any).Clerk.session.getToken();
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-    }
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     return headers;
 }
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const authHeaders = await getAuthHeaders();
     const res = await fetch(`${API_BASE}${path}`, {
         ...options,
-        headers: { ...authHeaders, ...options.headers },
+        headers: { ...getAuthHeaders(), ...options.headers },
     });
 
     if (!res.ok) {
@@ -29,7 +26,26 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     return res.json();
 }
 
-// Legacy Auth Methods Removed
+// ─── Auth ────────────────────────────────────────────────────
+
+export async function register(email: string, password: string, name: string) {
+    return apiFetch<{ token: string; user: User }>('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, name }),
+    });
+}
+
+export async function login(email: string, password: string) {
+    return apiFetch<{ token: string; user: User }>('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+    });
+}
+
+export async function getMe() {
+    return apiFetch<{ user: User }>('/api/auth/me');
+}
+
 // ─── Conversations ──────────────────────────────────────────
 
 export async function listConversations() {
@@ -61,10 +77,13 @@ export async function sendMessage(
     onError: (error: string) => void,
 ) {
     try {
-        const authHeaders = await getAuthHeaders();
+        const token = localStorage.getItem('sh_token');
         const res = await fetch(`${API_BASE}/api/chat/${conversationId}/message`, {
             method: 'POST',
-            headers: authHeaders,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
             body: JSON.stringify({ content }),
         });
 

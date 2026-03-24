@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import { getWellnessProfile, submitOnboarding, type WellnessProfile, type OnboardingAnswers } from '@/lib/api';
-import { useUser } from '@clerk/nextjs';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 interface WellnessContextType {
     profile: WellnessProfile | null;
@@ -25,29 +25,16 @@ const WellnessContext = createContext<WellnessContextType>({
 });
 
 export function WellnessProvider({ children }: { children: ReactNode }) {
-    const { isSignedIn } = useUser();
-    const isAuthenticated = !!isSignedIn;
+    const { isAuthenticated } = useAuth();
     const [profile, setProfile] = useState<WellnessProfile | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const loadProfile = useCallback(async (): Promise<WellnessProfile | null> => {
-        const isGuest = !isAuthenticated && typeof window !== 'undefined' && !!localStorage.getItem('sh_guest_name');
-        if (!isAuthenticated && !isGuest) return null;
-        
+        if (!isAuthenticated) return null;
         setIsLoading(true);
         setError(null);
         try {
-            if (isGuest) {
-                const stored = localStorage.getItem('sh_guest_profile');
-                if (stored) {
-                    const p = JSON.parse(stored);
-                    setProfile(p);
-                    return p;
-                }
-                return null;
-            }
-            
             const data = await getWellnessProfile();
             if (data.hasProfile && data.profile) {
                 setProfile(data.profile);

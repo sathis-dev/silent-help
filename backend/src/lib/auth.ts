@@ -23,14 +23,6 @@ export function verifyToken(token: string): JWTPayload | null {
     try {
         return jwt.verify(token, JWT_SECRET) as JWTPayload;
     } catch {
-        const decodedClerk = jwt.decode(token) as any;
-        if (decodedClerk && decodedClerk.sub) {
-            // Hash the Clerk 'user_...' ID into an MD5 buffer
-            const hash = require('crypto').createHash('md5').update(decodedClerk.sub).digest('hex');
-            // Format MD5 into a valid UUID v4 shape (8-4-4-4-12)
-            const validUuid = `${hash.substring(0,8)}-${hash.substring(8,12)}-4${hash.substring(13,16)}-a${hash.substring(17,20)}-${hash.substring(20,32)}`;
-            return { userId: validUuid, email: '' };
-        }
         return null;
     }
 }
