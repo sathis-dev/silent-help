@@ -7,6 +7,18 @@ import { useWellness } from '@/components/wellness/WellnessProvider';
 import type { WellnessProfile } from '@/lib/api';
 
 /* ═══════════════════════════════════════════════
+   Quick Action Widget Data
+   ═══════════════════════════════════════════════ */
+const defaultWidgets = [
+    { id: 'stress', icon: '🌊', label: 'Stress Relief', desc: 'Calm techniques', color: '#4a9fa4' },
+    { id: 'reflect', icon: '📝', label: 'Daily Reflection', desc: 'Journal prompts', color: '#818cf8' },
+    { id: 'focus', icon: '🎯', label: 'Focus Mode', desc: 'Deep concentration', color: '#f59e0b' },
+    { id: 'sleep', icon: '🌙', label: 'Sleep Aid', desc: 'Rest preparation', color: '#8b5cf6' },
+    { id: 'breathe', icon: '🧘', label: 'Breathing', desc: 'Box breathing', color: '#2dd4bf' },
+    { id: 'move', icon: '🏃', label: 'Movement', desc: 'Gentle exercise', color: '#f472b6' },
+];
+
+/* ═══════════════════════════════════════════════
    Time-based Greeting
    ═══════════════════════════════════════════════ */
 function getGreeting(): string {
@@ -19,228 +31,225 @@ function getGreeting(): string {
 }
 
 /* ═══════════════════════════════════════════════
-   Tier-specific config
+   Wellness State Messages
    ═══════════════════════════════════════════════ */
-type StressLevel = 'low' | 'mid-low' | 'mid-high' | 'high';
-
-interface TierConfig {
-    message: string;
-    subtitle: string;
-    accent: string;
-    gradient: string;
-    modules: { id: string; icon: string; title: string; desc: string; duration: string; color: string }[];
+function getWellnessMessage(archetype: string): string {
+    const messages: Record<string, string> = {
+        'Calm Seeker': "Let's find your inner peace today.",
+        'Anxious Mind': "Let's ease the tension together.",
+        'Restless Spirit': "Let's channel your energy positively.",
+        'Overwhelmed Soul': "Let's break things into smaller steps.",
+        'Tired Warrior': "Let's restore your strength gently.",
+        'Scattered Thinker': "Let's bring clarity to your thoughts.",
+    };
+    return messages[archetype] || "Let's nurture your wellbeing today.";
 }
 
-const TIER_CONFIG: Record<StressLevel, TierConfig> = {
-    low: {
-        message: "You're doing okay — let's keep you steady.",
-        subtitle: 'Your stress looks low right now. That\'s good — your mind and body are still coping. Let\'s keep it that way with a quick reset.',
-        accent: '#2dd4bf',
-        gradient: 'linear-gradient(135deg, #0f172a 0%, #064e3b 100%)',
-        modules: [
-            { id: 'calm60', icon: '🌊', title: 'Calm in 60s', desc: 'Paced breathing for instant calm', duration: '1 min', color: '#2dd4bf' },
-            { id: 'cyclic', icon: '😮‍💨', title: 'Cyclic Sigh', desc: 'Research-backed stress reset', duration: '30 sec', color: '#5eead4' },
-            { id: 'ground', icon: '🖐️', title: '5-4-3-2-1 Grounding', desc: 'Reconnect through your senses', duration: '3 min', color: '#14b8a6' },
-            { id: 'breathe3', icon: '🧘', title: '3-Min Breathing Space', desc: 'Quick mindfulness reset', duration: '3 min', color: '#0d9488' },
-            { id: 'gratitude', icon: '🙏', title: 'One Good Thing', desc: 'Micro gratitude note', duration: '1 min', color: '#99f6e4' },
-        ],
-    },
-    'mid-low': {
-        message: "Stress is building — let's stop it from growing.",
-        subtitle: 'Your stress is present but manageable. Now is a good time to actively support yourself before it grows.',
-        accent: '#38bdf8',
-        gradient: 'linear-gradient(135deg, #0f172a 0%, #0c4a6e 100%)',
-        modules: [
-            { id: 'unhook', icon: '🏷️', title: 'Unhook a Stress Thought', desc: 'Name & release stress thoughts', duration: '5 min', color: '#38bdf8' },
-            { id: 'sleep', icon: '🌙', title: 'Sleep Tonight', desc: 'Wind-down routine for better rest', duration: '5 min', color: '#818cf8' },
-            { id: 'kindness', icon: '💚', title: 'Kindness Reset', desc: 'Self-compassion pause', duration: '3 min', color: '#34d399' },
-            { id: 'plan', icon: '📋', title: 'Plan My Next Hour', desc: 'Simple time management helper', duration: '3 min', color: '#f59e0b' },
-        ],
-    },
-    'mid-high': {
-        message: "This is affecting you more now — let's help you regain control.",
-        subtitle: 'Your stress is quite high right now. It may be affecting your concentration, mood, or sleep. Let\'s slow it down and work through one step at a time.',
-        accent: '#a78bfa',
-        gradient: 'linear-gradient(135deg, #0f172a 0%, #312e81 100%)',
-        modules: [
-            { id: 'reset10', icon: '🔄', title: '10-Minute Reset', desc: 'Full structured intervention', duration: '10 min', color: '#a78bfa' },
-            { id: 'reframe', icon: '🧠', title: 'Reframe This Stress', desc: 'CBT-based cognitive reframing', duration: '7 min', color: '#818cf8' },
-            { id: 'solve', icon: '💡', title: 'Solve One Problem', desc: '3-step problem solver', duration: '5 min', color: '#c4b5fd' },
-            { id: 'doone', icon: '✅', title: 'Do One Thing Now', desc: 'Behavioural activation micro-plan', duration: '5 min', color: '#8b5cf6' },
-            { id: 'bodyreset', icon: '✨', title: 'Body Scan Reset', desc: 'Progressive muscle relaxation', duration: '10 min', color: '#7c3aed' },
-        ],
-    },
-    high: {
-        message: "Focus only on the next minute. Let's stabilise first.",
-        subtitle: 'You seem under a lot of stress right now. You are safe here. Start with this grounding step.',
-        accent: '#f87171',
-        gradient: 'linear-gradient(135deg, #0f172a 0%, #450a0a 100%)',
-        modules: [
-            { id: 'groundnow', icon: '🖐️', title: 'Ground Me Now', desc: '60-second orientation exercise', duration: '1 min', color: '#f87171' },
-            { id: 'breathenow', icon: '🌊', title: 'Help Me Breathe', desc: '2-minute breathing reset', duration: '2 min', color: '#fb923c' },
-            { id: 'staywithme', icon: '💬', title: 'Stay With Me', desc: 'Calm guided script', duration: '3 min', color: '#fbbf24' },
-            { id: 'getsupport', icon: '🤝', title: 'Get Support', desc: 'Professional support options', duration: '', color: '#818cf8' },
-            { id: 'safety', icon: '🛡️', title: 'Safety Help', desc: 'Crisis resources & safety plan', duration: '', color: '#ef4444' },
-        ],
-    },
-};
+/* ═══════════════════════════════════════════════
+   Bento Widget Card
+   ═══════════════════════════════════════════════ */
+function BentoWidget({ 
+    widget, 
+    index, 
+    isEditing, 
+    onDragStart, 
+    onDragOver, 
+    onDrop 
+}: { 
+    widget: typeof defaultWidgets[0]; 
+    index: number; 
+    isEditing: boolean;
+    onDragStart: (index: number) => void;
+    onDragOver: (e: React.DragEvent) => void;
+    onDrop: (index: number) => void;
+}) {
+    return (
+        <div
+            className={`bento-widget ${isEditing ? 'editing' : ''}`}
+            style={{ 
+                '--widget-color': widget.color,
+                animationDelay: `${index * 80}ms`,
+            } as React.CSSProperties}
+            draggable={isEditing}
+            onDragStart={() => onDragStart(index)}
+            onDragOver={onDragOver}
+            onDrop={() => onDrop(index)}
+        >
+            <div className="bento-widget-glow" />
+            <div className="bento-widget-content">
+                <div className="bento-widget-icon">{widget.icon}</div>
+                <div className="bento-widget-text">
+                    <span className="bento-widget-label">{widget.label}</span>
+                    <span className="bento-widget-desc">{widget.desc}</span>
+                </div>
+            </div>
+            {isEditing && (
+                <div className="bento-widget-drag">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="9" cy="5" r="1" fill="currentColor" />
+                        <circle cx="9" cy="12" r="1" fill="currentColor" />
+                        <circle cx="9" cy="19" r="1" fill="currentColor" />
+                        <circle cx="15" cy="5" r="1" fill="currentColor" />
+                        <circle cx="15" cy="12" r="1" fill="currentColor" />
+                        <circle cx="15" cy="19" r="1" fill="currentColor" />
+                    </svg>
+                </div>
+            )}
+        </div>
+    );
+}
 
 /* ═══════════════════════════════════════════════
-   Breathing Exercise Component
+   Embedded AI Chat Widget
    ═══════════════════════════════════════════════ */
-function BreathingExercise({ accent, onClose }: { accent: string; onClose: () => void }) {
-    const [phase, setPhase] = useState<'inhale' | 'hold' | 'exhale' | 'rest'>('inhale');
-    const [count, setCount] = useState(4);
-    const [cycles, setCycles] = useState(0);
-    const [active, setActive] = useState(false);
+function AIChatWidget({ accent, onExpand }: { accent: string; onExpand: () => void }) {
+    const [message, setMessage] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
+    const [aiResponse, setAiResponse] = useState<string | null>(null);
+    
+    const suggestions = [
+        "How can I reduce stress today?",
+        "I need help sleeping better",
+        "Help me focus on my work",
+    ];
 
-    useEffect(() => {
-        if (!active) return;
-        const timer = setInterval(() => {
-            setCount(prev => {
-                if (prev <= 1) {
-                    setPhase(p => {
-                        if (p === 'inhale') return 'hold';
-                        if (p === 'hold') return 'exhale';
-                        if (p === 'exhale') { setCycles(c => c + 1); return 'rest'; }
-                        return 'inhale';
-                    });
-                    return 4;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-        return () => clearInterval(timer);
-    }, [active]);
-
-    const phaseLabel = { inhale: 'Breathe In', hold: 'Hold', exhale: 'Breathe Out', rest: 'Rest' };
-    const scaleMap = { inhale: 1.3, hold: 1.3, exhale: 0.8, rest: 0.8 };
+    const handleSend = () => {
+        if (!message.trim()) return;
+        setIsTyping(true);
+        setAiResponse(null);
+        
+        // Simulate AI response
+        setTimeout(() => {
+            setIsTyping(false);
+            setAiResponse("I hear you. Let me suggest a quick breathing exercise that can help center your thoughts. Would you like to try the 4-7-8 technique together?");
+        }, 1500);
+    };
 
     return (
-        <div className="breathing-overlay">
-            <button className="breathing-close" onClick={onClose}>✕</button>
-            <div className="breathing-content">
-                <div className="breathing-circle" style={{
-                    borderColor: accent,
-                    transform: active ? `scale(${scaleMap[phase]})` : 'scale(1)',
-                    boxShadow: `0 0 ${active ? 60 : 20}px ${accent}40`
-                }}>
-                    <span className="breathing-label">{active ? phaseLabel[phase] : 'Tap to Start'}</span>
-                    {active && <span className="breathing-count">{count}</span>}
+        <div className="ai-chat-widget">
+            <div className="ai-chat-header">
+                <div className="ai-chat-avatar" style={{ background: `${accent}20` }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2">
+                        <path d="M12 2a7 7 0 017 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 01-2 2h-4a2 2 0 01-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 017-7z" />
+                        <path d="M9 21h6" />
+                    </svg>
                 </div>
-                {!active ? (
-                    <button className="breathing-start" style={{ background: accent }} onClick={() => setActive(true)}>
-                        Begin Breathing
-                    </button>
-                ) : (
-                    <p className="breathing-cycles">Cycles completed: {cycles}</p>
+                <div className="ai-chat-title">
+                    <h4>AI Companion</h4>
+                    <span className="ai-status">
+                        <span className="ai-status-dot" style={{ background: accent }} />
+                        Online
+                    </span>
+                </div>
+                <button className="ai-chat-expand" onClick={onExpand}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M15 3h6v6M14 10l7-7M9 21H3v-6M10 14l-7 7" />
+                    </svg>
+                </button>
+            </div>
+
+            <div className="ai-chat-body">
+                {!aiResponse && !isTyping && (
+                    <div className="ai-chat-suggestions">
+                        <p>Quick suggestions:</p>
+                        {suggestions.map((suggestion, i) => (
+                            <button 
+                                key={i} 
+                                className="ai-suggestion"
+                                onClick={() => setMessage(suggestion)}
+                            >
+                                {suggestion}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {isTyping && (
+                    <div className="ai-typing-response">
+                        <div className="ai-typing-avatar" style={{ background: `${accent}20` }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2">
+                                <path d="M12 2a7 7 0 017 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 01-2 2h-4a2 2 0 01-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 017-7z" />
+                            </svg>
+                        </div>
+                        <div className="ai-typing-bubble">
+                            <span className="typing-dot" />
+                            <span className="typing-dot" />
+                            <span className="typing-dot" />
+                        </div>
+                    </div>
+                )}
+
+                {aiResponse && (
+                    <div className="ai-response-message">
+                        <div className="ai-response-avatar" style={{ background: `${accent}20` }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2">
+                                <path d="M12 2a7 7 0 017 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 01-2 2h-4a2 2 0 01-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 017-7z" />
+                            </svg>
+                        </div>
+                        <div className="ai-response-bubble" style={{ borderColor: `${accent}30` }}>
+                            {aiResponse}
+                        </div>
+                    </div>
                 )}
             </div>
-        </div>
-    );
-}
 
-/* ═══════════════════════════════════════════════
-   Crisis Bar (High stress only)
-   ═══════════════════════════════════════════════ */
-function CrisisBar() {
-    return (
-        <div className="crisis-bar">
-            <div className="crisis-bar-inner">
-                <span className="crisis-icon">🛡️</span>
-                <div className="crisis-text">
-                    <strong>You are not alone.</strong>
-                    <span>If you or someone you know is in crisis, reach out now.</span>
-                </div>
-                <div className="crisis-links">
-                    <a href="tel:988" className="crisis-link emergency">988 Lifeline</a>
-                    <a href="tel:116123" className="crisis-link">Samaritans: 116 123</a>
-                    <a href="sms:741741" className="crisis-link">Crisis Text: 741741</a>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-/* ═══════════════════════════════════════════════
-   Module Card Component
-   ═══════════════════════════════════════════════ */
-function ModuleCard({ 
-    module, 
-    index, 
-    tierLevel, 
-    onClick 
-}: { 
-    module: TierConfig['modules'][0]; 
-    index: number; 
-    tierLevel: StressLevel;
-    onClick: () => void;
-}) {
-    const isHighLevel = tierLevel === 'high';
-    return (
-        <button
-            className={`module-card module-card-${tierLevel}`}
-            style={{ 
-                '--module-color': module.color,
-                animationDelay: `${index * 100}ms`,
-            } as React.CSSProperties}
-            onClick={onClick}
-        >
-            <div className="module-card-glow" />
-            <div className="module-icon-wrap" style={{ background: `${module.color}15` }}>
-                <span className="module-icon">{module.icon}</span>
-            </div>
-            <div className="module-info">
-                <h4 className="module-title">{module.title}</h4>
-                {!isHighLevel && <p className="module-desc">{module.desc}</p>}
-            </div>
-            {module.duration && (
-                <span className="module-duration" style={{ color: module.color }}>{module.duration}</span>
-            )}
-            <div className="module-arrow">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M9 18l6-6-6-6" />
-                </svg>
-            </div>
-        </button>
-    );
-}
-
-/* ═══════════════════════════════════════════════
-   Reflection Slider (Low stress)
-   ═══════════════════════════════════════════════ */
-function ReflectionSlider({ accent }: { accent: string }) {
-    const [value, setValue] = useState(3);
-    const [submitted, setSubmitted] = useState(false);
-    const labels = ['😟', '😐', '🙂', '😊', '😌'];
-    
-    if (submitted) {
-        return (
-            <div className="reflection-done">
-                <span className="reflection-emoji">{labels[value - 1]}</span>
-                <p>Thanks for checking in!</p>
-            </div>
-        );
-    }
-
-    return (
-        <div className="reflection-slider">
-            <p className="reflection-question">How did that feel?</p>
-            <div className="reflection-track">
+            <div className="ai-chat-input-area">
                 <input
-                    type="range" min="1" max="5" value={value}
-                    onChange={e => setValue(Number(e.target.value))}
-                    style={{ accentColor: accent }}
+                    type="text"
+                    placeholder="Ask me anything about your wellness..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                 />
-                <div className="reflection-labels">
-                    {labels.map((l, i) => (
-                        <span key={i} className={value === i + 1 ? 'active' : ''}>{l}</span>
-                    ))}
-                </div>
+                <button 
+                    className="ai-send-btn"
+                    style={{ background: accent }}
+                    onClick={handleSend}
+                    disabled={!message.trim()}
+                >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                    </svg>
+                </button>
             </div>
-            <button className="reflection-submit" style={{ borderColor: accent, color: accent }} onClick={() => setSubmitted(true)}>
-                Done
-            </button>
+        </div>
+    );
+}
+
+/* ═══════════════════════════════════════════════
+   Insight Card Component
+   ═══════════════════════════════════════════════ */
+function InsightCard({ profile, accent }: { profile: WellnessProfile; accent: string }) {
+    return (
+        <div className="insight-card" style={{ '--accent': accent } as React.CSSProperties}>
+            <div className="insight-header">
+                <div className="insight-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2">
+                        <path d="M12 2a7 7 0 017 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 01-2 2h-4a2 2 0 01-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 017-7z" />
+                        <path d="M9 21h6M10 17h4" />
+                    </svg>
+                </div>
+                <span>AI Insight</span>
+            </div>
+            <p className="insight-text">{profile.aiInsight}</p>
+            <div className="insight-glow" style={{ background: `radial-gradient(circle, ${accent}15, transparent 70%)` }} />
+        </div>
+    );
+}
+
+/* ═══════════════════════════════════════════════
+   Stats Mini Card
+   ═══════════════════════════════════════════════ */
+function StatsMiniCard({ label, value, icon, accent }: { label: string; value: string; icon: React.ReactNode; accent: string }) {
+    return (
+        <div className="stats-mini-card">
+            <div className="stats-icon" style={{ background: `${accent}15`, color: accent }}>
+                {icon}
+            </div>
+            <div className="stats-content">
+                <span className="stats-value">{value}</span>
+                <span className="stats-label">{label}</span>
+            </div>
         </div>
     );
 }
@@ -256,8 +265,9 @@ export default function DashboardPage() {
     const { profile, isLoading: wellnessLoading, loadProfile } = useWellness();
     
     const [show, setShow] = useState(false);
-    const [activeBreathing, setActiveBreathing] = useState(false);
-    const [completedModules, setCompletedModules] = useState<Set<string>>(new Set());
+    const [widgets, setWidgets] = useState(defaultWidgets);
+    const [isEditing, setIsEditing] = useState(false);
+    const [dragIndex, setDragIndex] = useState<number | null>(null);
     
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -285,12 +295,25 @@ export default function DashboardPage() {
         router.push('/onboarding');
     }, [router]);
 
-    const handleModuleClick = (moduleId: string) => {
-        if (moduleId === 'calm60' || moduleId === 'breathenow' || moduleId === 'cyclic' || moduleId === 'breathe3') {
-            setActiveBreathing(true);
-        } else {
-            setCompletedModules(prev => new Set([...prev, moduleId]));
-        }
+    const handleExpandChat = useCallback(() => {
+        router.push('/chat');
+    }, [router]);
+
+    const handleDragStart = (index: number) => {
+        setDragIndex(index);
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+    };
+
+    const handleDrop = (dropIndex: number) => {
+        if (dragIndex === null || dragIndex === dropIndex) return;
+        const newWidgets = [...widgets];
+        const [removed] = newWidgets.splice(dragIndex, 1);
+        newWidgets.splice(dropIndex, 0, removed);
+        setWidgets(newWidgets);
+        setDragIndex(null);
     };
 
     // Loading state
@@ -310,53 +333,46 @@ export default function DashboardPage() {
     }
 
     const p = profile as WellnessProfile;
-    const stressLevel: StressLevel = p.stressLevel || 'low';
-    const tier = TIER_CONFIG[stressLevel];
+    const accent = p.theme.accent;
     const userName = user?.firstName || (typeof window !== 'undefined' ? localStorage.getItem('sh_guest_name') : null) || 'Friend';
     const greeting = getGreeting();
+    const wellnessMessage = getWellnessMessage(p.archetype);
 
     return (
         <div 
-            className={`dashboard-page dashboard-${stressLevel}`}
+            className="dashboard-page" 
             ref={containerRef}
             style={{ 
-                '--tier-gradient': tier.gradient,
-                '--tier-accent': tier.accent,
+                '--mood-gradient': p.theme.gradient,
+                '--accent-color': accent,
             } as React.CSSProperties}
         >
-            {/* Breathing Exercise Overlay */}
-            {activeBreathing && (
-                <BreathingExercise accent={tier.accent} onClose={() => setActiveBreathing(false)} />
-            )}
-
             {/* Ambient Background */}
             <div className="dashboard-ambient">
-                <div className="ambient-orb orb-1" style={{ background: `radial-gradient(circle, ${tier.accent}20, transparent 70%)` }} />
-                <div className="ambient-orb orb-2" style={{ background: `radial-gradient(circle, ${tier.accent}10, transparent 60%)` }} />
+                <div className="ambient-orb orb-1" style={{ background: `radial-gradient(circle, ${accent}25, transparent 70%)` }} />
+                <div className="ambient-orb orb-2" style={{ background: `radial-gradient(circle, ${accent}15, transparent 60%)` }} />
+                <div className="ambient-orb orb-3" />
             </div>
-
-            {/* Crisis Bar — always visible for HIGH */}
-            {stressLevel === 'high' && <CrisisBar />}
 
             {/* Main Content */}
             <div className={`dashboard-container ${show ? 'visible' : ''}`}>
-                {/* Header */}
+                {/* Header Section */}
                 <header className="dashboard-header">
                     <div className="header-left">
                         {isSignedIn ? (
-                            <div className="user-avatar" style={{ borderColor: tier.accent, background: 'transparent', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div className="user-avatar" style={{ borderColor: accent, background: 'transparent', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <UserButton appearance={{ elements: { userButtonAvatarBox: "w-10 h-10 rounded-full", userButtonTrigger: "focus:shadow-none" } }} />
                             </div>
                         ) : (
-                            <div className="user-avatar" style={{ borderColor: tier.accent }}>
+                            <div className="user-avatar" style={{ borderColor: accent }}>
                                 {userName.charAt(0).toUpperCase()}
                             </div>
                         )}
                         <div className="header-greeting">
                             <h1>
-                                {greeting}, <span style={{ color: tier.accent }}>{userName}</span>
+                                {greeting}, <span style={{ color: accent }}>{userName}</span>
                             </h1>
-                            <p style={{ color: `${tier.accent}aa` }}>{tier.message}</p>
+                            <p>{wellnessMessage}</p>
                         </div>
                     </div>
                     <div className="header-actions">
@@ -370,95 +386,128 @@ export default function DashboardPage() {
                     </div>
                 </header>
 
-                {/* Stress Level Banner */}
-                <div className="stress-level-banner" style={{ borderColor: `${tier.accent}30` }}>
-                    <div className="stress-level-indicator">
-                        <div className="stress-dots">
-                            {['low', 'mid-low', 'mid-high', 'high'].map((level) => (
-                                <div 
-                                    key={level}
-                                    className={`stress-dot ${level === stressLevel ? 'active' : ''}`}
-                                    style={level === stressLevel ? { background: tier.accent, boxShadow: `0 0 12px ${tier.accent}` } : {}}
-                                />
-                            ))}
-                        </div>
-                        <span className="stress-level-label" style={{ color: tier.accent }}>
-                            {stressLevel === 'low' ? 'Low Stress' : stressLevel === 'mid-low' ? 'Mild Stress' : stressLevel === 'mid-high' ? 'Moderate Stress' : 'High Stress'}
-                        </span>
+                {/* Wellness State Banner */}
+                <div className="wellness-state-banner" style={{ borderColor: `${accent}30` }}>
+                    <div className="state-info">
+                        <span className="state-label" style={{ color: accent }}>Current State</span>
+                        <h2 className="state-archetype">{p.archetype}</h2>
+                        <p className="state-description">{p.state}</p>
                     </div>
-                    <p className="stress-subtitle">{tier.subtitle}</p>
+                    <div className="state-affirmation" style={{ background: `${accent}10`, borderColor: `${accent}25` }}>
+                        <span className="affirmation-icon">✨</span>
+                        <p>{p.affirmation}</p>
+                    </div>
                 </div>
 
-                {/* AI Insight */}
-                {p.aiInsight && (
-                    <div className="ai-insight-card" style={{ borderColor: `${tier.accent}25` }}>
-                        <div className="ai-insight-icon" style={{ background: `${tier.accent}15` }}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={tier.accent} strokeWidth="2">
-                                <path d="M12 2a7 7 0 017 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 01-2 2h-4a2 2 0 01-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 017-7z" />
-                                <path d="M9 21h6M10 17h4" />
-                            </svg>
-                        </div>
-                        <p>{p.aiInsight}</p>
-                    </div>
-                )}
+                {/* Mini Stats Row */}
+                <div className="stats-row">
+                    <StatsMiniCard 
+                        label="Energy Level"
+                        value={p.answers.energy?.replace('_', ' ') || 'Balanced'}
+                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>}
+                        accent={accent}
+                    />
+                    <StatsMiniCard 
+                        label="Time Available"
+                        value={`${p.answers.time} min`}
+                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>}
+                        accent={accent}
+                    />
+                    <StatsMiniCard 
+                        label="Focus Area"
+                        value={p.answers.concern?.replace(/_/g, ' ') || 'General'}
+                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></svg>}
+                        accent={accent}
+                    />
+                </div>
 
-                {/* Module Cards */}
-                <div className="modules-section">
-                    <h3 className="section-title">
-                        {stressLevel === 'low' ? 'Quick Reset Tools' : 
-                         stressLevel === 'mid-low' ? 'Your Coping Toolkit' : 
-                         stressLevel === 'mid-high' ? 'Guided Interventions' : 
-                         'Immediate Support'}
-                    </h3>
-                    <div className={`modules-grid modules-grid-${stressLevel}`}>
-                        {tier.modules.map((mod, i) => (
-                            <ModuleCard
-                                key={mod.id}
-                                module={mod}
-                                index={i}
-                                tierLevel={stressLevel}
-                                onClick={() => handleModuleClick(mod.id)}
+                {/* AI Insight Card */}
+                {p.aiInsight && <InsightCard profile={p} accent={accent} />}
+
+                {/* Bento Grid Section */}
+                <div className="bento-section">
+                    <div className="bento-header">
+                        <h3>Quick Actions</h3>
+                        <button 
+                            className={`customize-btn ${isEditing ? 'active' : ''}`}
+                            onClick={() => setIsEditing(!isEditing)}
+                            style={isEditing ? { background: `${accent}20`, color: accent, borderColor: accent } : {}}
+                        >
+                            {isEditing ? (
+                                <>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M20 6L9 17l-5-5" />
+                                    </svg>
+                                    Done
+                                </>
+                            ) : (
+                                <>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M12 3v18M3 12h18" />
+                                    </svg>
+                                    Customize
+                                </>
+                            )}
+                        </button>
+                    </div>
+                    <div className={`bento-grid ${isEditing ? 'editing' : ''}`}>
+                        {widgets.map((widget, index) => (
+                            <BentoWidget
+                                key={widget.id}
+                                widget={widget}
+                                index={index}
+                                isEditing={isEditing}
+                                onDragStart={handleDragStart}
+                                onDragOver={handleDragOver}
+                                onDrop={handleDrop}
                             />
                         ))}
                     </div>
                 </div>
 
-                {/* Reflection Slider (Low stress only) */}
-                {stressLevel === 'low' && completedModules.size > 0 && (
-                    <ReflectionSlider accent={tier.accent} />
-                )}
-
-                {/* Affirmation */}
-                <div className="affirmation-card" style={{ background: `${tier.accent}08`, borderColor: `${tier.accent}20` }}>
-                    <span className="affirmation-icon">✨</span>
-                    <p>{p.affirmation}</p>
+                {/* AI Chat Widget */}
+                <div className="chat-section">
+                    <h3>Talk to Your AI Companion</h3>
+                    <AIChatWidget accent={accent} onExpand={handleExpandChat} />
                 </div>
 
-                {/* Companion Chat Mini */}
-                {stressLevel !== 'high' && (
-                    <div className="chat-mini-section">
-                        <button className="chat-mini-btn" onClick={() => router.push('/chat')} style={{ borderColor: `${tier.accent}30` }}>
-                            <div className="chat-mini-avatar" style={{ background: `${tier.accent}15` }}>
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={tier.accent} strokeWidth="2">
-                                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-                                </svg>
+                {/* Recommended Tools */}
+                <div className="tools-section">
+                    <h3>Personalized Tools</h3>
+                    <div className="tools-grid">
+                        <div className="tool-card primary" style={{ borderColor: accent, boxShadow: `0 0 30px ${accent}15` }}>
+                            <div className="tool-badge" style={{ background: accent }}>Recommended</div>
+                            <span className="tool-icon">{p.primaryTool.icon}</span>
+                            <div className="tool-info">
+                                <h4>{p.primaryTool.name}</h4>
+                                <p>{p.primaryTool.description}</p>
                             </div>
-                            <div className="chat-mini-text">
-                                <strong>Talk to your AI Companion</strong>
-                                <span>{p.aiPersonality?.openingMessage?.substring(0, 60) || 'I\'m here whenever you need to talk'}...</span>
+                            <span className="tool-duration">{p.primaryTool.duration} min</span>
+                        </div>
+                        <div className="tool-card" style={{ borderColor: `${accent}30` }}>
+                            <span className="tool-icon">{p.quickRelief.icon}</span>
+                            <div className="tool-info">
+                                <h4>{p.quickRelief.name}</h4>
+                                <p>Quick relief technique</p>
                             </div>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={tier.accent} strokeWidth="2">
-                                <path d="M9 18l6-6-6-6" />
-                            </svg>
-                        </button>
+                            <span className="tool-duration">{p.quickRelief.duration} min</span>
+                        </div>
+                        <div className="tool-card" style={{ borderColor: `${accent}30` }}>
+                            <span className="tool-icon">{p.deeperWork.icon}</span>
+                            <div className="tool-info">
+                                <h4>{p.deeperWork.name}</h4>
+                                <p>For deeper exploration</p>
+                            </div>
+                            <span className="tool-duration">{p.deeperWork.duration} min</span>
+                        </div>
                     </div>
-                )}
+                </div>
 
                 {/* Footer */}
                 <footer className="dashboard-footer">
                     <p>
                         Your dashboard adapts to your wellness profile.{' '}
-                        <button onClick={handleReassess} style={{ color: tier.accent }}>
+                        <button onClick={handleReassess} style={{ color: accent }}>
                             Take the assessment again
                         </button>{' '}
                         for a fresh experience.
