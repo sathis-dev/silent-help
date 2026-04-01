@@ -2,136 +2,179 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
+/**
+ * Emotion signal helper — shorthand for creating emotion weights.
+ * Each answer option carries weights for 5 emotional dimensions:
+ *   overwhelmed, anxious, frustrated, sad, pressure
+ * Values range from 0 (no signal) to 3 (strong signal).
+ */
+function emo(overwhelmed = 0, anxious = 0, frustrated = 0, sad = 0, pressure = 0) {
+    return { overwhelmed, anxious, frustrated, sad, pressure };
+}
+
 async function main() {
     console.log('Clearing existing assessment questions...');
     await prisma.assessmentQuestion.deleteMany({});
 
-    console.log('Seeding 13 master assessment questions...');
+    console.log('Seeding emotion-aware assessment questions (v3)...');
 
     const questions = [
-        // Step 1 - Current intensity
+        // ══════════════════════════════════════════════════════════
+        // STEP 1 — Current Emotional State (shared entry point)
+        // ══════════════════════════════════════════════════════════
         {
             stepNumber: 1,
             routeGroup: 'shared',
             questionText: 'How are you feeling right now?',
-            answerAText: 'A bit tense, but manageable',
-            meaningA: 'Mild/passing stress',
+            
+            answerAText: 'A bit tense, but I can manage',
+            meaningA: 'Mild/manageable tension',
             nextRouteA: 'R1',
             scoreDimA: 'intensity',
             scoreValA: 1,
             safetyFlagA: 'none',
+            emotionSignalsA: emo(0, 1, 0, 0, 1),   // hints at anxiety + pressure
 
-            answerBText: 'Quite stressed and hard to focus',
+            answerBText: 'Stressed and struggling to focus',
             meaningB: 'Moderate/affecting function',
             nextRouteB: 'R3',
             scoreDimB: 'intensity',
             scoreValB: 2,
             safetyFlagB: 'none',
+            emotionSignalsB: emo(1, 1, 0, 0, 2),   // pressure dominant, some overwhelm
 
-            answerCText: 'Very overwhelmed and hard to settle',
+            answerCText: 'Overwhelmed and finding it hard to settle',
             meaningC: 'High/hard to control',
             nextRouteC: 'R4',
             scoreDimC: 'intensity',
             scoreValC: 3,
             safetyFlagC: 'none',
+            emotionSignalsC: emo(3, 1, 0, 0, 1),   // strong overwhelm signal
         },
-        // Step 2 - If R1
+
+        // ══════════════════════════════════════════════════════════
+        // STEP 2 — Emotional Identification (the KEY new step)
+        // This is where we directly surface the user's dominant emotion.
+        // ══════════════════════════════════════════════════════════
+
+        // Step 2 — R1 (low intensity branch)
         {
             stepNumber: 2,
             routeGroup: 'R1',
-            questionText: 'Does this feel like a small one-off stress or something that keeps coming back?',
-            answerAText: 'Just a small stress right now',
-            meaningA: 'Small one-off',
+            questionText: 'Which word describes your stress best right now?',
+
+            answerAText: 'Worried — my mind keeps running ahead',
+            meaningA: 'Anxious rumination',
             nextRouteA: 'R1',
             scoreDimA: 'impact',
             scoreValA: 1,
             safetyFlagA: 'none',
+            emotionSignalsA: emo(0, 3, 0, 0, 0),   // strong anxious
 
-            answerBText: 'It comes back sometimes',
-            meaningB: 'Repeating mild',
+            answerBText: 'Pressured — too much to do, not enough time',
+            meaningB: 'External pressure',
             nextRouteB: 'R2',
             scoreDimB: 'impact',
             scoreValB: 2,
             safetyFlagB: 'none',
+            emotionSignalsB: emo(1, 0, 0, 0, 3),   // strong pressure
 
-            answerCText: 'It happens often',
-            meaningC: 'Frequent tension',
-            nextRouteC: 'R3',
+            answerCText: 'Low — heavy or unmotivated',
+            meaningC: 'Sadness / low mood',
+            nextRouteC: 'R2',
             scoreDimC: 'impact',
-            scoreValC: 3,
+            scoreValC: 2,
             safetyFlagC: 'none',
+            emotionSignalsC: emo(0, 0, 0, 3, 0),   // strong sad
         },
-        // Step 2 - If R3
+
+        // Step 2 — R3 (moderate intensity branch)
         {
             stepNumber: 2,
             routeGroup: 'R3',
-            questionText: 'How much is this stress affecting what you need to do today?',
-            answerAText: 'Only a little',
-            meaningA: 'Low disruption',
+            questionText: 'What is the strongest feeling underneath your stress?',
+
+            answerAText: 'Anxious — I can\'t stop worrying about things',
+            meaningA: 'Anxiety-dominant',
             nextRouteA: 'R2',
             scoreDimA: 'impact',
             scoreValA: 1,
             safetyFlagA: 'none',
+            emotionSignalsA: emo(0, 3, 0, 0, 0),   // strong anxious
 
-            answerBText: 'It is affecting some tasks',
-            meaningB: 'Moderate disruption',
+            answerBText: 'Frustrated — nothing is going right',
+            meaningB: 'Frustration-dominant',
             nextRouteB: 'R3',
             scoreDimB: 'impact',
             scoreValB: 2,
             safetyFlagB: 'none',
+            emotionSignalsB: emo(0, 0, 3, 0, 1),   // strong frustrated
 
-            answerCText: 'It is making normal tasks difficult',
-            meaningC: 'High disruption',
+            answerCText: 'Overwhelmed — everything feels like too much',
+            meaningC: 'Overwhelm-dominant',
             nextRouteC: 'R4',
             scoreDimC: 'impact',
             scoreValC: 3,
             safetyFlagC: 'none',
+            emotionSignalsC: emo(3, 0, 0, 0, 1),   // strong overwhelmed
         },
-        // Step 2 - If R4
+
+        // Step 2 — R4 (high intensity branch)
         {
             stepNumber: 2,
             routeGroup: 'R4',
-            questionText: 'Does this feel in control or out of control right now?',
-            answerAText: 'I still have some control',
-            meaningA: 'Managed high stress',
+            questionText: 'When the stress is at its worst, it feels most like:',
+
+            answerAText: 'Panic — my body is reacting and I can\'t calm down',
+            meaningA: 'Panic / acute anxiety',
             nextRouteA: 'R3',
             scoreDimA: 'control',
             scoreValA: 1,
             safetyFlagA: 'none',
+            emotionSignalsA: emo(1, 3, 0, 0, 0),   // peak anxious
 
-            answerBText: 'It is getting hard to manage',
-            meaningB: 'Struggling to manage',
+            answerBText: 'Anger — I feel like I could explode',
+            meaningB: 'Rage / frustration peak',
             nextRouteB: 'R4',
             scoreDimB: 'control',
             scoreValB: 2,
             safetyFlagB: 'none',
+            emotionSignalsB: emo(0, 0, 3, 0, 1),   // peak frustrated
 
-            answerCText: 'It feels out of control',
-            meaningC: 'Loss of control',
+            answerCText: 'Hopeless — I don\'t see a way out',
+            meaningC: 'Despair / deep sadness',
             nextRouteC: 'R5',
             scoreDimC: 'control',
             scoreValC: 3,
             safetyFlagC: 'medium',
+            emotionSignalsC: emo(1, 0, 0, 3, 0),   // peak sad
         },
-        // Step 3 - If R1 or R2 -> create one for each for explicit querying, or one for 'R1, R2'.
-        // Since DB routeGroup is a varchar, let's create two exact copies for R1 and R2 but with the correct logic as specified.
+
+        // ══════════════════════════════════════════════════════════
+        // STEP 3 — Duration (reinforces emotion with duration context)
+        // ══════════════════════════════════════════════════════════
+
+        // Step 3 — R1 and R2
         ...['R1', 'R2'].map(r => ({
             stepNumber: 3,
             routeGroup: r,
             questionText: 'How long have you been feeling like this?',
-            answerAText: 'Just today',
+
+            answerAText: 'Just today — it\'s recent',
             meaningA: 'Acute short',
-            nextRouteA: r, // Keep current route (R1 -> R1, R2 -> R2)
+            nextRouteA: r,
             scoreDimA: 'duration',
             scoreValA: 1,
             safetyFlagA: 'none',
+            emotionSignalsA: emo(0, 1, 0, 0, 0),  // brief = likely anxious
 
-            answerBText: 'A few days',
+            answerBText: 'A few days now',
             meaningB: 'Several days',
-            nextRouteB: 'R2', // "if R1 then R2, if R2 then stay R2" -> both go to R2
+            nextRouteB: 'R2',
             scoreDimB: 'duration',
             scoreValB: 2,
             safetyFlagB: 'none',
+            emotionSignalsB: emo(1, 0, 0, 0, 1),  // building = pressure + overwhelm
 
             answerCText: 'More than a week',
             meaningC: 'Prolonged',
@@ -139,18 +182,22 @@ async function main() {
             scoreDimC: 'duration',
             scoreValC: 3,
             safetyFlagC: 'none',
+            emotionSignalsC: emo(1, 0, 0, 1, 1),  // long-running = sad + overwhelm + pressure
         })),
-        // Step 3 - If R3
+
+        // Step 3 — R3
         {
             stepNumber: 3,
             routeGroup: 'R3',
             questionText: 'Has this stress been building up over time?',
-            answerAText: 'No, it is recent',
+
+            answerAText: 'No, it hit me suddenly',
             meaningA: 'Recent onset',
             nextRouteA: 'R3',
             scoreDimA: 'duration',
             scoreValA: 1,
             safetyFlagA: 'none',
+            emotionSignalsA: emo(0, 2, 0, 0, 0),  // sudden = often anxious
 
             answerBText: 'Yes, over several days',
             meaningB: 'Building',
@@ -158,186 +205,229 @@ async function main() {
             scoreDimB: 'duration',
             scoreValB: 2,
             safetyFlagB: 'none',
+            emotionSignalsB: emo(1, 0, 1, 0, 1),  // building = frustrated/overwhelm/pressure
 
-            answerCText: 'Yes, for quite a while',
-            meaningC: 'Long term buildup',
+            answerCText: 'Yes, for quite a while now',
+            meaningC: 'Chronic buildup',
             nextRouteC: 'R4',
             scoreDimC: 'duration',
             scoreValC: 3,
             safetyFlagC: 'none',
+            emotionSignalsC: emo(2, 0, 0, 1, 1),  // chronic = overwhelm + sad
         },
-        // Step 3 - If R4 or R5 -> create for R4 and R5
+
+        // Step 3 — R4 and R5
         ...['R4', 'R5'].map(r => ({
             stepNumber: 3,
             routeGroup: r,
             questionText: 'Has this intense feeling stayed with you for a while?',
-            answerAText: 'No, it hit suddenly',
+
+            answerAText: 'No, it hit me suddenly',
             meaningA: 'Acute spike',
-            nextRouteA: r, // "stay high but note acute spike" -> meaning stay R4 or R5
+            nextRouteA: r,
             scoreDimA: 'duration',
             scoreValA: 1,
             safetyFlagA: 'none',
+            emotionSignalsA: emo(0, 2, 1, 0, 0),  // sudden intense = anxious/frustrated
 
             answerBText: 'Yes, for a few days',
             meaningB: 'Sustained high',
-            nextRouteB: r === 'R5' ? 'R5' : 'R4', // "stay R4" (if R5 already, stay R5 makes sense)
+            nextRouteB: r === 'R5' ? 'R5' : 'R4',
             scoreDimB: 'duration',
             scoreValB: 2,
             safetyFlagB: 'none',
+            emotionSignalsB: emo(1, 0, 1, 0, 1),  // sustained = overwhelm/frustrated/pressure
 
-            answerCText: 'Yes, for a long time',
+            answerCText: 'Yes, for a long time now',
             meaningC: 'Prolonged severe',
             nextRouteC: 'R5',
             scoreDimC: 'duration',
             scoreValC: 3,
             safetyFlagC: 'none',
+            emotionSignalsC: emo(2, 0, 0, 2, 0),  // prolonged severe = overwhelm + sad
         })),
-        // Step 4 - If R1 or R2
+
+        // ══════════════════════════════════════════════════════════
+        // STEP 4 — Symptom Profile (maps body/mind symptoms → emotions)
+        // ══════════════════════════════════════════════════════════
+
+        // Step 4 — R1 and R2
         ...['R1', 'R2'].map(r => ({
             stepNumber: 4,
             routeGroup: r,
             questionText: 'What feels most true for you right now?',
-            answerAText: 'I just feel a bit tense',
-            meaningA: 'Mental tension only',
-            nextRouteA: r, // keep route
+
+            answerAText: 'My mind keeps racing with worries',
+            meaningA: 'Cognitive anxiety',
+            nextRouteA: r,
             scoreDimA: 'symptoms',
             scoreValA: 1,
             safetyFlagA: 'none',
+            emotionSignalsA: emo(0, 3, 0, 0, 0),  // racing mind = anxious
 
-            answerBText: 'My mind feels busy',
-            meaningB: 'Busy mind',
-            nextRouteB: 'R2', // push toward R2
+            answerBText: 'I feel irritable and on edge',
+            meaningB: 'Agitation / frustration',
+            nextRouteB: 'R2',
             scoreDimB: 'symptoms',
             scoreValB: 2,
             safetyFlagB: 'none',
+            emotionSignalsB: emo(0, 0, 3, 0, 1),  // irritable = frustrated + pressure
 
-            answerCText: 'My body and mind both feel strained',
-            meaningC: 'Physical & mental tension',
-            nextRouteC: 'R3', // move to R3
+            answerCText: 'I feel drained — no energy for anything',
+            meaningC: 'Depletion / sadness',
+            nextRouteC: 'R3',
             scoreDimC: 'symptoms',
             scoreValC: 3,
             safetyFlagC: 'none',
+            emotionSignalsC: emo(1, 0, 0, 3, 0),  // drained = sad + overwhelm
         })),
-        // Step 4 - If R3
+
+        // Step 4 — R3
         {
             stepNumber: 4,
             routeGroup: 'R3',
             questionText: 'What is bothering you most?',
-            answerAText: 'I feel mentally distracted',
-            meaningA: 'Cognitive load',
+
+            answerAText: 'I can\'t stop my thoughts — they loop endlessly',
+            meaningA: 'Rumination / anxiety',
             nextRouteA: 'R3',
             scoreDimA: 'symptoms',
             scoreValA: 1,
             safetyFlagA: 'none',
+            emotionSignalsA: emo(1, 3, 0, 0, 0),  // thought loops = anxious + overwhelm
 
-            answerBText: 'I feel physically tense and uneasy',
-            meaningB: 'Somatic anxiety',
+            answerBText: 'I feel trapped or stuck with no good options',
+            meaningB: 'Stuck / pressure',
             nextRouteB: 'R3',
             scoreDimB: 'symptoms',
             scoreValB: 2,
             safetyFlagB: 'none',
+            emotionSignalsB: emo(2, 0, 1, 0, 2),  // trapped = overwhelmed + pressure + frustrated
 
-            answerCText: 'I feel overloaded in both mind and body',
+            answerCText: 'My body and mind both feel completely overloaded',
             meaningC: 'System overload',
-            nextRouteC: 'R4', // move to R4
+            nextRouteC: 'R4',
             scoreDimC: 'symptoms',
             scoreValC: 3,
             safetyFlagC: 'none',
+            emotionSignalsC: emo(3, 0, 0, 0, 2),  // overloaded = overwhelmed + pressure
         },
-        // Step 4 - If R4 or R5
+
+        // Step 4 — R4 and R5
         ...['R4', 'R5'].map(r => ({
             stepNumber: 4,
             routeGroup: r,
-            questionText: 'Which sounds closest to how you feel?',
-            answerAText: 'Very stressed, but still able to answer clearly',
+            questionText: 'Which sounds closest to how you feel right now?',
+
+            answerAText: 'Very stressed, but still answering and thinking clearly',
             meaningA: 'High distress, functioning',
-            nextRouteA: r === 'R5' ? 'R5' : 'R4', // stay R4
+            nextRouteA: r === 'R5' ? 'R5' : 'R4',
             scoreDimA: 'symptoms',
             scoreValA: 1,
             safetyFlagA: 'none',
+            emotionSignalsA: emo(0, 0, 0, 0, 3),  // functioning under stress = pressure
 
-            answerBText: 'Very distressed and struggling to settle',
-            meaningB: 'Agitated',
-            nextRouteB: r === 'R5' ? 'R5' : 'R4', // stay R4
+            answerBText: 'I feel angry, agitated, and struggling to settle',
+            meaningB: 'Agitated / frustrated',
+            nextRouteB: r === 'R5' ? 'R5' : 'R4',
             scoreDimB: 'symptoms',
             scoreValB: 2,
             safetyFlagB: 'none',
+            emotionSignalsB: emo(0, 0, 3, 0, 1),  // agitated = frustrated + pressure
 
             answerCText: 'I feel close to breaking point',
-            meaningC: 'Overwhelmed',
-            nextRouteC: 'R5', // R5
+            meaningC: 'Overwhelmed / near crisis',
+            nextRouteC: 'R5',
             scoreDimC: 'symptoms',
             scoreValC: 3,
             safetyFlagC: 'medium',
+            emotionSignalsC: emo(3, 1, 0, 1, 0),  // breaking = overwhelm + anxious + sad
         })),
-        // Step 5 - Coping (same for all)
+
+        // ══════════════════════════════════════════════════════════
+        // STEP 5 — Coping Ability
+        // ══════════════════════════════════════════════════════════
         ...['R1', 'R2', 'R3', 'R4', 'R5'].map(r => {
-            const downshift = r === 'R1' ? 'R1' : r === 'R2' ? 'R1' : r === 'R3' ? 'R2' : r === 'R4' ? 'R3' : 'R4'; 
+            const downshift = r === 'R1' ? 'R1' : r === 'R2' ? 'R1' : r === 'R3' ? 'R2' : r === 'R4' ? 'R3' : 'R4';
             const upshift = r === 'R1' ? 'R2' : r === 'R2' ? 'R3' : r === 'R3' ? 'R4' : 'R5';
 
             return {
                 stepNumber: 5,
                 routeGroup: r,
                 questionText: 'How able do you feel to cope with this right now?',
+
                 answerAText: 'I can handle it with a little support',
                 meaningA: 'Adequate coping',
                 nextRouteA: downshift,
                 scoreDimA: 'coping',
                 scoreValA: 1,
                 safetyFlagA: 'none',
+                emotionSignalsA: emo(0, 0, 0, 0, 1),  // coping = mild pressure only
 
-                answerBText: 'I am struggling to manage it properly',
+                answerBText: 'I\'m struggling to manage it properly',
                 meaningB: 'Struggling',
                 nextRouteB: r,
                 scoreDimB: 'coping',
                 scoreValB: 2,
                 safetyFlagB: 'none',
+                emotionSignalsB: emo(1, 1, 0, 0, 1),  // struggling = overwhelm + anxious + pressure
 
-                answerCText: 'I do not feel able to cope right now',
+                answerCText: 'I don\'t feel able to cope right now',
                 meaningC: 'Overwhelmed coping',
                 nextRouteC: upshift,
                 scoreDimC: 'coping',
                 scoreValC: 3,
                 safetyFlagC: r === 'R5' ? 'medium' : 'none',
+                emotionSignalsC: emo(3, 1, 0, 1, 0),  // can't cope = strong overwhelm + sad
             };
         }),
-        // Step 6 - Safety (R1-R4)
+
+        // ══════════════════════════════════════════════════════════
+        // STEP 6 — Safety Check (unchanged logic, emotion signals added)
+        // ══════════════════════════════════════════════════════════
         ...['R1', 'R2', 'R3', 'R4'].map(r => ({
             stepNumber: 6,
             routeGroup: r,
             questionText: 'Do you feel safe right now?',
+
             answerAText: 'Yes, I feel safe',
             meaningA: 'Safe',
-            nextRouteA: 'finish', // normal finish
+            nextRouteA: 'finish',
             scoreDimA: 'safety',
             scoreValA: 0,
             safetyFlagA: 'none',
+            emotionSignalsA: emo(0, 0, 0, 0, 0),  // safe = no additional emotion signal
 
             answerBText: 'I feel very distressed and may need extra support',
             meaningB: 'Distressed',
-            nextRouteB: 'finish_high_support', // high-support finish
+            nextRouteB: 'finish_high_support',
             scoreDimB: 'safety',
             scoreValB: 2,
             safetyFlagB: 'soft',
+            emotionSignalsB: emo(2, 1, 0, 1, 0),  // distressed = overwhelm + sad
 
             answerCText: 'I do not feel safe right now',
             meaningC: 'Danger',
-            nextRouteC: 'R5', // urgent
+            nextRouteC: 'R5',
             scoreDimC: 'safety',
             scoreValC: 3,
             safetyFlagC: 'hard',
+            emotionSignalsC: emo(2, 2, 0, 2, 0),  // unsafe = overwhelm + anxious + sad
         })),
-        // Step 6 - Safety (R5)
+
+        // Step 6 — R5 (urgent path)
         {
             stepNumber: 6,
             routeGroup: 'R5',
             questionText: 'Would it help to show urgent support options right now?',
+
             answerAText: 'Yes, show them now',
             meaningA: 'Accepting urgent help',
             nextRouteA: 'trigger_safety_ui',
             scoreDimA: 'safety',
             scoreValA: 3,
             safetyFlagA: 'hard',
+            emotionSignalsA: emo(2, 2, 0, 2, 0),
 
             answerBText: 'Maybe, but stay with me',
             meaningB: 'Needs holding',
@@ -345,6 +435,7 @@ async function main() {
             scoreDimB: 'safety',
             scoreValB: 2,
             safetyFlagB: 'medium',
+            emotionSignalsB: emo(2, 1, 0, 2, 0),
 
             answerCText: 'I need urgent help now',
             meaningC: 'Active crisis',
@@ -352,6 +443,7 @@ async function main() {
             scoreDimC: 'safety',
             scoreValC: 3,
             safetyFlagC: 'hard',
+            emotionSignalsC: emo(3, 2, 0, 2, 0),
         }
     ];
 
@@ -359,7 +451,7 @@ async function main() {
         await prisma.assessmentQuestion.create({ data: q });
     }
 
-    console.log(`Successfully seeded ${questions.length} questions.`);
+    console.log(`Successfully seeded ${questions.length} emotion-aware questions (v3).`);
 }
 
 main()

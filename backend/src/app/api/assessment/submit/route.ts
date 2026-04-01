@@ -20,6 +20,15 @@ interface ScoreBreakdown {
     safety: number;
 }
 
+interface EmotionBreakdown {
+    [key: string]: number;
+    overwhelmed: number;
+    anxious: number;
+    frustrated: number;
+    sad: number;
+    pressure: number;
+}
+
 interface AnswerDetail {
     questionId: string;
     stepNumber: number;
@@ -29,6 +38,7 @@ interface AnswerDetail {
     scoreDimension: string;
     scoreValue: number;
     safetyFlag: string;
+    emotionSignals?: EmotionBreakdown;
 }
 
 /* ─── Step weights as per the blueprint ─── */
@@ -75,7 +85,6 @@ function determineOutcome(
 function computeStressLevel(outcome: { level: string; weightedTotal: number }): 'low' | 'mid-low' | 'mid-high' | 'high' {
     if (outcome.level === 'urgent' || outcome.level === 'high') return 'high';
     if (outcome.level === 'low') return 'low';
-    // Split 'mid' into mid-low / mid-high based on weighted score
     if (outcome.weightedTotal <= 16) return 'mid-low';
     return 'mid-high';
 }
@@ -89,6 +98,52 @@ function calculateWeightedTotal(scores: ScoreBreakdown): number {
         scores.coping * STEP_WEIGHTS[5] +
         scores.safety * STEP_WEIGHTS[6]
     );
+}
+
+/* ─── Determine emotional profile from accumulated emotion signals ─── */
+function determineEmotionalProfile(
+    emotions: EmotionBreakdown,
+    outcome: { level: string },
+): { concern: string; context: string; dominantEmotion: string } {
+    // Find the dominant emotion
+    const entries: [string, number][] = [
+        ['overwhelmed', emotions.overwhelmed],
+        ['anxious', emotions.anxious],
+        ['frustrated', emotions.frustrated],
+        ['sad', emotions.sad],
+        ['pressure', emotions.pressure],
+    ];
+    entries.sort((a, b) => b[1] - a[1]);
+    const dominant = entries[0][0];
+    const secondary = entries[1][0];
+
+    // Map dominant emotion → archetype system concern + context
+    const emotionToConcern: Record<string, { concern: string; context: string }> = {
+        overwhelmed: { concern: 'racing_thoughts', context: 'circular' },
+        anxious:     { concern: 'anxiety',         context: 'future' },
+        frustrated:  { concern: 'anger',           context: 'boundaries' },
+        sad:         { concern: 'sad',             context: 'grief' },
+        pressure:    { concern: 'stress',          context: 'tasks' },
+    };
+
+    // Refine based on severity level
+    if (outcome.level === 'urgent') {
+        if (dominant === 'sad') return { concern: 'hopeless', context: 'no_way_out', dominantEmotion: dominant };
+        if (dominant === 'anxious') return { concern: 'panic', context: 'full_body', dominantEmotion: dominant };
+        if (dominant === 'overwhelmed') return { concern: 'panic', context: 'everything', dominantEmotion: dominant };
+    }
+
+    if (outcome.level === 'high') {
+        if (dominant === 'sad') return { concern: 'hopeless', context: 'days', dominantEmotion: dominant };
+        if (dominant === 'overwhelmed' && secondary === 'anxious') return { concern: 'panic', context: 'full_body', dominantEmotion: dominant };
+    }
+
+    // Low energy mapping for sad/overwhelmed
+    if (dominant === 'sad' && emotions.sad > 6) return { concern: 'empty', context: 'disconnected', dominantEmotion: dominant };
+    if (dominant === 'overwhelmed' && emotions.overwhelmed > 8) return { concern: 'emotional', context: 'everything', dominantEmotion: dominant };
+
+    const result = emotionToConcern[dominant] || { concern: 'stress', context: 'tasks' };
+    return { ...result, dominantEmotion: dominant };
 }
 
 /* ─── POST handler ─── */
@@ -111,6 +166,11 @@ export async function POST(req: NextRequest) {
             duration: 0, symptoms: 0, coping: 0, safety: 0,
         };
 
+        // Build emotion breakdown from answer details
+        const emotionScores: EmotionBreakdown = {
+            overwhelmed: 0, anxious: 0, frustrated: 0, sad: 0, pressure: 0,
+        };
+
         let maxSafetyFlag = 'none';
         const safetyHierarchy = ['none', 'soft', 'medium', 'hard'];
 
@@ -119,6 +179,15 @@ export async function POST(req: NextRequest) {
                 const dim = detail.scoreDimension as keyof ScoreBreakdown;
                 if (dim in scores) {
                     scores[dim] += detail.scoreValue;
+                }
+                // Accumulate emotion signals
+                if (detail.emotionSignals) {
+                    const es = detail.emotionSignals;
+                    emotionScores.overwhelmed += (es.overwhelmed || 0);
+                    emotionScores.anxious += (es.anxious || 0);
+                    emotionScores.frustrated += (es.frustrated || 0);
+                    emotionScores.sad += (es.sad || 0);
+                    emotionScores.pressure += (es.pressure || 0);
                 }
                 // Track highest safety flag encountered
                 if (safetyHierarchy.indexOf(detail.safetyFlag) > safetyHierarchy.indexOf(maxSafetyFlag)) {
@@ -130,15 +199,19 @@ export async function POST(req: NextRequest) {
         // Determine final outcome
         const outcome = determineOutcome(finalRoute, scores, maxSafetyFlag);
 
+        // Determine emotional profile from accumulated signals
+        const emotionalProfile = determineEmotionalProfile(emotionScores, outcome);
+
         // Map to legacy energy field for backward compatibility
         const energyMap = { low: 'low', mid: 'moderate', high: 'high', urgent: 'high' } as const;
         const energy = energyMap[outcome.level];
 
+        // Build answers using emotion-aware concern/context (instead of hardcoded values)
         const answers = {
             energy,
-            concern: outcome.level === 'urgent' ? 'acute distress' : 'daily stress',
-            context: 'adaptive assessment v2',
-            approach: outcome.level === 'urgent' ? 'immediate safety' : 'immediate relief',
+            concern: emotionalProfile.concern,
+            context: emotionalProfile.context,
+            approach: outcome.level === 'urgent' ? 'immediate safety' : outcome.level === 'high' ? 'calm_first' : 'calm_body',
             support_style: outcome.enhanced ? 'enhanced empathetic' : 'empathetic',
             time: outcome.level === 'low' ? '1' : outcome.level === 'mid' ? '5' : '10',
         };
@@ -190,13 +263,15 @@ export async function POST(req: NextRequest) {
                     profile: JSON.parse(JSON.stringify(profile)),
                     aiInsight,
                     adaptiveAnswers: {
-                        version: 2,
+                        version: 3,
                         finalRoute,
                         outcome: outcome.level,
                         enhanced: outcome.enhanced,
                         weightedTotal: outcome.weightedTotal,
                         maxSafetyFlag,
                         scores,
+                        emotionScores,
+                        emotionalProfile: emotionalProfile.dominantEmotion,
                         answerLog: answerLog || {},
                         answerDetails: answerDetails || [],
                     },
@@ -211,13 +286,15 @@ export async function POST(req: NextRequest) {
                     profile: JSON.parse(JSON.stringify(profile)),
                     aiInsight,
                     adaptiveAnswers: {
-                        version: 2,
+                        version: 3,
                         finalRoute,
                         outcome: outcome.level,
                         enhanced: outcome.enhanced,
                         weightedTotal: outcome.weightedTotal,
                         maxSafetyFlag,
                         scores,
+                        emotionScores,
+                        emotionalProfile: emotionalProfile.dominantEmotion,
                         answerLog: answerLog || {},
                         answerDetails: answerDetails || [],
                     },
@@ -235,6 +312,8 @@ export async function POST(req: NextRequest) {
                 weightedTotal: outcome.weightedTotal,
                 stressLevel,
                 scores,
+                emotionScores,
+                emotionalProfile: emotionalProfile.dominantEmotion,
             },
             profile: { ...profile, aiInsight, stressLevel },
             finalRoute,

@@ -114,9 +114,10 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ hasProfile: false, profile: null });
         }
 
-        // Derive stressLevel from saved adaptive answers
+        // Derive stressLevel and emotionalProfile from saved adaptive answers
         const adaptive = saved.adaptiveAnswers as Record<string, unknown> | null;
         let stressLevel: 'low' | 'mid-low' | 'mid-high' | 'high' = 'low';
+        let emotionalProfile: string = 'pressure'; // default
         if (adaptive) {
             const outcomeLevel = adaptive.outcome as string || 'low';
             const weightedTotal = (adaptive.weightedTotal as number) || 0;
@@ -124,6 +125,11 @@ export async function GET(req: NextRequest) {
             else if (outcomeLevel === 'low') stressLevel = 'low';
             else if (weightedTotal <= 16) stressLevel = 'mid-low';
             else stressLevel = 'mid-high';
+
+            // Extract emotional profile from v3 data
+            if (adaptive.emotionalProfile) {
+                emotionalProfile = adaptive.emotionalProfile as string;
+            }
         } else {
             // Legacy profiles without adaptive answers — use energy as heuristic
             if (saved.energy === 'high') stressLevel = 'high';
@@ -137,6 +143,7 @@ export async function GET(req: NextRequest) {
                 ...saved.profile as Record<string, unknown>,
                 aiInsight: saved.aiInsight,
                 stressLevel,
+                emotionalProfile,
                 answers: {
                     energy: saved.energy,
                     concern: saved.concern,

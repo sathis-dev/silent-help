@@ -77,6 +77,7 @@ model AssessmentQuestion {
   scoreDimA      String  @map("score_dim_a") @db.VarChar(20)  // intensity | impact | control | duration | symptoms | coping | safety
   scoreValA      Int     @map("score_val_a") @db.SmallInt      // 0, 1, 2, or 3
   safetyFlagA    String  @map("safety_flag_a") @default("none") @db.VarChar(10) // none | soft | medium | hard
+  emotionSignalsA Json?  @map("emotion_signals_a") @db.JsonB   // { overwhelmed, anxious, frustrated, sad, pressure }
 
   // Option B
   answerBText    String  @map("answer_b_text") @db.Text
@@ -85,6 +86,7 @@ model AssessmentQuestion {
   scoreDimB      String  @map("score_dim_b") @db.VarChar(20)
   scoreValB      Int     @map("score_val_b") @db.SmallInt
   safetyFlagB    String  @map("safety_flag_b") @default("none") @db.VarChar(10)
+  emotionSignalsB Json?  @map("emotion_signals_b") @db.JsonB
 
   // Option C
   answerCText    String  @map("answer_c_text") @db.Text
@@ -93,6 +95,7 @@ model AssessmentQuestion {
   scoreDimC      String  @map("score_dim_c") @db.VarChar(20)
   scoreValC      Int     @map("score_val_c") @db.SmallInt
   safetyFlagC    String  @map("safety_flag_c") @default("none") @db.VarChar(10)
+  emotionSignalsC Json?  @map("emotion_signals_c") @db.JsonB
 
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 

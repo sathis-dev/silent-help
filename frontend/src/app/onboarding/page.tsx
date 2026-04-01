@@ -11,9 +11,9 @@ interface AssessmentQuestion {
   stepNumber: number;
   routeGroup: string;
   questionText: string;
-  answerAText: string; meaningA: string; nextRouteA: string; scoreDimA: string; scoreValA: number; safetyFlagA: string;
-  answerBText: string; meaningB: string; nextRouteB: string; scoreDimB: string; scoreValB: number; safetyFlagB: string;
-  answerCText: string; meaningC: string; nextRouteC: string; scoreDimC: string; scoreValC: number; safetyFlagC: string;
+  answerAText: string; meaningA: string; nextRouteA: string; scoreDimA: string; scoreValA: number; safetyFlagA: string; emotionSignalsA?: Record<string, number>;
+  answerBText: string; meaningB: string; nextRouteB: string; scoreDimB: string; scoreValB: number; safetyFlagB: string; emotionSignalsB?: Record<string, number>;
+  answerCText: string; meaningC: string; nextRouteC: string; scoreDimC: string; scoreValC: number; safetyFlagC: string; emotionSignalsC?: Record<string, number>;
 }
 
 type QuestionTree = Record<number, Record<string, AssessmentQuestion>>;
@@ -27,6 +27,7 @@ interface AnswerDetail {
   scoreDimension: string;
   scoreValue: number;
   safetyFlag: string;
+  emotionSignals?: Record<string, number>;
 }
 
 interface SafetyState {
@@ -94,6 +95,7 @@ export default function OnboardingFlow() {
       scoreDimension: q[`scoreDim${suffix}` as keyof AssessmentQuestion] as string,
       scoreValue: q[`scoreVal${suffix}` as keyof AssessmentQuestion] as number,
       safetyFlag: q[`safetyFlag${suffix}` as keyof AssessmentQuestion] as string,
+      emotionSignals: (q[`emotionSignals${suffix}` as keyof AssessmentQuestion] as Record<string, number> | undefined) || undefined,
     };
   };
 
