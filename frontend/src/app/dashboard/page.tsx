@@ -502,6 +502,28 @@ export default function DashboardPage() {
     const greeting = getGreeting();
     const wellnessMessage = getWellnessMessage(p.archetype);
 
+    const emotionKey = (p as Record<string, unknown>).emotionalProfile as string || 'pressure';
+    
+    // Unique name for each user's stress identity
+    const identityMap: Record<string, string> = {
+        anxious: 'The Watchful Thinker',
+        frustrated: 'The Restless Fire',
+        sad: 'The Deep Feeler',
+        overwhelmed: 'The Overloaded Engine',
+        pressure: 'The Atlas Bearer',
+    };
+    const stressIdentity = identityMap[emotionKey] || 'The Adaptive Spirit';
+    
+    // Changing focus area based on exact emotional type
+    const focusAreaMap: Record<string, string> = {
+        anxious: 'Anxiety Relief',
+        frustrated: 'Frustration Rel.',
+        sad: 'Mood Lift',
+        overwhelmed: 'Overwhelm Detox',
+        pressure: 'Pressure Drop',
+    };
+    const focusArea = focusAreaMap[emotionKey] || 'Stress Mgmt';
+
     return (
         <div 
             className="dashboard-page" 
@@ -553,7 +575,10 @@ export default function DashboardPage() {
                 {/* Wellness State Banner */}
                 <div className="wellness-state-banner" style={{ borderColor: `${accent}30` }}>
                     <div className="state-info">
-                        <span className="state-label" style={{ color: accent }}>Current State</span>
+                        <span className="state-label" style={{ color: accent, marginBottom: 8, display: 'inline-block' }}>Current State</span>
+                        <div className="stress-identity" style={{ color: accent, fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6, opacity: 0.9 }}>
+                             Identity: {stressIdentity}
+                        </div>
                         <h2 className="state-archetype">{p.archetype}</h2>
                         <p className="state-description">{p.state}</p>
                     </div>
@@ -567,19 +592,19 @@ export default function DashboardPage() {
                 <div className="stats-row">
                     <StatsMiniCard 
                         label="Energy Level"
-                        value={p.answers.energy?.replace('_', ' ') || 'Balanced'}
+                        value={p.answers.energy ? (p.answers.energy.charAt(0).toUpperCase() + p.answers.energy.slice(1).replace('_', ' ')) : 'Balanced'}
                         icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>}
                         accent={accent}
                     />
                     <StatsMiniCard 
                         label="Time Available"
-                        value={`${p.answers.time} min`}
+                        value={`${p.answers.time || 5} min`}
                         icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>}
                         accent={accent}
                     />
                     <StatsMiniCard 
                         label="Focus Area"
-                        value={p.answers.concern?.replace(/_/g, ' ') || 'General'}
+                        value={focusArea}
                         icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></svg>}
                         accent={accent}
                     />

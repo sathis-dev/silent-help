@@ -61,23 +61,23 @@ model WellnessProfile {
 }
 
 // ============================================================================
-// ONBOARDING ASSESSMENT (6-Step Guided Tree)
+// ONBOARDING ASSESSMENT (3-Question Branching Tree — v2.2)
 // ============================================================================
 
 model AssessmentQuestion {
   id             String  @id @default(uuid()) @db.Uuid
   stepNumber     Int     @map("step_number") @db.SmallInt
-  routeGroup     String  @map("route_group") @db.VarChar(10) // shared, R1, R2, R3, R4, R5
+  routeGroup     String  @map("route_group") @db.VarChar(20) // shared, overwhelmed, anxious, frustrated, sad, pressure
   questionText   String  @map("question_text") @db.Text
 
   // Option A
   answerAText    String  @map("answer_a_text") @db.Text
   meaningA       String  @map("meaning_a") @db.VarChar(100)
   nextRouteA     String  @map("next_route_a") @db.VarChar(50)
-  scoreDimA      String  @map("score_dim_a") @db.VarChar(20)  // intensity | impact | control | duration | symptoms | coping | safety
-  scoreValA      Int     @map("score_val_a") @db.SmallInt      // 0, 1, 2, or 3
-  safetyFlagA    String  @map("safety_flag_a") @default("none") @db.VarChar(10) // none | soft | medium | hard
-  emotionSignalsA Json?  @map("emotion_signals_a") @db.JsonB   // { overwhelmed, anxious, frustrated, sad, pressure }
+  scoreDimA      String  @map("score_dim_a") @db.VarChar(20)
+  scoreValA      Int     @map("score_val_a") @db.SmallInt
+  safetyFlagA    String  @map("safety_flag_a") @default("none") @db.VarChar(30)
+  emotionSignalsA Json?  @map("emotion_signals_a") @db.JsonB
 
   // Option B
   answerBText    String  @map("answer_b_text") @db.Text
@@ -85,7 +85,7 @@ model AssessmentQuestion {
   nextRouteB     String  @map("next_route_b") @db.VarChar(50)
   scoreDimB      String  @map("score_dim_b") @db.VarChar(20)
   scoreValB      Int     @map("score_val_b") @db.SmallInt
-  safetyFlagB    String  @map("safety_flag_b") @default("none") @db.VarChar(10)
+  safetyFlagB    String  @map("safety_flag_b") @default("none") @db.VarChar(30)
   emotionSignalsB Json?  @map("emotion_signals_b") @db.JsonB
 
   // Option C
@@ -94,8 +94,26 @@ model AssessmentQuestion {
   nextRouteC     String  @map("next_route_c") @db.VarChar(50)
   scoreDimC      String  @map("score_dim_c") @db.VarChar(20)
   scoreValC      Int     @map("score_val_c") @db.SmallInt
-  safetyFlagC    String  @map("safety_flag_c") @default("none") @db.VarChar(10)
+  safetyFlagC    String  @map("safety_flag_c") @default("none") @db.VarChar(30)
   emotionSignalsC Json?  @map("emotion_signals_c") @db.JsonB
+
+  // Option D (optional — used by Q2/Q3 branches)
+  answerDText    String?  @map("answer_d_text") @db.Text
+  meaningD       String?  @map("meaning_d") @db.VarChar(100)
+  nextRouteD     String?  @map("next_route_d") @db.VarChar(50)
+  scoreDimD      String?  @map("score_dim_d") @db.VarChar(20)
+  scoreValD      Int?     @map("score_val_d") @db.SmallInt
+  safetyFlagD    String?  @map("safety_flag_d") @db.VarChar(30)
+  emotionSignalsD Json?   @map("emotion_signals_d") @db.JsonB
+
+  // Option E (optional — used by Q1 only)
+  answerEText    String?  @map("answer_e_text") @db.Text
+  meaningE       String?  @map("meaning_e") @db.VarChar(100)
+  nextRouteE     String?  @map("next_route_e") @db.VarChar(50)
+  scoreDimE      String?  @map("score_dim_e") @db.VarChar(20)
+  scoreValE      Int?     @map("score_val_e") @db.SmallInt
+  safetyFlagE    String?  @map("safety_flag_e") @db.VarChar(30)
+  emotionSignalsE Json?   @map("emotion_signals_e") @db.JsonB
 
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 

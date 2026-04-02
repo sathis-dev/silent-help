@@ -255,7 +255,7 @@ export interface WellnessProfile {
     archetype: string;
     state: string;
     urgencyLevel: string;
-    stressLevel: 'low' | 'mid-low' | 'mid-high' | 'high';
+    stressLevel: 'low' | 'mid-low' | 'mid-high' | 'high' | 'light' | 'elevated' | 'intense' | 'urgent';
     emotionalProfile?: 'overwhelmed' | 'anxious' | 'frustrated' | 'sad' | 'pressure';
     tools: WellnessTool[];
     primaryTool: WellnessTool;
