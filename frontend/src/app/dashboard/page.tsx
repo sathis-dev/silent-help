@@ -503,16 +503,49 @@ export default function DashboardPage() {
     const wellnessMessage = getWellnessMessage(p.archetype);
 
     const emotionKey = (p as Record<string, unknown>).emotionalProfile as string || 'pressure';
+    const stressLevelKey = (p as Record<string, unknown>).stressLevel as string || 'elevated';
     
-    // Unique name for each user's stress identity
-    const identityMap: Record<string, string> = {
-        anxious: 'The Watchful Thinker',
-        frustrated: 'The Restless Fire',
-        sad: 'The Deep Feeler',
-        overwhelmed: 'The Overloaded Engine',
-        pressure: 'The Atlas Bearer',
+    // Identity label based directly on stress type
+    const identityDisplay = emotionKey.toUpperCase();
+    
+    // Nickname based on specific stress level + type matrix
+    const getNickname = (type: string, level: string) => {
+        const t = type.toLowerCase();
+        const l = level.toLowerCase();
+        
+        if (t === 'overwhelmed') {
+            if (l === 'light') return 'The Busy Mind';
+            if (l === 'elevated') return 'The Juggler';
+            if (l === 'intense') return 'The Overloaded';
+            if (l === 'urgent') return 'The Breaking Point';
+        }
+        if (t === 'anxious') {
+            if (l === 'light') return 'The Worried Thinker';
+            if (l === 'elevated') return 'The Overthinker';
+            if (l === 'intense') return 'The Restless Mind';
+            if (l === 'urgent') return 'The Storm Within';
+        }
+        if (t === 'frustrated') {
+            if (l === 'light') return 'The Irritated Spark';
+            if (l === 'elevated') return 'The Tense Edge';
+            if (l === 'intense') return 'The Boiling Point';
+            if (l === 'urgent') return 'The Eruption';
+        }
+        if (t === 'sad') {
+            if (l === 'light') return 'The Quiet Mood';
+            if (l === 'elevated') return 'The Heavy Heart';
+            if (l === 'intense') return 'The Deep Blue';
+            if (l === 'urgent') return 'The Empty Space';
+        }
+        if (t === 'pressure') {
+            if (l === 'light') return 'The Steady Path';
+            if (l === 'elevated') return 'The Rising Load';
+            if (l === 'intense') return 'The Weight of Expectation';
+            if (l === 'urgent') return 'The Edge of Burnout';
+        }
+        return 'The Adaptive Spirit';
     };
-    const stressIdentity = identityMap[emotionKey] || 'The Adaptive Spirit';
+    const nickname = getNickname(emotionKey, stressLevelKey);
     
     // Changing focus area based on exact emotional type
     const focusAreaMap: Record<string, string> = {
@@ -577,9 +610,9 @@ export default function DashboardPage() {
                     <div className="state-info">
                         <span className="state-label" style={{ color: accent, marginBottom: 8, display: 'inline-block' }}>Current State</span>
                         <div className="stress-identity" style={{ color: accent, fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6, opacity: 0.9 }}>
-                             Identity: {stressIdentity}
+                             Identity: {identityDisplay}
                         </div>
-                        <h2 className="state-archetype">{p.archetype}</h2>
+                        <h2 className="state-archetype">{nickname}</h2>
                         <p className="state-description">{p.state}</p>
                     </div>
                     <div className="state-affirmation" style={{ background: `${accent}10`, borderColor: `${accent}25` }}>
