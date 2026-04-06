@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useUser, UserButton } from '@clerk/nextjs';
 import { useWellness } from '@/components/wellness/WellnessProvider';
 import { OverwhelmRecovery } from '@/components/dashboard/OverwhelmRecovery';
+import { OverwhelmQuickActions } from '@/components/dashboard/OverwhelmQuickActions';
 import type { WellnessProfile } from '@/lib/api';
 
 /* ═══════════════════════════════════════════════
@@ -659,46 +660,50 @@ export default function DashboardPage() {
                     </>
                 )}
 
-                {/* Bento Grid Section */}
-                <div className="bento-section">
-                    <div className="bento-header">
-                        <h3>Quick Actions</h3>
-                        <button 
-                            className={`customize-btn ${isEditing ? 'active' : ''}`}
-                            onClick={() => setIsEditing(!isEditing)}
-                            style={isEditing ? { background: `${accent}20`, color: accent, borderColor: accent } : {}}
-                        >
-                            {isEditing ? (
-                                <>
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M20 6L9 17l-5-5" />
-                                    </svg>
-                                    Done
-                                </>
-                            ) : (
-                                <>
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M12 3v18M3 12h18" />
-                                    </svg>
-                                    Customize
-                                </>
-                            )}
-                        </button>
+                {/* Quick Actions Section */}
+                {emotionKey === 'overwhelmed' ? (
+                    <OverwhelmQuickActions accent={accent} />
+                ) : (
+                    <div className="bento-section">
+                        <div className="bento-header">
+                            <h3>Quick Actions</h3>
+                            <button 
+                                className={`customize-btn ${isEditing ? 'active' : ''}`}
+                                onClick={() => setIsEditing(!isEditing)}
+                                style={isEditing ? { background: `${accent}20`, color: accent, borderColor: accent } : {}}
+                            >
+                                {isEditing ? (
+                                    <>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <path d="M20 6L9 17l-5-5" />
+                                        </svg>
+                                        Done
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <path d="M12 3v18M3 12h18" />
+                                        </svg>
+                                        Customize
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                        <div className={`bento-grid ${isEditing ? 'editing' : ''}`}>
+                            {widgets.map((widget, index) => (
+                                <BentoWidget
+                                    key={widget.id}
+                                    widget={widget}
+                                    index={index}
+                                    isEditing={isEditing}
+                                    onDragStart={handleDragStart}
+                                    onDragOver={handleDragOver}
+                                    onDrop={handleDrop}
+                                />
+                            ))}
+                        </div>
                     </div>
-                    <div className={`bento-grid ${isEditing ? 'editing' : ''}`}>
-                        {widgets.map((widget, index) => (
-                            <BentoWidget
-                                key={widget.id}
-                                widget={widget}
-                                index={index}
-                                isEditing={isEditing}
-                                onDragStart={handleDragStart}
-                                onDragOver={handleDragOver}
-                                onDrop={handleDrop}
-                            />
-                        ))}
-                    </div>
-                </div>
+                )}
 
                 {/* AI Chat Widget */}
                 <div className="chat-section">
