@@ -6,6 +6,8 @@ import { useUser, UserButton } from '@clerk/nextjs';
 import { useWellness } from '@/components/wellness/WellnessProvider';
 import { OverwhelmRecovery } from '@/components/dashboard/OverwhelmRecovery';
 import { OverwhelmQuickActions } from '@/components/dashboard/OverwhelmQuickActions';
+import { AnxiousRecovery } from '@/components/dashboard/AnxiousRecovery';
+import { AnxiousQuickActions } from '@/components/dashboard/AnxiousQuickActions';
 import type { WellnessProfile } from '@/lib/api';
 
 /* ═══════════════════════════════════════════════
@@ -653,6 +655,8 @@ export default function DashboardPage() {
                     <>
                         {emotionKey === 'overwhelmed' ? (
                             <OverwhelmRecovery accent={accent} />
+                        ) : emotionKey === 'anxious' ? (
+                            <AnxiousRecovery accent={accent} />
                         ) : (
                             <RecommendedPath profile={p} accent={accent} />
                         )}
@@ -663,6 +667,8 @@ export default function DashboardPage() {
                 {/* Quick Actions Section */}
                 {emotionKey === 'overwhelmed' ? (
                     <OverwhelmQuickActions accent={accent} />
+                ) : emotionKey === 'anxious' ? (
+                    <AnxiousQuickActions accent={accent} />
                 ) : (
                     <div className="bento-section">
                         <div className="bento-header">
