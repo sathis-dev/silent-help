@@ -316,7 +316,7 @@ export async function POST(req: NextRequest) {
                 emotionScores,
                 emotionalProfile: result.primaryType,
             },
-            profile: { ...profile, aiInsight, stressLevel },
+            profile: { ...profile, aiInsight, stressLevel: level, emotionalProfile: result.primaryType },
         });
     } catch (error) {
         console.error('Submit assessment error:', error);

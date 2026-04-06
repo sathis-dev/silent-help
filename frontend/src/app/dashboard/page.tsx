@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, UserButton } from '@clerk/nextjs';
 import { useWellness } from '@/components/wellness/WellnessProvider';
+import { OverwhelmRecovery } from '@/components/dashboard/OverwhelmRecovery';
 import type { WellnessProfile } from '@/lib/api';
 
 /* ═══════════════════════════════════════════════
@@ -649,7 +650,11 @@ export default function DashboardPage() {
                 {/* Your Recovery Path */}
                 {p.tools && p.tools.length > 0 && (
                     <>
-                        <RecommendedPath profile={p} accent={accent} />
+                        {emotionKey === 'overwhelmed' ? (
+                            <OverwhelmRecovery accent={accent} />
+                        ) : (
+                            <RecommendedPath profile={p} accent={accent} />
+                        )}
                         <div className="dashboard-divider" style={{ background: `linear-gradient(90deg, transparent, ${accent}20, transparent)` }} />
                     </>
                 )}

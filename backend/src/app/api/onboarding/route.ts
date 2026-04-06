@@ -116,19 +116,25 @@ export async function GET(req: NextRequest) {
 
         // Derive stressLevel and emotionalProfile from saved adaptive answers
         const adaptive = saved.adaptiveAnswers as Record<string, unknown> | null;
-        let stressLevel: 'low' | 'mid-low' | 'mid-high' | 'high' = 'low';
-        let emotionalProfile: string = 'pressure'; // default
+        let stressLevel = 'low';
+        let emotionalProfile = 'pressure'; // default
         if (adaptive) {
-            const outcomeLevel = adaptive.outcome as string || 'low';
-            const weightedTotal = (adaptive.weightedTotal as number) || 0;
-            if (outcomeLevel === 'urgent' || outcomeLevel === 'high') stressLevel = 'high';
-            else if (outcomeLevel === 'low') stressLevel = 'low';
-            else if (weightedTotal <= 16) stressLevel = 'mid-low';
-            else stressLevel = 'mid-high';
-
-            // Extract emotional profile from v3 data
-            if (adaptive.emotionalProfile) {
-                emotionalProfile = adaptive.emotionalProfile as string;
+            if (adaptive.system === '2.2' && adaptive.result) {
+                const res = adaptive.result as Record<string, unknown>;
+                stressLevel = (res.level as string) || 'elevated';
+                emotionalProfile = (res.primaryType as string) || 'pressure';
+            } else {
+                const outcomeLevel = adaptive.outcome as string || 'low';
+                const weightedTotal = (adaptive.weightedTotal as number) || 0;
+                if (outcomeLevel === 'urgent' || outcomeLevel === 'high') stressLevel = 'high';
+                else if (outcomeLevel === 'low') stressLevel = 'low';
+                else if (weightedTotal <= 16) stressLevel = 'mid-low';
+                else stressLevel = 'mid-high';
+    
+                // Extract emotional profile from v3 data
+                if (adaptive.emotionalProfile) {
+                    emotionalProfile = adaptive.emotionalProfile as string;
+                }
             }
         } else {
             // Legacy profiles without adaptive answers — use energy as heuristic
