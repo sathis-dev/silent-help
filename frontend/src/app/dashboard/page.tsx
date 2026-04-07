@@ -10,6 +10,8 @@ import { AnxiousRecovery } from '@/components/dashboard/AnxiousRecovery';
 import { AnxiousQuickActions } from '@/components/dashboard/AnxiousQuickActions';
 import { FrustratedRecovery } from '@/components/dashboard/FrustratedRecovery';
 import { FrustratedQuickActions } from '@/components/dashboard/FrustratedQuickActions';
+import { SadRecovery } from '@/components/dashboard/SadRecovery';
+import { SadQuickActions } from '@/components/dashboard/SadQuickActions';
 import type { WellnessProfile } from '@/lib/api';
 
 /* ═══════════════════════════════════════════════
@@ -661,6 +663,8 @@ export default function DashboardPage() {
                             <AnxiousRecovery accent={accent} />
                         ) : emotionKey === 'frustrated' ? (
                             <FrustratedRecovery accent={accent} />
+                        ) : emotionKey === 'sad' ? (
+                            <SadRecovery accent={accent} />
                         ) : (
                             <RecommendedPath profile={p} accent={accent} />
                         )}
@@ -675,6 +679,8 @@ export default function DashboardPage() {
                     <AnxiousQuickActions accent={accent} />
                 ) : emotionKey === 'frustrated' ? (
                     <FrustratedQuickActions accent={accent} />
+                ) : emotionKey === 'sad' ? (
+                    <SadQuickActions accent={accent} />
                 ) : (
                     <div className="bento-section">
                         <div className="bento-header">
