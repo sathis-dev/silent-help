@@ -115,7 +115,8 @@ export async function GET(req: NextRequest) {
         }
 
         // Derive stressLevel and emotionalProfile from saved adaptive answers
-        const adaptive = saved.adaptiveAnswers as Record<string, unknown> | null;
+        const rawAdaptive = saved.adaptiveAnswers;
+        const adaptive = (typeof rawAdaptive === 'string' ? JSON.parse(rawAdaptive) : rawAdaptive) as Record<string, unknown> | null;
         let stressLevel = 'low';
         let emotionalProfile = 'pressure'; // default
         if (adaptive) {
