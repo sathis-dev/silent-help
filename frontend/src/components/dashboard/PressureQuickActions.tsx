@@ -84,7 +84,7 @@ export function PressureQuickActions({ accent }: PressureQuickActionsProps) {
                 {mode === 'organise' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         <div>
-                            <h4 style={{ fontSize: '1.35rem', color: accent, marginBottom: 8 }}>Let's make this manageable.</h4>
+                            <h4 style={{ fontSize: '1.35rem', color: accent, marginBottom: 8 }}>Let&apos;s make this manageable.</h4>
                             <p style={{ color: '#94a3b8' }}>Get it out of your head.</p>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>

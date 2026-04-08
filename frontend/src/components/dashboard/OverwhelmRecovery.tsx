@@ -15,7 +15,6 @@ export function OverwhelmRecovery({ accent }: OverwhelmRecoveryProps) {
     const [branch, setBranch] = useState<'settle' | 'organise' | null>(null);
     const [brainDump, setBrainDump] = useState('');
     const [activeTimer, setActiveTimer] = useState<number | null>(null); // seconds
-    const [timerLength, setTimerLength] = useState<number | null>(null);
 
     // Timer logic
     useEffect(() => {
@@ -155,9 +154,9 @@ export function OverwhelmRecovery({ accent }: OverwhelmRecoveryProps) {
                 "Short action sprint",
                 "You only need to begin. You do not need to finish.",
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {renderButton("3-minute start", () => { setTimerLength(180); setActiveTimer(180); })}
-                    {renderButton("5-minute focus", () => { setTimerLength(300); setActiveTimer(300); })}
-                    {renderButton("10-minute sprint", () => { setTimerLength(600); setActiveTimer(600); })}
+                    {renderButton("3-minute start", () => { setActiveTimer(180); })}
+                    {renderButton("5-minute focus", () => { setActiveTimer(300); })}
+                    {renderButton("10-minute sprint", () => { setActiveTimer(600); })}
                </div>
             )}
 

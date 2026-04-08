@@ -85,7 +85,7 @@ export function FrustratedQuickActions({ accent }: FrustratedQuickActionsProps) 
                 {mode === 'cool' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         <div>
-                            <h4 style={{ fontSize: '1.35rem', color: accent, marginBottom: 8 }}>Let's lower the temperature first.</h4>
+                            <h4 style={{ fontSize: '1.35rem', color: accent, marginBottom: 8 }}>Let&apos;s lower the temperature first.</h4>
                             <p style={{ color: '#94a3b8' }}>You only need to handle this moment.</p>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { ClerkProvider, Show, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs';
+import { ClerkProvider } from '@clerk/nextjs';
 import { WellnessProvider } from '@/components/wellness/WellnessProvider';
 
 const inter = Inter({ 

@@ -84,8 +84,8 @@ export function SadQuickActions({ accent }: SadQuickActionsProps) {
                 {mode === 'comfort' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         <div>
-                            <h4 style={{ fontSize: '1.35rem', color: accent, marginBottom: 8 }}>Let's make this moment a little easier.</h4>
-                            <p style={{ color: '#94a3b8' }}>You don't need to fix anything right now.</p>
+                            <h4 style={{ fontSize: '1.35rem', color: accent, marginBottom: 8 }}>Let&apos;s make this moment a little easier.</h4>
+                            <p style={{ color: '#94a3b8' }}>You don&apos;t need to fix anything right now.</p>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
                             {renderToolBtn("Breathe softly", () => setMode('exit'))}

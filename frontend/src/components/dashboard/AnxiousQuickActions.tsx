@@ -85,7 +85,7 @@ export function AnxiousQuickActions({ accent }: AnxiousQuickActionsProps) {
                 {mode === 'calm' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         <div>
-                            <h4 style={{ fontSize: '1.35rem', color: accent, marginBottom: 8 }}>Let's slow this down.</h4>
+                            <h4 style={{ fontSize: '1.35rem', color: accent, marginBottom: 8 }}>Let&apos;s slow this down.</h4>
                             <p style={{ color: '#94a3b8' }}>You only need to handle this moment.</p>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
@@ -112,7 +112,7 @@ export function AnxiousQuickActions({ accent }: AnxiousQuickActionsProps) {
                         ) : (
                             <div style={{ border: `1px solid ${accent}40`, padding: 24, borderRadius: 16, background: 'rgba(2,6,23,0.5)' }}>
                                 <h5 style={{ fontSize: '1.1rem', color: '#e2e8f0', marginBottom: 16 }}>Try a balanced thought prompt:</h5>
-                                <p style={{ color: '#94a3b8', fontStyle: 'italic', marginBottom: 24 }}>"This feels dangerous, but it might just be uncomfortable."</p>
+                                <p style={{ color: '#94a3b8', fontStyle: 'italic', marginBottom: 24 }}>&quot;This feels dangerous, but it might just be uncomfortable.&quot;</p>
                                 {renderToolBtn("Schedule worry time for later", () => setMode('exit'))}
                             </div>
                         )}
@@ -123,7 +123,7 @@ export function AnxiousQuickActions({ accent }: AnxiousQuickActionsProps) {
                 {mode === 'control' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         <div>
-                            <h4 style={{ fontSize: '1.35rem', color: accent, marginBottom: 8 }}>Let's pull back to what you can control.</h4>
+                            <h4 style={{ fontSize: '1.35rem', color: accent, marginBottom: 8 }}>Let&apos;s pull back to what you can control.</h4>
                             <p style={{ color: '#94a3b8' }}>You only need to handle this moment.</p>
                         </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent, useEffect, Suspense } from 'react';
+import { useState, FormEvent, useEffect, Suspense, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { SignUpButton, SignInButton, useUser, useAuth } from '@clerk/nextjs';
 import { useWellness } from '@/components/wellness/WellnessProvider';
@@ -13,18 +13,7 @@ function AuthForms() {
     const [guestName, setGuestName] = useState('');
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        if (isSignedIn) {
-            const finishFlow = async () => {
-                const token = await getToken();
-                await checkAndSubmitPending(token || undefined);
-                router.replace('/dashboard');
-            };
-            finishFlow();
-        }
-    }, [isSignedIn, router, getToken]);
-
-    const checkAndSubmitPending = async (token?: string) => {
+    const checkAndSubmitPending = useCallback(async (token?: string) => {
         const pending = localStorage.getItem('sh_pending_assessment');
         if (!pending) return false;
         
@@ -50,7 +39,18 @@ function AuthForms() {
             console.error('Failed to submit assessment:', e);
         }
         return true;
-    };
+    }, [setContextProfile]);
+
+    useEffect(() => {
+        if (isSignedIn) {
+            const finishFlow = async () => {
+                const token = await getToken();
+                await checkAndSubmitPending(token || undefined);
+                router.replace('/dashboard');
+            };
+            finishFlow();
+        }
+    }, [isSignedIn, router, getToken, checkAndSubmitPending]);
 
     const handleGuestSubmit = async (e: FormEvent) => {
         e.preventDefault();

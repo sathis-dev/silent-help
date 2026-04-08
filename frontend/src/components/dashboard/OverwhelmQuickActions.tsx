@@ -102,7 +102,7 @@ export function OverwhelmQuickActions({ accent }: OverwhelmQuickActionsProps) {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         <div>
                             <h4 style={{ fontSize: '1.35rem', color: accent, marginBottom: 8 }}>You do not need to solve everything right now.</h4>
-                            <p style={{ color: '#94a3b8' }}>Let's make this smaller.</p>
+                            <p style={{ color: '#94a3b8' }}>Let&apos;s make this smaller.</p>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
                             {renderToolBtn("60-second breathing", () => setMode('exit'))}
@@ -144,7 +144,7 @@ export function OverwhelmQuickActions({ accent }: OverwhelmQuickActionsProps) {
                 {mode === 'start' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         <div>
-                            <h4 style={{ fontSize: '1.35rem', color: accent, marginBottom: 8 }}>Only choose the next thing, not the whole plan.</h4>
+                            <h4 style={{ fontSize: '1.35rem', color: accent, marginBottom: 8 }}>Let&apos;s find the one next step, not the whole plan.</h4>
                             <p style={{ color: '#94a3b8' }}>One step is enough.</p>
                         </div>
 
@@ -184,7 +184,7 @@ export function OverwhelmQuickActions({ accent }: OverwhelmQuickActionsProps) {
                         <h4 style={{ fontSize: '1.25rem', color: '#f8fafc' }}>Great sequence. How are you feeling?</h4>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 300 }}>
                             <button onClick={() => setMode(null)} style={{ padding: '14px', borderRadius: 12, background: 'rgba(30,41,59,0.8)', border: `1px solid ${accent}40`, color: '#f8fafc', cursor: 'pointer' }}>That helped.</button>
-                            <button onClick={() => setMode(null)} style={{ padding: '14px', borderRadius: 12, background: 'rgba(30,41,59,0.8)', border: `1px solid ${accent}40`, color: '#f8fafc', cursor: 'pointer' }}>I'm ready for one more step.</button>
+                            <button onClick={() => setMode(null)} style={{ padding: '14px', borderRadius: 12, background: 'rgba(30,41,59,0.8)', border: `1px solid ${accent}40`, color: '#f8fafc', cursor: 'pointer' }}>I&apos;m ready for one more step.</button>
                             <button onClick={() => setMode(null)} style={{ padding: '14px', borderRadius: 12, background: 'rgba(30,41,59,0.8)', border: `1px solid #475569`, color: '#94a3b8', cursor: 'pointer' }}>I need more support.</button>
                         </div>
                     </div>

@@ -5,10 +5,19 @@
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+// Support type definition to prevent ESLint 'any' warnings for window injection
+interface ClerkWindow extends Window {
+    Clerk?: {
+        session?: {
+            getToken: () => Promise<string>;
+        };
+    };
+}
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (typeof window !== 'undefined' && (window as any).Clerk?.session) {
-        const token = await (window as any).Clerk.session.getToken();
+    if (typeof window !== 'undefined' && (window as unknown as ClerkWindow).Clerk?.session) {
+        const token = await (window as unknown as ClerkWindow).Clerk!.session!.getToken();
         if (token) headers['Authorization'] = `Bearer ${token}`;
     }
     return headers;
