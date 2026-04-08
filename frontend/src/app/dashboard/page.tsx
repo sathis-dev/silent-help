@@ -247,7 +247,7 @@ function RecommendedPath({ profile, accent }: { profile: WellnessProfile; accent
     const tools = profile.tools.slice(0, 5);
     const allDone = completedSteps.size >= tools.length;
 
-    const emotionKey = (profile as Record<string, unknown>).emotionalProfile as string || 'pressure';
+    const emotionKey = (profile as unknown as Record<string, unknown>).emotionalProfile as string || 'pressure';
     const emotionInfo = EMOTION_META[emotionKey] || EMOTION_META.pressure;
 
     const handleComplete = (stepIndex: number) => {
@@ -512,9 +512,9 @@ export default function DashboardPage() {
     const greeting = getGreeting();
     const wellnessMessage = getWellnessMessage(p.archetype);
 
-    const rawEmotion = (p as Record<string, unknown>).emotionalProfile as string | undefined;
+    const rawEmotion = (p as unknown as Record<string, unknown>).emotionalProfile as string | undefined;
     const emotionKey = rawEmotion ? rawEmotion.toLowerCase() : 'pressure';
-    const stressLevelKey = (p as Record<string, unknown>).stressLevel as string || 'elevated';
+    const stressLevelKey = (p as unknown as Record<string, unknown>).stressLevel as string || 'elevated';
     
     // Identity label based directly on stress type
     const identityDisplay = emotionKey.toUpperCase();
