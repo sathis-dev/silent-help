@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { generateWellnessProfile, buildAIAnalysisPrompt } from '@/lib/recommendations';
 import OpenAI from 'openai';
 
@@ -211,7 +212,7 @@ export async function POST(req: NextRequest) {
         };
 
         // Map to legacy energy field
-        const energyMap: Record<IntensityLevel, string> = {
+        const energyMap: Record<IntensityLevel, 'low' | 'moderate' | 'high'> = {
             light: 'low',
             elevated: 'moderate',
             intense: 'high',
@@ -278,7 +279,7 @@ export async function POST(req: NextRequest) {
                         result,
                         emotionScores,
                         answerDetails: answerDetails || [],
-                    },
+                    } as unknown as Prisma.InputJsonValue,
                 },
                 update: {
                     energy: answers.energy,
@@ -295,7 +296,7 @@ export async function POST(req: NextRequest) {
                         result,
                         emotionScores,
                         answerDetails: answerDetails || [],
-                    },
+                    } as unknown as Prisma.InputJsonValue,
                 },
             });
         }
