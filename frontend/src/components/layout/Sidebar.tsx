@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { listConversations, createConversation, deleteConversation, type ConversationPreview } from '@/lib/api';
-import { useAuth } from '@/components/auth/AuthProvider';
+import { useUser, useClerk } from '@clerk/nextjs';
 
 interface SidebarProps {
     isOpen: boolean;
@@ -13,7 +13,8 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     const router = useRouter();
     const pathname = usePathname();
-    const { user, logout } = useAuth();
+    const { user } = useUser();
+    const { signOut } = useClerk();
     const [conversations, setConversations] = useState<ConversationPreview[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -60,7 +61,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     }
 
     function handleLogout() {
-        logout();
+        signOut();
         router.push('/auth/login');
     }
 
@@ -175,12 +176,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                                 width: '32px', height: '32px', borderRadius: '50%',
                                 background: 'var(--gradient-primary)', display: 'flex',
                                 alignItems: 'center', justifyContent: 'center',
-                                fontSize: '0.8rem', fontWeight: 600, flexShrink: 0,
+                                fontWeight: 600, flexShrink: 0,
                             }}>
-                                {user?.name?.[0]?.toUpperCase() || '?'}
+                                {user?.firstName?.[0]?.toUpperCase() || '?'}
                             </div>
                             <span style={{ fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {user?.name || 'User'}
+                                {user?.firstName || 'User'}
                             </span>
                         </div>
                         <button

@@ -2,11 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import { createConversation } from '@/lib/api';
-import { useAuth } from '@/components/auth/AuthProvider';
+import { useUser } from '@clerk/nextjs';
 
 export default function ChatIndexPage() {
     const router = useRouter();
-    const { user } = useAuth();
+    const { user } = useUser();
 
     async function startNewChat() {
         try {
@@ -34,7 +34,7 @@ export default function ChatIndexPage() {
             </div>
 
             <h2 style={{ fontWeight: 400, marginBottom: '8px' }}>
-                {greeting}{user?.name ? `, ${user.name}` : ''}
+                {greeting}{user?.firstName ? `, ${user.firstName}` : ''}
             </h2>
 
             <p style={{ maxWidth: '350px', lineHeight: 1.6, marginBottom: '32px' }}>

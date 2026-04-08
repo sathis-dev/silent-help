@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/components/auth/AuthProvider';
+import { useUser } from '@clerk/nextjs';
 import Sidebar from '@/components/layout/Sidebar';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
-    const { isAuthenticated, isLoading } = useAuth();
+    const { isSignedIn, isLoaded } = useUser();
+    const isAuthenticated = !!isSignedIn;
+    const isLoading = !isLoaded;
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     useEffect(() => {
