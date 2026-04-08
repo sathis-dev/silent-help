@@ -12,7 +12,7 @@ export async function GET() {
         
         // Group them by step and route to make it ultra easy for the frontend React components
         // e.g., tree[1]['shared'] gives the first question
-        const tree: Record<number, Record<string, any>> = {};
+        const tree: Record<number, Record<string, unknown>> = {};
         for (const q of questions) {
             if (!tree[q.stepNumber]) tree[q.stepNumber] = {};
             tree[q.stepNumber][q.routeGroup] = q;

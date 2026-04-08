@@ -14,6 +14,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { getCrisisSystemPrompt } from '@/lib/crisis';
 
 // ═══════════════════════════════════════════════
@@ -95,7 +96,7 @@ export async function computeUserState(userId: string): Promise<ComputedUserStat
     const contextWindow = buildContextWindow(moodLogs, journalEntries, recentMessages);
 
     // ── 4. Coping Strength (0–1) ──
-    const copingStrength = computeCopingStrength(trajectory, engagement, moodLogs);
+    const copingStrength = computeCopingStrength(trajectory, engagement);
 
     // ── 5. Current Archetype ──
     const profile = wellnessProfile?.profile as Record<string, unknown> | null;
@@ -131,20 +132,20 @@ export async function computeUserState(userId: string): Promise<ComputedUserStat
         create: {
             userId,
             currentArchetype,
-            emotionalTrajectory: trajectory as unknown as Record<string, unknown>,
+            emotionalTrajectory: trajectory as unknown as Prisma.InputJsonValue,
             sessionCount,
             copingStrength,
-            engagementPattern: engagement as unknown as Record<string, unknown>,
-            contextWindow: contextWindow as unknown as Record<string, unknown>[],
+            engagementPattern: engagement as unknown as Prisma.InputJsonValue,
+            contextWindow: contextWindow as unknown as Prisma.InputJsonValue,
             computedAt: new Date(),
         },
         update: {
             currentArchetype,
-            emotionalTrajectory: trajectory as unknown as Record<string, unknown>,
+            emotionalTrajectory: trajectory as unknown as Prisma.InputJsonValue,
             sessionCount,
             copingStrength,
-            engagementPattern: engagement as unknown as Record<string, unknown>,
-            contextWindow: contextWindow as unknown as Record<string, unknown>[],
+            engagementPattern: engagement as unknown as Prisma.InputJsonValue,
+            contextWindow: contextWindow as unknown as Prisma.InputJsonValue,
             computedAt: new Date(),
         },
     });
@@ -266,8 +267,7 @@ function buildContextWindow(
 
 function computeCopingStrength(
     trajectory: EmotionalTrajectory,
-    engagement: EngagementPattern,
-    moodLogs: { intensity: number }[],
+    engagement: EngagementPattern
 ): number {
     let score = 0.5; // baseline
 
