@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { listConversations, createConversation, deleteConversation, type ConversationPreview } from '@/lib/api';
-import { useUser, useClerk } from '@clerk/nextjs';
+
 
 interface SidebarProps {
     isOpen: boolean;
@@ -13,8 +13,6 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     const router = useRouter();
     const pathname = usePathname();
-    const { user } = useUser();
-    const { signOut } = useClerk();
     const [conversations, setConversations] = useState<ConversationPreview[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -58,11 +56,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         } catch (err) {
             console.error('Failed to delete conversation:', err);
         }
-    }
-
-    function handleLogout() {
-        signOut();
-        router.push('/auth/login');
     }
 
     const currentId = pathname.startsWith('/chat/') ? pathname.split('/chat/')[1] : null;
@@ -142,56 +135,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                             </div>
                         ))
                     )}
-                </div>
-
-                {/* Navigation links */}
-                <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border-subtle)' }}>
-                    <button
-                        className={`sidebar-item ${pathname === '/journal' ? 'active' : ''}`}
-                        onClick={() => { router.push('/journal'); onClose(); }}
-                    >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                            <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
-                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
-                        </svg>
-                        Journal
-                    </button>
-                    <button
-                        className={`sidebar-item ${pathname === '/tools' ? 'active' : ''}`}
-                        onClick={() => { router.push('/tools'); onClose(); }}
-                    >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-                            <path d="M12 6v6l4 2" />
-                        </svg>
-                        Wellness Tools
-                    </button>
-                </div>
-
-                {/* Footer */}
-                <div className="sidebar-footer">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2" style={{ overflow: 'hidden' }}>
-                            <div style={{
-                                width: '32px', height: '32px', borderRadius: '50%',
-                                background: 'var(--gradient-primary)', display: 'flex',
-                                alignItems: 'center', justifyContent: 'center',
-                                fontWeight: 600, flexShrink: 0,
-                            }}>
-                                {user?.firstName?.[0]?.toUpperCase() || '?'}
-                            </div>
-                            <span style={{ fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {user?.firstName || 'User'}
-                            </span>
-                        </div>
-                        <button
-                            onClick={handleLogout}
-                            className="btn-ghost"
-                            style={{ padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', background: 'none', border: '1px solid var(--border-subtle)', borderRadius: '8px', color: 'var(--text-muted)' }}
-                        >
-                            Logout
-                        </button>
-                    </div>
                 </div>
             </aside>
         </>
