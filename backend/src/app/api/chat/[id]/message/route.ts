@@ -77,9 +77,7 @@ export async function POST(
             }
         } catch (engineErr) {
             console.error('AI Engine error (falling back to static prompt):', engineErr);
-            // Graceful degradation — use the fallback prompt
         }
-
 
         // Crisis check
         const crisisResult = checkForCrisis(content);
@@ -121,7 +119,6 @@ export async function POST(
                 },
             });
 
-            // Auto-title conversation from first message
             if (!conversation.title) {
                 const title = content.slice(0, 60) + (content.length > 60 ? '...' : '');
                 await prisma.conversation.update({
@@ -140,35 +137,55 @@ export async function POST(
         const geminiContents: { role: 'user' | 'model'; parts: { text: string }[] }[] = [];
 
         for (const msg of history) {
-            if (msg.role === 'user') {
-                geminiContents.push({ role: 'user', parts: [{ text: msg.content }] });
-            } else if (msg.role === 'assistant') {
-                geminiContents.push({ role: 'model', parts: [{ text: msg.content }] });
+            const role = msg.role === 'user' ? 'user' : (msg.role === 'assistant' ? 'model' : null);
+            if (!role) continue;
+
+            const lastEntry = geminiContents[geminiContents.length - 1];
+            if (lastEntry && lastEntry.role === role) {
+                // Merge consecutive messages with the same role to prevent Gemini 400 errors
+                lastEntry.parts[0].text += '\n\n' + msg.content;
+            } else {
+                geminiContents.push({ role, parts: [{ text: msg.content }] });
             }
-            // Skip 'system' role messages — handled via systemInstruction
         }
 
-        // ═══ Stream response from Gemini ═══
+        // Gemini requires the first message to be from the 'user'
+        if (geminiContents.length > 0 && geminiContents[0].role !== 'user') {
+            geminiContents.unshift({ role: 'user', parts: [{ text: '[Conversation started]' }] });
+        }
+
+        // ═══ Get Gemini stream ═══
         const ai = new GoogleGenAI({ apiKey: geminiKey });
 
+        let geminiStream: AsyncGenerator;
+        try {
+            geminiStream = await ai.models.generateContentStream({
+                model: 'gemini-2.5-flash',
+                contents: geminiContents,
+                config: {
+                    systemInstruction: systemPrompt,
+                    maxOutputTokens: 1000,
+                    temperature: 0.7,
+                },
+            }) as unknown as AsyncGenerator;
+        } catch (initError) {
+            console.error('Gemini init error:', initError);
+            return Response.json({ error: 'AI service unavailable' }, { status: 503 });
+        }
+
+        // ═══ Stream response via SSE ═══
         const encoder = new TextEncoder();
         let fullResponse = '';
 
         const readable = new ReadableStream({
             async start(controller) {
                 try {
-                    const stream = ai.models.generateContentStream({
-                        model: 'gemini-2.5-flash',
-                        contents: geminiContents,
-                        config: {
-                            systemInstruction: systemPrompt,
-                            maxOutputTokens: 1000,
-                            temperature: 0.7,
-                        },
-                    });
+                    // Use .next() to consume the async generator safely inside ReadableStream
+                    while (true) {
+                        const { value: chunk, done } = await geminiStream.next();
+                        if (done) break;
 
-                    for await (const chunk of stream) {
-                        const text = chunk.text || '';
+                        const text = chunk?.text || (chunk?.candidates?.[0]?.content?.parts?.[0]?.text) || '';
                         if (text) {
                             fullResponse += text;
                             controller.enqueue(
@@ -182,7 +199,7 @@ export async function POST(
                         data: {
                             conversationId,
                             role: 'assistant',
-                            content: fullResponse,
+                            content: fullResponse || '(No response generated)',
                         },
                     });
 
@@ -208,8 +225,23 @@ export async function POST(
                     controller.close();
                 } catch (error) {
                     console.error('Gemini stream error:', error);
+
+                    // If we have partial response, save it
+                    if (fullResponse) {
+                        try {
+                            const assistantMessage = await prisma.message.create({
+                                data: { conversationId, role: 'assistant', content: fullResponse },
+                            });
+                            controller.enqueue(
+                                encoder.encode(`data: ${JSON.stringify({ done: true, messageId: assistantMessage.id })}\n\n`)
+                            );
+                        } catch (dbErr) {
+                            console.error('Failed to save partial response:', dbErr);
+                        }
+                    }
+
                     controller.enqueue(
-                        encoder.encode(`data: ${JSON.stringify({ error: 'Stream error' })}\n\n`)
+                        encoder.encode(`data: ${JSON.stringify({ error: 'Stream error: ' + (error instanceof Error ? error.message : String(error)) })}\n\n`)
                     );
                     controller.close();
                 }
