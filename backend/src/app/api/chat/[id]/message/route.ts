@@ -1,13 +1,9 @@
 import { NextRequest } from 'next/server';
-import OpenAI from 'openai';
+import { GoogleGenAI } from '@google/genai';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest, unauthorizedResponse } from '@/lib/auth';
 import { checkForCrisis, getCrisisSystemPrompt } from '@/lib/crisis';
 import { computeUserState, generateDynamicSystemPrompt, generateOpeningContext } from '@/lib/ai-engine';
-
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY || '',
-});
 
 const FALLBACK_SYSTEM_PROMPT = `You are Silent Help — a compassionate, intelligent AI companion focused on mental wellness and emotional support. You are NOT a therapist or medical professional. You are a warm, understanding friend who listens deeply.
 
@@ -30,7 +26,7 @@ Your approach:
 ${getCrisisSystemPrompt()}`;
 
 /**
- * POST /api/chat/[id]/message — Send a message and stream AI response
+ * POST /api/chat/[id]/message — Send a message and stream AI response (Gemini)
  */
 export async function POST(
     req: NextRequest,
@@ -104,29 +100,18 @@ export async function POST(
             take: 20,
         });
 
-        // Build messages array for OpenAI
-        const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-            { role: 'system', content: systemPrompt },
-            ...history.map(msg => ({
-                role: msg.role as 'user' | 'assistant',
-                content: msg.content,
-            })),
-        ];
-
-        // If crisis detected, add safety context
+        // If crisis detected, append safety context to system prompt
         if (crisisResult.isCrisis) {
-            messages.push({
-                role: 'system',
-                content: `CRISIS DETECTED: The user's message contained concerning language. Lead with empathy, provide UK crisis resources (Samaritans: 116 123, Shout: text SHOUT to 85258), and encourage professional support. Do not dismiss their feelings.`,
-            });
+            systemPrompt += `\n\nCRISIS DETECTED: The user's message contained concerning language. Lead with empathy, provide UK crisis resources (Samaritans: 116 123, Shout: text SHOUT to 85258), and encourage professional support. Do not dismiss their feelings.`;
         }
 
-        // Check if OpenAI API key is configured
-        if (!process.env.OPENAI_API_KEY) {
+        // Check if Gemini API key is configured
+        const geminiKey = process.env.GEMINI_API_KEY;
+        if (!geminiKey) {
             // Fallback: return a helpful message without AI
             const fallbackResponse = crisisResult.isCrisis
                 ? crisisResult.safetyMessage!
-                : "I'm here to listen and support you. (AI responses will be available once the OpenAI API key is configured. For now, your messages are being saved.)";
+                : "I'm here to listen and support you. (AI responses will be available once the Gemini API key is configured. For now, your messages are being saved.)";
 
             const assistantMessage = await prisma.message.create({
                 data: {
@@ -151,28 +136,43 @@ export async function POST(
             });
         }
 
-        // Stream response from OpenAI
-        const stream = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages,
-            stream: true,
-            max_tokens: 1000,
-            temperature: 0.7,
-        });
+        // ═══ Build Gemini contents array ═══
+        const geminiContents: { role: 'user' | 'model'; parts: { text: string }[] }[] = [];
 
-        // Create SSE stream
+        for (const msg of history) {
+            if (msg.role === 'user') {
+                geminiContents.push({ role: 'user', parts: [{ text: msg.content }] });
+            } else if (msg.role === 'assistant') {
+                geminiContents.push({ role: 'model', parts: [{ text: msg.content }] });
+            }
+            // Skip 'system' role messages — handled via systemInstruction
+        }
+
+        // ═══ Stream response from Gemini ═══
+        const ai = new GoogleGenAI({ apiKey: geminiKey });
+
         const encoder = new TextEncoder();
         let fullResponse = '';
 
         const readable = new ReadableStream({
             async start(controller) {
                 try {
+                    const stream = ai.models.generateContentStream({
+                        model: 'gemini-2.5-flash',
+                        contents: geminiContents,
+                        config: {
+                            systemInstruction: systemPrompt,
+                            maxOutputTokens: 1000,
+                            temperature: 0.7,
+                        },
+                    });
+
                     for await (const chunk of stream) {
-                        const delta = chunk.choices[0]?.delta?.content || '';
-                        if (delta) {
-                            fullResponse += delta;
+                        const text = chunk.text || '';
+                        if (text) {
+                            fullResponse += text;
                             controller.enqueue(
-                                encoder.encode(`data: ${JSON.stringify({ content: delta })}\n\n`)
+                                encoder.encode(`data: ${JSON.stringify({ content: text })}\n\n`)
                             );
                         }
                     }
@@ -207,7 +207,7 @@ export async function POST(
                     );
                     controller.close();
                 } catch (error) {
-                    console.error('Stream error:', error);
+                    console.error('Gemini stream error:', error);
                     controller.enqueue(
                         encoder.encode(`data: ${JSON.stringify({ error: 'Stream error' })}\n\n`)
                     );
