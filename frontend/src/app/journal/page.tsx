@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { listJournalEntries, createJournalEntry, type JournalEntry } from '@/lib/api';
+import { listJournalEntries, createJournalEntry, getJournalInsight, type JournalEntry } from '@/lib/api';
 import GlowCard from '@/components/animations/GlowCard';
 import FadeIn from '@/components/animations/FadeIn';
+import { recordActivity } from '@/lib/streak';
 
 const MOODS = [
     { emoji: '😔', label: 'Sad', color: '#818cf8' },
@@ -20,6 +21,8 @@ export default function JournalPage() {
     const [selectedMood, setSelectedMood] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [insight, setInsight] = useState<string | null>(null);
+    const [insightLoading, setInsightLoading] = useState(false);
 
     useEffect(() => {
         loadEntries();
@@ -44,6 +47,7 @@ export default function JournalPage() {
             setEntries(prev => [data.entry, ...prev]);
             setContent('');
             setSelectedMood(null);
+            recordActivity();
         } catch (err) {
             console.error('Failed to save journal entry:', err);
         } finally {
@@ -185,6 +189,58 @@ export default function JournalPage() {
                                 ) : 'Save Entry'}
                             </button>
                         </div>
+                    </div>
+                </GlowCard>
+            </FadeIn>
+
+            {/* AI Weekly Insight */}
+            <FadeIn direction="up" delay={150}>
+                <GlowCard glowColor="#a78bfa25" borderRadius={20} style={{ marginBottom: '40px' }}>
+                    <div style={{ padding: '24px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: insight ? 16 : 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <span style={{ fontSize: '1.3rem' }}>🔮</span>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '1rem', color: '#e2e8f0' }}>AI Weekly Insight</h3>
+                                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>Patterns from your recent entries</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={async () => {
+                                    setInsightLoading(true);
+                                    try {
+                                        const res = await getJournalInsight();
+                                        setInsight(res.insight || res.message || 'No insight available yet.');
+                                    } catch {
+                                        setInsight('Unable to generate insight right now. Please try again later.');
+                                    } finally {
+                                        setInsightLoading(false);
+                                    }
+                                }}
+                                disabled={insightLoading}
+                                style={{
+                                    padding: '8px 16px', borderRadius: 10,
+                                    background: insightLoading ? 'rgba(167,139,250,0.05)' : 'rgba(167,139,250,0.1)',
+                                    border: '1px solid rgba(167,139,250,0.3)',
+                                    color: '#a78bfa', cursor: insightLoading ? 'wait' : 'pointer',
+                                    fontSize: '0.8rem', fontWeight: 500,
+                                    transition: 'all 0.2s',
+                                }}
+                            >
+                                {insightLoading ? 'Analyzing...' : insight ? 'Refresh' : 'Generate Insight'}
+                            </button>
+                        </div>
+                        {insight && (
+                            <div style={{
+                                padding: '16px', borderRadius: 12,
+                                background: 'rgba(2,6,23,0.4)',
+                                borderLeft: '4px solid #a78bfa',
+                                color: '#cbd5e1', fontSize: '0.9rem', lineHeight: 1.7,
+                                whiteSpace: 'pre-wrap',
+                            }}>
+                                {insight}
+                            </div>
+                        )}
                     </div>
                 </GlowCard>
             </FadeIn>

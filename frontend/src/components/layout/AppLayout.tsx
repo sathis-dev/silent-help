@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import IconNav from '@/components/layout/IconNav';
+import AmbientPlayer from '@/components/layout/AmbientPlayer';
 import { useWellness } from '@/components/wellness/WellnessProvider';
 import { getThemeForEmotion } from '@/components/layout/IconNav';
 
@@ -46,6 +47,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <main className="app-main">
                 {children}
             </main>
+            <AmbientPlayer accent={theme.accent} />
         </div>
     );
 }

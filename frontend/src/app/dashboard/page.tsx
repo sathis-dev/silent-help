@@ -23,6 +23,7 @@ import FlowingGradient from '@/components/animations/FlowingGradient';
 import PulseRing from '@/components/animations/PulseRing';
 import CountUp from '@/components/animations/CountUp';
 import { getThemeForEmotion } from '@/components/layout/IconNav';
+import StreakWidget from '@/components/dashboard/StreakWidget';
 
 /* ═══════════════════════════════════════════════
    Quick Action Widget Data
@@ -232,6 +233,10 @@ export default function DashboardPage() {
                         </div>
                     </div>
                 </GlowCard>
+            </FadeIn>
+
+            <FadeIn direction="up" delay={150}>
+                <StreakWidget accent={accent} />
             </FadeIn>
 
             <FadeIn direction="up" delay={200}>

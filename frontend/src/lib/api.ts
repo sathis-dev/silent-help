@@ -140,6 +140,12 @@ export async function createJournalEntry(content: string, mood?: string) {
     });
 }
 
+export async function getJournalInsight() {
+    return apiFetch<{ insight: string | null; message?: string; entryCount?: number }>('/api/journal/insight', {
+        method: 'POST',
+    });
+}
+
 // ─── Mood ───────────────────────────────────────────────────
 
 export async function getMoodHistory() {
