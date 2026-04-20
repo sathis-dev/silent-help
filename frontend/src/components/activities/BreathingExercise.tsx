@@ -71,8 +71,10 @@ const PATTERNS: Record<string, BreathPattern> = {
     },
 };
 
+export type BreathingVariant = keyof typeof PATTERNS;
+
 interface BreathingExerciseProps {
-    variant: keyof typeof PATTERNS;
+    variant: BreathingVariant;
     accent: string;
     onComplete: () => void;
     onCancel: () => void;

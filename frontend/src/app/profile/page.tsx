@@ -81,6 +81,28 @@ export default function ProfilePage() {
     return (
         <div style={{ padding: '32px 24px', maxWidth: '900px', margin: '0 auto', overflowY: 'auto', height: '100%' }}>
             
+            {/* Back to Dashboard */}
+            <FadeIn direction="up">
+                <button
+                    onClick={() => router.push('/dashboard')}
+                    style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '8px',
+                        padding: '10px 20px', borderRadius: 12,
+                        background: 'rgba(15,23,42,0.5)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        color: '#94a3b8', cursor: 'pointer', fontSize: '0.9rem',
+                        marginBottom: '24px', transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = `${accent}60`; e.currentTarget.style.color = '#f8fafc'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#94a3b8'; }}
+                >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M19 12H5" /><polyline points="12 19 5 12 12 5" />
+                    </svg>
+                    Back to Dashboard
+                </button>
+            </FadeIn>
+            
             {/* Header Section */}
             <FadeIn direction="up">
                 <GlowCard glowColor={`${accent}30`} borderRadius={24} style={{ padding: '32px', marginBottom: '32px', textAlign: 'center' }}>
@@ -213,7 +235,8 @@ export default function ProfilePage() {
                                                 contentStyle={{ background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#f8fafc', boxShadow: '0 8px 32px rgba(0,0,0,0.4)', padding: '12px' }}
                                                 itemStyle={{ color: '#a78bfa', fontWeight: 600, fontSize: '0.95rem' }}
                                                 labelStyle={{ color: '#94a3b8', marginBottom: 4, fontSize: '0.85rem' }}
-                                                formatter={(val: any, name: any, props: any) => [`${val}/10 (Feeling ${props.payload.mood})`, 'Intensity']}
+                                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                                formatter={(val: unknown, _name: unknown, props: Record<string, any>) => [`${val}/10 (Feeling ${props.payload.mood})`, 'Intensity']}
                                             />
                                             <Line type="monotone" dataKey="intensity" stroke="#a78bfa" strokeWidth={3} dot={{ r: 4, fill: '#1e293b', stroke: '#a78bfa', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#a78bfa', stroke: '#fff' }} />
                                         </LineChart>

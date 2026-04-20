@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import FadeIn from '@/components/animations/FadeIn';
 import GlowCard from '@/components/animations/GlowCard';
-import BreathingExercise from '@/components/activities/BreathingExercise';
+import BreathingExercise, { type BreathingVariant } from '@/components/activities/BreathingExercise';
 
 export default function SOSPage() {
     const router = useRouter();
@@ -28,7 +28,7 @@ export default function SOSPage() {
                     
                     {/* Embedded 4-7-8 Breathing (Calming down-regulation) */}
                     <BreathingExercise 
-                        variant={"calm-60" as any}
+                        variant={'calm-60' as BreathingVariant}
                         accent={accent}
                         onComplete={() => {}}
                         onCancel={() => {}}
@@ -51,7 +51,7 @@ export default function SOSPage() {
                         
                         <a href="sms:741741?body=HOME" style={{ textDecoration: 'none' }}>
                             <div style={{ padding: '20px', borderRadius: '16px', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', textAlign: 'center', transition: 'all 0.2s', cursor: 'pointer' }}>
-                                <h3 style={{ margin: '0 0 8px', color: '#38bdf8', fontSize: '1.2rem' }}>Text "HOME" to 741741</h3>
+                                <h3 style={{ margin: '0 0 8px', color: '#38bdf8', fontSize: '1.2rem' }}>Text &quot;HOME&quot; to 741741</h3>
                                 <p style={{ margin: 0, color: '#f8fafc', fontSize: '0.9rem' }}>Crisis Text Line</p>
                             </div>
                         </a>

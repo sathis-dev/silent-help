@@ -1,13 +1,15 @@
 'use client';
 
+type WebkitWindow = Window & { webkitAudioContext?: typeof AudioContext };
+
 class SoundEngine {
     private ac: AudioContext | null = null;
-    readonly isSupported = typeof window !== 'undefined' && (window.AudioContext || (window as any).webkitAudioContext);
+    readonly isSupported = typeof window !== 'undefined' && (window.AudioContext || (window as WebkitWindow).webkitAudioContext);
 
     private getContext(): AudioContext {
         if (!this.ac) {
-            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-            this.ac = new AudioContextClass();
+            const AudioContextClass = window.AudioContext || (window as WebkitWindow).webkitAudioContext;
+            this.ac = new AudioContextClass!();
         }
         if (this.ac.state === 'suspended') {
             this.ac.resume();
