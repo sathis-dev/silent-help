@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import BreathingExercise from '@/components/activities/BreathingExercise';
+import GroundingExercise from '@/components/activities/GroundingExercise';
 
 // Using inline lucide-react SVGs
 const ChevronRight = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>;
@@ -10,15 +12,20 @@ interface AnxiousRecoveryProps {
     accent: string;
 }
 
+type ActiveActivity = 
+    | { type: 'breathing'; variant: 'calm-60' | 'box' }
+    | { type: 'grounding'; variant: '5-4-3-2-1' }
+    | null;
+
 export function AnxiousRecovery({ accent }: AnxiousRecoveryProps) {
     const [step, setStep] = useState(1);
-    
-    // For handling the mid-step in Step 3
     const [worryCaptured, setWorryCaptured] = useState(false);
+    const [activeActivity, setActiveActivity] = useState<ActiveActivity>(null);
 
     const handleNext = (nextStep: number) => {
         setStep(nextStep);
         setWorryCaptured(false);
+        setActiveActivity(null);
     };
 
     const renderCard = (title: string, subtitle: string, content: React.ReactNode) => (
@@ -60,23 +67,76 @@ export function AnxiousRecovery({ accent }: AnxiousRecoveryProps) {
         </button>
     );
 
+    // If an activity is active, render it instead of the step card
+    if (activeActivity) {
+        const activityCard = (content: React.ReactNode) => (
+            <div className="anxious-card" style={{ 
+                background: 'rgba(15,23,42,0.6)', 
+                border: `1px solid ${accent}30`, 
+                borderRadius: 24, overflow: 'hidden', transition: 'all 0.4s ease'
+            }}>
+                {content}
+            </div>
+        );
+
+        if (activeActivity.type === 'breathing') {
+            return (
+                <div className="anxious-recovery-wrapper" style={{ marginTop: 32, marginBottom: 32 }}>
+                    {activityCard(
+                        <BreathingExercise
+                            variant={activeActivity.variant}
+                            accent={accent}
+                            onComplete={() => handleNext(2)}
+                            onCancel={() => setActiveActivity(null)}
+                        />
+                    )}
+                </div>
+            );
+        }
+        if (activeActivity.type === 'grounding') {
+            return (
+                <div className="anxious-recovery-wrapper" style={{ marginTop: 32, marginBottom: 32 }}>
+                    {activityCard(
+                        <GroundingExercise
+                            variant={activeActivity.variant}
+                            accent={accent}
+                            onComplete={() => handleNext(3)}
+                            onCancel={() => setActiveActivity(null)}
+                        />
+                    )}
+                </div>
+            );
+        }
+    }
+
     return (
         <div className="anxious-recovery-wrapper" style={{ marginTop: 32, marginBottom: 32 }}>
-            <div className="recovery-header" style={{ marginBottom: 24 }}>
+            <div className="recovery-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ width: 32, height: 32, borderRadius: 8, background: `${accent}20`, color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
                         {step}/6
                     </div>
                     <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#cbd5e1' }}>Anxiety Support Path</h3>
                 </div>
+                {step > 1 && step < 7 && (
+                    <button
+                        onClick={() => handleNext(step - 1)}
+                        style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'color 0.2s' }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = '#f8fafc'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6"/></svg>
+                        Back
+                    </button>
+                )}
             </div>
 
             {step === 1 && renderCard(
                 "Slow it down",
                 "You are safe in this moment. Let's slow things down first.",
                 <>
-                    {renderButton("Breathe with me", () => handleNext(2))}
-                    {renderButton("Ground me now", () => handleNext(2))}
+                    {renderButton("Breathe with me", () => setActiveActivity({ type: 'breathing', variant: 'calm-60' }))}
+                    {renderButton("Ground me now", () => setActiveActivity({ type: 'grounding', variant: '5-4-3-2-1' }))}
                 </>
             )}
 

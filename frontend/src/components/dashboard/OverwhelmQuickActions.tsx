@@ -1,56 +1,41 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import BreathingExercise from '@/components/activities/BreathingExercise';
+import GroundingExercise from '@/components/activities/GroundingExercise';
+import BodyReleaseExercise from '@/components/activities/BodyReleaseExercise';
+import SimpleAction from '@/components/activities/SimpleAction';
+import FocusTimer from '@/components/activities/FocusTimer';
 
-// Inline SVGs
 const ArrowLeft = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>;
 const CheckCircle = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
 
-interface OverwhelmQuickActionsProps {
-    accent: string;
-}
+interface OverwhelmQuickActionsProps { accent: string; }
 
 type Mode = 'calm' | 'clear' | 'start' | 'exit' | null;
+type ActiveActivity =
+    | { type: 'breathing'; variant: 'calm-60' | 'box' }
+    | { type: 'grounding'; variant: '3-3-3' }
+    | { type: 'body'; variant: 'shoulder-jaw' }
+    | { type: 'simple'; title: string; instruction: string; icon: string }
+    | { type: 'timer'; duration: number; label: string }
+    | null;
 
 export function OverwhelmQuickActions({ accent }: OverwhelmQuickActionsProps) {
     const [mode, setMode] = useState<Mode>(null);
-    const [activeTimer, setActiveTimer] = useState<number | null>(null);
     const [brainDump, setBrainDump] = useState('');
     const [microStep, setMicroStep] = useState('');
-
-    useEffect(() => {
-        if (activeTimer === null || activeTimer <= 0) return;
-        const interval = setInterval(() => {
-            setActiveTimer(prev => prev !== null && prev > 0 ? prev - 1 : 0);
-        }, 1000);
-        return () => clearInterval(interval);
-    }, [activeTimer]);
-
-    const formatTime = (seconds: number) => {
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        return `${m}:${s.toString().padStart(2, '0')}`;
-    };
+    const [activeActivity, setActiveActivity] = useState<ActiveActivity>(null);
 
     const renderCard = (title: string, subtitle: string, onClick: () => void) => (
-        <button
-            onClick={onClick}
-            style={{
-                width: '100%', textAlign: 'left', background: 'rgba(15,23,42,0.6)', 
-                border: `1px solid ${accent}40`, borderRadius: 16, padding: '24px 28px',
-                cursor: 'pointer', transition: 'all 0.3s ease', outline: 'none',
-                display: 'flex', flexDirection: 'column', gap: 6
-            }}
-            onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(15,23,42,0.9)';
-                e.currentTarget.style.borderColor = accent;
-                e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(15,23,42,0.6)';
-                e.currentTarget.style.borderColor = `${accent}40`;
-                e.currentTarget.style.transform = 'translateY(0)';
-            }}
+        <button onClick={onClick} style={{
+            width: '100%', textAlign: 'left', background: 'rgba(15,23,42,0.6)',
+            border: `1px solid ${accent}40`, borderRadius: 16, padding: '24px 28px',
+            cursor: 'pointer', transition: 'all 0.3s ease', outline: 'none',
+            display: 'flex', flexDirection: 'column', gap: 6
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(15,23,42,0.9)'; e.currentTarget.style.borderColor = accent; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(15,23,42,0.6)'; e.currentTarget.style.borderColor = `${accent}40`; e.currentTarget.style.transform = 'translateY(0)'; }}
         >
             <span style={{ fontSize: '1.25rem', fontWeight: 600, color: '#f8fafc' }}>{title}</span>
             <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>{subtitle}</span>
@@ -58,27 +43,38 @@ export function OverwhelmQuickActions({ accent }: OverwhelmQuickActionsProps) {
     );
 
     const renderToolBtn = (text: string, onClick?: () => void) => (
-        <div 
-            onClick={onClick}
-            style={{
-                background: 'rgba(30,41,59,0.5)', border: `1px solid ${accent}20`,
-                padding: '16px 20px', borderRadius: 12, color: '#e2e8f0',
-                cursor: onClick ? 'pointer' : 'default', transition: 'background 0.2s'
-            }}
-            onMouseEnter={(e) => onClick && (e.currentTarget.style.background = 'rgba(30,41,59,0.8)')}
-            onMouseLeave={(e) => onClick && (e.currentTarget.style.background = 'rgba(30,41,59,0.5)')}
-        >
-            {text}
-        </div>
+        <div onClick={onClick} style={{
+            background: 'rgba(30,41,59,0.5)', border: `1px solid ${accent}20`,
+            padding: '16px 20px', borderRadius: 12, color: '#e2e8f0',
+            cursor: onClick ? 'pointer' : 'default', transition: 'background 0.2s'
+        }}
+        onMouseEnter={(e) => onClick && (e.currentTarget.style.background = 'rgba(30,41,59,0.8)')}
+        onMouseLeave={(e) => onClick && (e.currentTarget.style.background = 'rgba(30,41,59,0.5)')}
+        >{text}</div>
     );
+
+    if (activeActivity) {
+        const wrap = (c: React.ReactNode) => (
+            <div className="bento-section">
+                <div className="bento-header" style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <button onClick={() => setActiveActivity(null)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><ArrowLeft /></button>
+                    <h3 style={{ margin: 0 }}>Quick Actions &mdash; Overwhelm</h3>
+                </div>
+                <div style={{ background: 'linear-gradient(180deg, rgba(15,23,42,0.4) 0%, rgba(2,6,23,0.2) 100%)', border: `1px solid ${accent}20`, borderRadius: 24, overflow: 'hidden' }}>{c}</div>
+            </div>
+        );
+        if (activeActivity.type === 'breathing') return wrap(<BreathingExercise variant={activeActivity.variant} accent={accent} onComplete={() => { setActiveActivity(null); setMode('exit'); }} onCancel={() => setActiveActivity(null)} />);
+        if (activeActivity.type === 'grounding') return wrap(<GroundingExercise variant={activeActivity.variant} accent={accent} onComplete={() => { setActiveActivity(null); setMode('exit'); }} onCancel={() => setActiveActivity(null)} />);
+        if (activeActivity.type === 'body') return wrap(<BodyReleaseExercise variant={activeActivity.variant} accent={accent} onComplete={() => { setActiveActivity(null); setMode('exit'); }} onCancel={() => setActiveActivity(null)} />);
+        if (activeActivity.type === 'simple') return wrap(<SimpleAction title={activeActivity.title} instruction={activeActivity.instruction} icon={activeActivity.icon} accent={accent} onComplete={() => { setActiveActivity(null); setMode('exit'); }} onCancel={() => setActiveActivity(null)} />);
+        if (activeActivity.type === 'timer') return wrap(<FocusTimer duration={activeActivity.duration} label={activeActivity.label} accent={accent} onComplete={() => { setActiveActivity(null); setMode('exit'); }} onCancel={() => setActiveActivity(null)} />);
+    }
 
     return (
         <div className="bento-section">
             <div className="bento-header" style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
                 {mode && (
-                    <button onClick={() => { setMode(null); setActiveTimer(null); }} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                        <ArrowLeft />
-                    </button>
+                    <button onClick={() => { setMode(null); }} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><ArrowLeft /></button>
                 )}
                 <h3 style={{ margin: 0 }}>Quick Actions &mdash; Overwhelm</h3>
             </div>
@@ -88,7 +84,7 @@ export function OverwhelmQuickActions({ accent }: OverwhelmQuickActionsProps) {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         <div>
                             <h4 style={{ fontSize: '1.5rem', color: '#f8fafc', marginBottom: 8 }}>Too much at once?</h4>
-                            <p style={{ color: '#94a3b8', fontSize: '1rem' }}>Choose what you need most right now.</p>
+                            <p style={{ color: '#94a3b8' }}>Choose what you need most right now.</p>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                             {renderCard("Calm me first", "Right now mode. For when you are mentally flooded.", () => setMode('calm'))}
@@ -105,10 +101,10 @@ export function OverwhelmQuickActions({ accent }: OverwhelmQuickActionsProps) {
                             <p style={{ color: '#94a3b8' }}>Let&apos;s make this smaller.</p>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-                            {renderToolBtn("60-second breathing", () => setMode('exit'))}
-                            {renderToolBtn("3-3-3 grounding", () => setMode('exit'))}
-                            {renderToolBtn("Cold splash prompt", () => setMode('exit'))}
-                            {renderToolBtn("Shoulder / jaw release", () => setMode('exit'))}
+                            {renderToolBtn("60-second breathing", () => setActiveActivity({ type: 'breathing', variant: 'calm-60' }))}
+                            {renderToolBtn("3-3-3 grounding", () => setActiveActivity({ type: 'grounding', variant: '3-3-3' }))}
+                            {renderToolBtn("Cold splash prompt", () => setActiveActivity({ type: 'simple', title: 'Cold Splash', instruction: 'Go splash cold water on your face. The sudden cold activates your dive reflex and calms flooding.', icon: '💧' }))}
+                            {renderToolBtn("Shoulder / jaw release", () => setActiveActivity({ type: 'body', variant: 'shoulder-jaw' }))}
                         </div>
                         <button onClick={() => setMode('exit')} style={{ marginTop: 12, padding: '16px', background: accent, border: 'none', borderRadius: 12, color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>I feel slightly better</button>
                     </div>
@@ -120,23 +116,18 @@ export function OverwhelmQuickActions({ accent }: OverwhelmQuickActionsProps) {
                             <h4 style={{ fontSize: '1.35rem', color: accent, marginBottom: 8 }}>Out of your head, onto the page.</h4>
                             <p style={{ color: '#94a3b8' }}>Empty the chaos.</p>
                         </div>
-                        
-                        <textarea 
-                            value={brainDump}
-                            onChange={(e) => setBrainDump(e.target.value)}
+                        <textarea value={brainDump} onChange={(e) => setBrainDump(e.target.value)}
                             placeholder="Brain dump everything here..."
                             style={{ width: '100%', minHeight: 120, padding: 16, borderRadius: 12, background: 'rgba(2,6,23,0.5)', border: `1px solid ${accent}30`, color: '#f8fafc', outline: 'none', resize: 'vertical' }}
                         />
-
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                             <p style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Now filter what you wrote:</p>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                                 <div style={{ padding: 12, textAlign: 'center', border: `1px solid ${accent}40`, borderRadius: 8, color: '#e2e8f0', fontSize: '0.85rem' }}>Must happen now</div>
-                                <div style={{ padding: 12, textAlign: 'center', border: `1px solid #475569`, borderRadius: 8, color: '#94a3b8', fontSize: '0.85rem' }}>Can wait</div>
-                                <div style={{ padding: 12, textAlign: 'center', border: `1px dashed #475569`, borderRadius: 8, color: '#64748b', fontSize: '0.85rem' }}>Not in my control</div>
+                                <div style={{ padding: 12, textAlign: 'center', border: '1px solid #475569', borderRadius: 8, color: '#94a3b8', fontSize: '0.85rem' }}>Can wait</div>
+                                <div style={{ padding: 12, textAlign: 'center', border: '1px dashed #475569', borderRadius: 8, color: '#64748b', fontSize: '0.85rem' }}>Not in my control</div>
                             </div>
                         </div>
-
                         <button onClick={() => setMode('exit')} style={{ padding: '16px', background: accent, border: 'none', borderRadius: 12, color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>Done sorting</button>
                     </div>
                 )}
@@ -147,34 +138,18 @@ export function OverwhelmQuickActions({ accent }: OverwhelmQuickActionsProps) {
                             <h4 style={{ fontSize: '1.35rem', color: accent, marginBottom: 8 }}>Let&apos;s find the one next step, not the whole plan.</h4>
                             <p style={{ color: '#94a3b8' }}>One step is enough.</p>
                         </div>
-
-                        {activeTimer === null ? (
-                            <>
-                                <div>
-                                    <p style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: 8 }}>Identify the smallest possible next step:</p>
-                                    <input 
-                                        type="text"
-                                        value={microStep}
-                                        onChange={(e) => setMicroStep(e.target.value)}
-                                        placeholder="e.g., write one sentence, pick up 3 things..."
-                                        style={{ width: '100%', padding: '16px', borderRadius: 12, background: 'rgba(2,6,23,0.5)', border: `1px solid ${accent}30`, color: '#f8fafc', outline: 'none' }}
-                                    />
-                                </div>
-                                <p style={{ fontSize: '0.9rem', color: '#94a3b8', marginTop: 8 }}>Choose a quick sprint:</p>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                                    {renderToolBtn("3-minute start", () => setActiveTimer(180))}
-                                    {renderToolBtn("5-minute timer", () => setActiveTimer(300))}
-                                </div>
-                            </>
-                        ) : (
-                            <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                                <p style={{ color: accent, fontWeight: 500, marginBottom: 16 }}>{microStep || 'Working on micro-step'}</p>
-                                <div style={{ fontSize: '4rem', fontWeight: 700, color: '#f8fafc', fontVariantNumeric: 'tabular-nums', marginBottom: 32 }}>
-                                    {formatTime(activeTimer)}
-                                </div>
-                                <button onClick={() => setMode('exit')} style={{ padding: '12px 24px', background: 'transparent', border: `1px solid ${accent}`, borderRadius: 99, color: accent, cursor: 'pointer' }}>Finish early & check off</button>
-                            </div>
-                        )}
+                        <div>
+                            <p style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: 8 }}>Identify the smallest possible next step:</p>
+                            <input type="text" value={microStep} onChange={(e) => setMicroStep(e.target.value)}
+                                placeholder="e.g., write one sentence, pick up 3 things..."
+                                style={{ width: '100%', padding: '16px', borderRadius: 12, background: 'rgba(2,6,23,0.5)', border: `1px solid ${accent}30`, color: '#f8fafc', outline: 'none' }}
+                            />
+                        </div>
+                        <p style={{ fontSize: '0.9rem', color: '#94a3b8', marginTop: 8 }}>Choose a quick sprint:</p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            {renderToolBtn("3-minute start", () => setActiveActivity({ type: 'timer', duration: 180, label: microStep || '3-minute start' }))}
+                            {renderToolBtn("5-minute timer", () => setActiveActivity({ type: 'timer', duration: 300, label: microStep || '5-minute timer' }))}
+                        </div>
                     </div>
                 )}
 
@@ -185,7 +160,7 @@ export function OverwhelmQuickActions({ accent }: OverwhelmQuickActionsProps) {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 300 }}>
                             <button onClick={() => setMode(null)} style={{ padding: '14px', borderRadius: 12, background: 'rgba(30,41,59,0.8)', border: `1px solid ${accent}40`, color: '#f8fafc', cursor: 'pointer' }}>That helped.</button>
                             <button onClick={() => setMode(null)} style={{ padding: '14px', borderRadius: 12, background: 'rgba(30,41,59,0.8)', border: `1px solid ${accent}40`, color: '#f8fafc', cursor: 'pointer' }}>I&apos;m ready for one more step.</button>
-                            <button onClick={() => setMode(null)} style={{ padding: '14px', borderRadius: 12, background: 'rgba(30,41,59,0.8)', border: `1px solid #475569`, color: '#94a3b8', cursor: 'pointer' }}>I need more support.</button>
+                            <button onClick={() => setMode(null)} style={{ padding: '14px', borderRadius: 12, background: 'rgba(30,41,59,0.8)', border: '1px solid #475569', color: '#94a3b8', cursor: 'pointer' }}>I need more support.</button>
                         </div>
                     </div>
                 )}
