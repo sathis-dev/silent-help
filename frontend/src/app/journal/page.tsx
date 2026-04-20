@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { listJournalEntries, createJournalEntry, getJournalInsight, type JournalEntry } from '@/lib/api';
 import GlowCard from '@/components/animations/GlowCard';
 import FadeIn from '@/components/animations/FadeIn';
 import { recordActivity } from '@/lib/streak';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 
 const MOODS = [
     { emoji: '😔', label: 'Sad', color: '#818cf8' },
@@ -23,6 +24,16 @@ export default function JournalPage() {
     const [loading, setLoading] = useState(true);
     const [insight, setInsight] = useState<string | null>(null);
     const [insightLoading, setInsightLoading] = useState(false);
+
+    const { isListening, transcript, startListening, stopListening, isSupported: isMicSupported } = useSpeechRecognition();
+    const contentBeforeDictation = useRef('');
+
+    useEffect(() => {
+        if (isListening && transcript) {
+            const prefix = contentBeforeDictation.current;
+            setContent((prefix + (prefix && !prefix.endsWith(' ') && !prefix.endsWith('\n') ? ' ' : '') + transcript).trimStart());
+        }
+    }, [transcript, isListening]);
 
     useEffect(() => {
         loadEntries();
@@ -91,9 +102,10 @@ export default function JournalPage() {
                     style={{ marginBottom: '48px', transition: 'all 0.5s ease' }}
                 >
                     <div style={{ padding: '24px' }}>
-                        <textarea
-                            value={content}
-                            onChange={e => setContent(e.target.value)}
+                        <div style={{ position: 'relative' }}>
+                            <textarea
+                                value={content}
+                                onChange={e => setContent(e.target.value)}
                             placeholder="What's heavily on your mind right now? Give it to the page..."
                             rows={5}
                             style={{ 
@@ -109,11 +121,46 @@ export default function JournalPage() {
                                 outline: 'none',
                                 marginBottom: '24px',
                                 transition: 'all 0.3s ease',
-                                boxShadow: content.trim() ? `0 0 0 1px ${activeAccent}30 inset` : 'none'
+                                boxShadow: isListening ? `0 0 0 2px #ef4444 inset, 0 0 20px rgba(239, 68, 68, 0.2)` : content.trim() ? `0 0 0 1px ${activeAccent}30 inset` : 'none'
                             }}
-                            onFocus={e => e.target.style.borderColor = activeAccent + '80'}
-                            onBlur={e => e.target.style.borderColor = content.trim() ? activeAccent + '60' : 'rgba(255,255,255,0.1)'}
+                            onFocus={e => { if (!isListening) e.target.style.borderColor = activeAccent + '80'; }}
+                            onBlur={e => { if (!isListening) e.target.style.borderColor = content.trim() ? activeAccent + '60' : 'rgba(255,255,255,0.1)'; }}
                         />
+
+                        {isMicSupported && (
+                            <button
+                                onClick={() => {
+                                    if (isListening) {
+                                        stopListening();
+                                    } else {
+                                        contentBeforeDictation.current = content;
+                                        startListening();
+                                    }
+                                }}
+                                title="Voice dictate"
+                                style={{
+                                    position: 'absolute',
+                                    bottom: '40px',
+                                    right: '16px',
+                                    width: 44, height: 44,
+                                    borderRadius: '50%',
+                                    background: isListening ? '#ef444420' : 'rgba(15,23,42,0.6)',
+                                    border: isListening ? '1px solid #ef444480' : '1px solid rgba(255,255,255,0.1)',
+                                    color: isListening ? '#ef4444' : '#94a3b8',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    cursor: 'pointer', transition: 'all 0.2s',
+                                    boxShadow: isListening ? '0 0 15px rgba(239, 68, 68, 0.3)' : 'none',
+                                    animation: isListening ? 'pulse-glow-red 2s infinite' : 'none'
+                                }}
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill={isListening ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+                                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                    <line x1="12" x2="12" y1="19" y2="22" />
+                                </svg>
+                            </button>
+                        )}
+                        </div>
 
                         {/* Mood selector & Actions */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -341,6 +388,10 @@ export default function JournalPage() {
                 @keyframes spin {
                     from { transform: rotate(0deg); }
                     to { transform: rotate(360deg); }
+                }
+                @keyframes pulse-glow-red {
+                    0%, 100% { filter: drop-shadow(0 0 2px rgba(239, 68, 68, 0.3)); }
+                    50% { filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6)); }
                 }
             `}</style>
         </div>

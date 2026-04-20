@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback, use } from 'react';
 import { getConversation, sendMessage, type Message, type CrisisInfo } from '@/lib/api';
 import FadeIn from '@/components/animations/FadeIn';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 
 export default function ConversationPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -12,8 +14,18 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
     const [isSending, setIsSending] = useState(false);
     const [streamingContent, setStreamingContent] = useState('');
     const [crisis, setCrisis] = useState<CrisisInfo | null>(null);
+    const [autoSpeak, setAutoSpeak] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    const { isListening, transcript, startListening, stopListening, isSupported: isMicSupported } = useSpeechRecognition();
+    const { isSpeaking, speak, stop: stopSpeaking, isSupported: isVoiceSupported } = useSpeechSynthesis();
+
+    useEffect(() => {
+        if (isListening && transcript) {
+            setInput(transcript);
+        }
+    }, [transcript, isListening]);
 
     const loadConversation = useCallback(async () => {
         try {
@@ -67,14 +79,20 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
             // onDone
             (data) => {
                 setStreamingContent(prev => {
+                    const finalMsg = prev;
                     // Move streaming content into messages
                     const assistantMsg: Message = {
                         id: data.messageId || `msg-${Date.now()}`,
                         role: 'assistant',
-                        content: prev,
+                        content: finalMsg,
                         createdAt: new Date().toISOString(),
                     };
                     setMessages(msgs => [...msgs, assistantMsg]);
+                    
+                    if (autoSpeak) {
+                        speak(finalMsg);
+                    }
+                    
                     return '';
                 });
                 if (data.crisis) setCrisis(data.crisis);
@@ -94,7 +112,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                 setIsSending(false);
             },
         );
-    }, [id, input, isSending]);
+    }, [id, input, isSending, autoSpeak, speak]);
 
     function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -146,6 +164,26 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                         Active session
                     </span>
                 </div>
+                {isVoiceSupported && (
+                    <button
+                        onClick={() => {
+                            if (autoSpeak && isSpeaking) stopSpeaking();
+                            setAutoSpeak(!autoSpeak);
+                        }}
+                        style={{
+                            marginLeft: 'auto',
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            padding: '8px 16px', borderRadius: 20,
+                            background: autoSpeak ? '#10b98115' : 'rgba(255,255,255,0.03)',
+                            border: `1px solid ${autoSpeak ? '#10b98140' : 'rgba(255,255,255,0.05)'}`,
+                            color: autoSpeak ? '#10b981' : '#94a3b8',
+                            fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s',
+                            boxShadow: autoSpeak ? '0 0 15px rgba(16,185,129,0.1)' : 'none'
+                        }}
+                    >
+                        {autoSpeak ? '🔊 Stop Auto-Reading' : '🔈 Read Replies Aloud'}
+                    </button>
+                )}
             </div>
 
             {/* Messages area */}
@@ -318,6 +356,32 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                             lineHeight: 1.5,
                         }}
                     />
+                    
+                    {isMicSupported && (
+                        <button
+                            onClick={isListening ? stopListening : startListening}
+                            disabled={isSending}
+                            aria-label="Voice input"
+                            style={{
+                                width: 44, height: 44,
+                                borderRadius: 16,
+                                background: isListening ? '#ef444420' : 'transparent',
+                                border: isListening ? '1px solid #ef444440' : '1px solid transparent',
+                                color: isListening ? '#ef4444' : '#64748b',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                cursor: isSending ? 'default' : 'pointer', transition: 'all 0.2s',
+                                marginLeft: 8, flexShrink: 0,
+                                animation: isListening ? 'pulse-glow-red 2s infinite' : 'none'
+                            }}
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill={isListening ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.5">
+                                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                <line x1="12" x2="12" y1="19" y2="22" />
+                            </svg>
+                        </button>
+                    )}
+
                     <button
                         onClick={handleSend}
                         disabled={!input.trim() || isSending}
@@ -331,7 +395,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             cursor: input.trim() && !isSending ? 'pointer' : 'default',
                             transition: 'all 0.2s',
-                            marginLeft: 12,
+                            marginLeft: 8,
                             flexShrink: 0,
                             boxShadow: input.trim() ? '0 5px 15px -3px rgba(56, 189, 248, 0.4)' : 'none',
                         }}
@@ -357,6 +421,10 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                 @keyframes float-gentle {
                     0%, 100% { transform: translateY(0); }
                     50% { transform: translateY(-3px); }
+                }
+                @keyframes pulse-glow-red {
+                    0%, 100% { filter: drop-shadow(0 0 2px rgba(239, 68, 68, 0.3)); }
+                    50% { filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6)); }
                 }
             `}</style>
         </div>
