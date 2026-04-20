@@ -1,209 +1,189 @@
 'use client';
 
 import { useState } from 'react';
+import BreathingExercise from '@/components/activities/BreathingExercise';
+import GroundingExercise from '@/components/activities/GroundingExercise';
+import BodyReleaseExercise from '@/components/activities/BodyReleaseExercise';
+
+const ArrowLeft = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>;
+
+type ToolId = 'breathing' | 'grounding' | 'bodyscan' | 'sleep' | null;
 
 const TOOLS = [
     {
-        id: 'breathing',
+        id: 'breathing' as ToolId,
         name: 'Box Breathing',
         description: 'A calming 4-4-4-4 breathing pattern to slow your heart rate and find calm.',
         icon: '🌊',
-        color: '#2dd4bf',
+        color: '#2dd4bf', // Teal
         duration: '4 min',
     },
     {
-        id: 'grounding',
+        id: 'grounding' as ToolId,
         name: '5-4-3-2-1 Grounding',
         description: 'Use your five senses to ground yourself in the present moment.',
         icon: '🖐️',
-        color: '#a78bfa',
+        color: '#a78bfa', // Purple
         duration: '3 min',
     },
     {
-        id: 'bodyscan',
+        id: 'bodyscan' as ToolId,
         name: 'Body Scan',
         description: 'Progressively release tension from head to toe.',
         icon: '✨',
-        color: '#fbbf24',
+        color: '#fbbf24', // Amber
         duration: '5 min',
     },
     {
-        id: 'sleep',
+        id: 'sleep' as ToolId,
         name: 'Sleep Reset',
-        description: 'A gentle routine to quiet racing thoughts before sleep.',
+        description: 'A gentle soft breathing routine to quiet racing thoughts before sleep.',
         icon: '🌙',
-        color: '#818cf8',
+        color: '#818cf8', // Indigo
         duration: '5 min',
     },
 ];
 
-// ─── Breathing Exercise ──────────────────────────
-
-function BreathingExercise({ onBack }: { onBack: () => void }) {
-    const [phase, setPhase] = useState<'inhale' | 'hold' | 'exhale' | 'rest'>('inhale');
-    const [count, setCount] = useState(4);
-    const [isActive, setIsActive] = useState(true);
-    const [cycles, setCycles] = useState(0);
-
-    useState(() => {
-        if (!isActive) return;
-
-        const durations: Record<string, number> = { inhale: 4, hold: 4, exhale: 4, rest: 4 };
-        const nextPhaseMap: Record<string, typeof phase> = { inhale: 'hold', hold: 'exhale', exhale: 'rest', rest: 'inhale' };
-
-        const interval = setInterval(() => {
-            setCount(c => {
-                if (c <= 1) {
-                    const next = nextPhaseMap[phase];
-                    setPhase(next);
-                    if (next === 'inhale') setCycles(cy => cy + 1);
-                    return durations[next];
-                }
-                return c - 1;
-            });
-        }, 1000);
-
-        return () => clearInterval(interval);
-    });
-
-    const phaseColors: Record<string, string> = {
-        inhale: '#2dd4bf', hold: '#a78bfa', exhale: '#fbbf24', rest: '#818cf8',
-    };
-
-    const phaseLabels: Record<string, string> = {
-        inhale: 'Breathe In', hold: 'Hold', exhale: 'Breathe Out', rest: 'Rest',
-    };
-
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '40px' }}>
-            <div style={{ textAlign: 'center' }}>
-                <h2 style={{ fontWeight: 400, marginBottom: '4px' }}>Box Breathing</h2>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Cycle {cycles + 1} • Follow the rhythm</p>
-            </div>
-
-            {/* Breathing circle */}
-            <div style={{
-                width: '200px', height: '200px', borderRadius: '50%',
-                border: `3px solid ${phaseColors[phase]}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexDirection: 'column',
-                background: `radial-gradient(circle, ${phaseColors[phase]}15, transparent 70%)`,
-                transition: 'all 1s ease-in-out',
-                transform: phase === 'inhale' ? 'scale(1.15)' : phase === 'exhale' ? 'scale(0.9)' : 'scale(1)',
-            }}>
-                <div style={{ fontSize: '3rem', fontWeight: 300, color: phaseColors[phase] }}>{count}</div>
-                <div style={{ fontSize: '1rem', color: 'var(--text-primary)', fontWeight: 500 }}>{phaseLabels[phase]}</div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-                <button className="btn btn-ghost" onClick={() => setIsActive(!isActive)}>
-                    {isActive ? 'Pause' : 'Resume'}
-                </button>
-                <button className="btn btn-ghost" onClick={onBack}>Done</button>
-            </div>
-        </div>
-    );
-}
-
-// ─── Grounding Exercise ──────────────────────────
-
-function GroundingExercise({ onBack }: { onBack: () => void }) {
-    const [step, setStep] = useState(0);
-
-    const steps = [
-        { count: 5, sense: 'SEE', prompt: 'Name 5 things you can see around you', icon: '👁️', color: '#a78bfa' },
-        { count: 4, sense: 'TOUCH', prompt: 'Name 4 things you can feel', icon: '🖐️', color: '#2dd4bf' },
-        { count: 3, sense: 'HEAR', prompt: 'Name 3 things you can hear right now', icon: '👂', color: '#fbbf24' },
-        { count: 2, sense: 'SMELL', prompt: 'Name 2 things you can smell', icon: '👃', color: '#fb7185' },
-        { count: 1, sense: 'TASTE', prompt: 'Name 1 thing you can taste', icon: '👅', color: '#818cf8' },
-    ];
-
-    const current = steps[step];
-    const isDone = step >= steps.length;
-
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '32px' }}>
-            {isDone ? (
-                <>
-                    <span style={{ fontSize: '3rem' }}>✨</span>
-                    <h2 style={{ fontWeight: 400 }}>Well done</h2>
-                    <p style={{ color: 'var(--text-muted)', textAlign: 'center', maxWidth: '300px' }}>
-                        You&apos;ve grounded yourself in the present moment. How do you feel?
-                    </p>
-                    <button className="btn btn-primary" onClick={onBack}>Finish</button>
-                </>
-            ) : (
-                <>
-                    <span style={{ fontSize: '3rem' }}>{current.icon}</span>
-                    <div style={{ fontSize: '4rem', fontWeight: 700, color: current.color }}>{current.count}</div>
-                    <h2 style={{ fontWeight: 500 }}>{current.sense}</h2>
-                    <p style={{ color: 'var(--text-muted)', textAlign: 'center', maxWidth: '300px' }}>{current.prompt}</p>
-
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                        {steps.map((_, i) => (
-                            <div
-                                key={i}
-                                style={{
-                                    width: '8px', height: '8px', borderRadius: '50%',
-                                    background: i <= step ? current.color : 'var(--bg-elevated)',
-                                    transition: 'background 0.3s',
-                                }}
-                            />
-                        ))}
-                    </div>
-
-                    <button
-                        className="btn btn-primary"
-                        onClick={() => setStep(s => s + 1)}
-                        style={{ marginTop: '8px', padding: '12px 32px' }}
-                    >
-                        {step < steps.length - 1 ? 'Next' : 'Complete'}
-                    </button>
-                </>
-            )}
-        </div>
-    );
-}
-
-// ─── Main Tools Page ──────────────────────────────
-
 export default function ToolsPage() {
-    const [activeTool, setActiveTool] = useState<string | null>(null);
+    const [activeTool, setActiveTool] = useState<ToolId>(null);
 
-    if (activeTool === 'breathing') {
-        return <BreathingExercise onBack={() => setActiveTool(null)} />;
+    const activeToolData = TOOLS.find(t => t.id === activeTool);
+
+    // Render active tool overlay
+    if (activeTool && activeToolData) {
+        return (
+            <div style={{ padding: '24px', maxWidth: '800px', margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <button 
+                        onClick={() => setActiveTool(null)} 
+                        style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '8px', marginLeft: '-8px' }}
+                    >
+                        <ArrowLeft />
+                    </button>
+                    <div>
+                        <h1 style={{ fontWeight: 600, fontSize: '1.5rem', color: '#f8fafc', margin: 0 }}>{activeToolData.name}</h1>
+                        <p style={{ color: activeToolData.color, fontSize: '0.9rem', margin: 0 }}>{activeToolData.duration} Session</p>
+                    </div>
+                </div>
+
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{
+                        width: '100%', maxWidth: '500px',
+                        background: 'linear-gradient(180deg, rgba(15,23,42,0.6) 0%, rgba(2,6,23,0.4) 100%)',
+                        border: `1px solid ${activeToolData.color}30`,
+                        borderRadius: '24px',
+                        overflow: 'hidden',
+                        boxShadow: `0 20px 40px -10px ${activeToolData.color}10`,
+                        animation: 'activity-fade-in 0.5s ease-out',
+                    }}>
+                        {activeTool === 'breathing' && (
+                            <BreathingExercise variant="box" accent={activeToolData.color} onComplete={() => setActiveTool(null)} onCancel={() => setActiveTool(null)} />
+                        )}
+                        {activeTool === 'grounding' && (
+                            <GroundingExercise variant="5-4-3-2-1" accent={activeToolData.color} onComplete={() => setActiveTool(null)} onCancel={() => setActiveTool(null)} />
+                        )}
+                        {activeTool === 'bodyscan' && (
+                            <BodyReleaseExercise variant="pmr-short" accent={activeToolData.color} onComplete={() => setActiveTool(null)} onCancel={() => setActiveTool(null)} />
+                        )}
+                        {activeTool === 'sleep' && (
+                            <BreathingExercise variant="soft" accent={activeToolData.color} onComplete={() => setActiveTool(null)} onCancel={() => setActiveTool(null)} />
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
     }
 
-    if (activeTool === 'grounding') {
-        return <GroundingExercise onBack={() => setActiveTool(null)} />;
-    }
-
+    // Render tools grid
     return (
-        <div style={{ padding: '24px', maxWidth: '600px', margin: '0 auto', overflowY: 'auto', height: '100%' }}>
-            <div style={{ marginBottom: '32px' }}>
-                <h1 style={{ fontWeight: 500, marginBottom: '8px' }}>Wellness Tools</h1>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                    Quick exercises to help you find calm, focus, and balance.
+        <div style={{ padding: '32px 24px', maxWidth: '1000px', margin: '0 auto', overflowY: 'auto', height: '100%' }}>
+            <div style={{ marginBottom: '40px' }}>
+                <h1 style={{ fontWeight: 600, fontSize: '2rem', marginBottom: '8px', color: '#f8fafc' }}>Library</h1>
+                <p style={{ color: '#94a3b8', fontSize: '1.05rem', maxWidth: '600px', margin: 0 }}>
+                    Quick exercises to help you find calm, focus, and balance entirely on your own terms.
                 </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
                 {TOOLS.map(tool => (
                     <button
                         key={tool.id}
-                        className="card"
                         onClick={() => setActiveTool(tool.id)}
                         style={{
-                            textAlign: 'left', cursor: 'pointer',
-                            borderColor: `${tool.color}30`,
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            outline: 'none',
+                            background: 'rgba(15,23,42,0.4)',
+                            border: `1px solid ${tool.color}30`,
+                            borderRadius: '20px',
+                            padding: '24px',
+                            position: 'relative',
+                            overflow: 'hidden',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            minHeight: '200px'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-4px)';
+                            e.currentTarget.style.boxShadow = `0 12px 24px -10px ${tool.color}20`;
+                            e.currentTarget.style.borderColor = `${tool.color}60`;
+                            e.currentTarget.style.background = 'rgba(15,23,42,0.7)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = 'none';
+                            e.currentTarget.style.borderColor = `${tool.color}30`;
+                            e.currentTarget.style.background = 'rgba(15,23,42,0.4)';
                         }}
                     >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                            <span style={{ fontSize: '2rem' }}>{tool.icon}</span>
-                            <span style={{ fontSize: '0.75rem', color: tool.color, fontWeight: 500 }}>{tool.duration}</span>
+                        {/* Background glow orb */}
+                        <div style={{
+                            position: 'absolute',
+                            top: '-20%',
+                            right: '-10%',
+                            width: '150px',
+                            height: '150px',
+                            background: `radial-gradient(circle, ${tool.color}15 0%, transparent 70%)`,
+                            borderRadius: '50%',
+                            zIndex: 0,
+                            pointerEvents: 'none'
+                        }} />
+
+                        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'auto' }}>
+                                <div style={{ 
+                                    width: '48px', height: '48px', 
+                                    borderRadius: '16px', 
+                                    background: `${tool.color}15`, 
+                                    border: `1px solid ${tool.color}30`,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: '1.5rem',
+                                    marginBottom: '20px'
+                                }}>
+                                    {tool.icon}
+                                </div>
+                                <span style={{ 
+                                    fontSize: '0.8rem', 
+                                    color: tool.color, 
+                                    fontWeight: 600,
+                                    background: `${tool.color}10`,
+                                    padding: '4px 10px',
+                                    borderRadius: '99px'
+                                }}>
+                                    {tool.duration}
+                                </span>
+                            </div>
+                            
+                            <div>
+                                <h3 style={{ fontWeight: 600, fontSize: '1.25rem', marginBottom: '8px', color: '#f8fafc' }}>
+                                    {tool.name}
+                                </h3>
+                                <p style={{ fontSize: '0.95rem', color: '#94a3b8', lineHeight: 1.5, margin: 0 }}>
+                                    {tool.description}
+                                </p>
+                            </div>
                         </div>
-                        <div style={{ fontWeight: 600, marginBottom: '4px' }}>{tool.name}</div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>{tool.description}</div>
                     </button>
                 ))}
             </div>

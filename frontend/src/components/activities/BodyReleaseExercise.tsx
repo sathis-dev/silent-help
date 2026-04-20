@@ -21,12 +21,6 @@ interface BodyRegion {
     releaseDuration: number;
 }
 
-interface ShakeConfig {
-    name: string;
-    type: 'shake';
-    duration: number;
-    prompt: string;
-}
 
 interface PostureStep {
     name: string;

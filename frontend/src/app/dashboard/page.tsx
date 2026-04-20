@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, UserButton } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
 import { useWellness } from '@/components/wellness/WellnessProvider';
 import { OverwhelmRecovery } from '@/components/dashboard/OverwhelmRecovery';
 import { OverwhelmQuickActions } from '@/components/dashboard/OverwhelmQuickActions';
@@ -27,14 +27,6 @@ import { getThemeForEmotion } from '@/components/layout/IconNav';
 /* ═══════════════════════════════════════════════
    Quick Action Widget Data
    ═══════════════════════════════════════════════ */
-const defaultWidgets = [
-    { id: 'stress', icon: '🌊', label: 'Stress Relief', desc: 'Calm techniques', color: '#4a9fa4' },
-    { id: 'reflect', icon: '📝', label: 'Daily Reflection', desc: 'Journal prompts', color: '#818cf8' },
-    { id: 'focus', icon: '🎯', label: 'Focus Mode', desc: 'Deep concentration', color: '#f59e0b' },
-    { id: 'sleep', icon: '🌙', label: 'Sleep Aid', desc: 'Rest preparation', color: '#8b5cf6' },
-    { id: 'breathe', icon: '🧘', label: 'Breathing', desc: 'Box breathing', color: '#2dd4bf' },
-    { id: 'move', icon: '🏃', label: 'Movement', desc: 'Gentle exercise', color: '#f472b6' },
-];
 
 function getGreeting(): string {
     const hour = new Date().getHours();
@@ -45,17 +37,6 @@ function getGreeting(): string {
     return 'Good night';
 }
 
-function getWellnessMessage(archetype: string): string {
-    const messages: Record<string, string> = {
-        'Calm Seeker': "Let's find your inner peace today.",
-        'Anxious Mind': "Let's ease the tension together.",
-        'Restless Spirit': "Let's channel your energy positively.",
-        'Overwhelmed Soul': "Let's break things into smaller steps.",
-        'Tired Warrior': "Let's restore your strength gently.",
-        'Scattered Thinker': "Let's bring clarity to your thoughts.",
-    };
-    return messages[archetype] || "Let's nurture your wellbeing today.";
-}
 
 /* ═══════════════════════════════════════════════
    Embedded AI Chat Widget
@@ -242,7 +223,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="hero-text">
                             <h1>{greeting}, {userName}</h1>
-                            <p>We've prepared your personalized space to help you manage {emotionInfo.label.toLowerCase()} today.</p>
+                            <p>We&apos;ve prepared your personalized space to help you manage {emotionInfo.label.toLowerCase()} today.</p>
                             
                             <div className="hero-affirmation">
                                 <span>✨</span>

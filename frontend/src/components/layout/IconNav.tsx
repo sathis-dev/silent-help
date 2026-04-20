@@ -132,7 +132,7 @@ interface IconNavProps {
 export default function IconNav({ accentColor = '#2dd4bf' }: IconNavProps) {
     const router = useRouter();
     const pathname = usePathname();
-    const { user, isSignedIn } = useUser();
+    const { isSignedIn } = useUser();
     const { signOut } = useClerk();
     const [hoveredId, setHoveredId] = useState<string | null>(null);
 
