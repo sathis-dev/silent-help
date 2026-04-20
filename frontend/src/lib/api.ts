@@ -52,6 +52,7 @@ export async function createConversation(title?: string) {
     });
 }
 
+
 export async function getConversation(id: string) {
     return apiFetch<{ conversation: Conversation }>(`/api/chat/${id}`);
 }
@@ -140,6 +141,10 @@ export async function createJournalEntry(content: string, mood?: string) {
 }
 
 // ─── Mood ───────────────────────────────────────────────────
+
+export async function getMoodHistory() {
+    return apiFetch<{ logs: MoodLog[] }>('/api/mood');
+}
 
 export async function logMood(mood: string, intensity: number, note?: string) {
     return apiFetch<{ moodLog: MoodLog }>('/api/mood', {
