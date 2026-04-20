@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { soundManager } from '@/lib/audio';
 
 /* ═══════════════════════════════════════════════════════════════
    Focus Timer — SVG Progress Ring Timer
@@ -52,6 +53,7 @@ export default function FocusTimer({ duration, label, accent, onComplete, onCanc
         const interval = setInterval(() => {
             setElapsed(prev => {
                 if (prev + 1 >= duration) {
+                    soundManager.playChime(528, 4.0); // 528Hz is often associated with healing/calm
                     setIsComplete(true);
                     return duration;
                 }

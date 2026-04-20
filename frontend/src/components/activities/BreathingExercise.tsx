@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { soundManager } from '@/lib/audio';
 
 /* ═══════════════════════════════════════════════════════════════
    Breathing Exercise — Animated Guided Breathing
@@ -123,6 +124,17 @@ export default function BreathingExercise({ variant, accent, onComplete, onCance
 
         return () => clearInterval(interval);
     }, [started, isComplete, currentPhaseIdx, currentCycle, phaseDuration, pattern]);
+
+    // Trigger audio on phase change
+    useEffect(() => {
+        if (!started || isComplete) return;
+        const phase = pattern.phases[currentPhaseIdx]?.phase;
+        if (phase === 'inhale') {
+            soundManager.playBreathCue(false);
+        } else if (phase === 'exhale') {
+            soundManager.playBreathCue(true);
+        }
+    }, [currentPhaseIdx, started, isComplete, pattern]);
 
     // Circle scale based on phase
     const getScale = (): number => {

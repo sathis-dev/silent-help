@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useUser, SignOutButton } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
+import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import GlowCard from '@/components/animations/GlowCard';
 import FadeIn from '@/components/animations/FadeIn';
 import {
@@ -202,33 +203,50 @@ export default function ProfilePage() {
                                 <p style={{ color: '#94a3b8', margin: 0 }}>No mood logs recorded yet.</p>
                             </div>
                         ) : (
-                            moods.map((log) => (
-                                <GlowCard key={log.id} glowColor="#a78bfa15" borderRadius={16} style={{ padding: '20px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                        <div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                                                <h4 style={{ color: '#f8fafc', fontSize: '1.1rem', margin: 0, textTransform: 'capitalize' }}>
-                                                    {log.mood}
-                                                </h4>
-                                                <span style={{ 
-                                                    padding: '2px 8px', borderRadius: 8, fontSize: '0.75rem', 
-                                                    background: log.intensity >= 8 ? 'rgba(239, 68, 68, 0.1)' : log.intensity >= 5 ? 'rgba(251, 191, 36, 0.1)' : 'rgba(45, 212, 191, 0.1)',
-                                                    color: log.intensity >= 8 ? '#ef4444' : log.intensity >= 5 ? '#fbbf24' : '#2dd4bf',
-                                                    border: '1px solid rgba(255,255,255,0.05)'
-                                                }}>
-                                                    Intensity {log.intensity}/10
-                                                </span>
-                                            </div>
-                                            {log.note && (
-                                                <p style={{ color: '#cbd5e1', fontSize: '0.9rem', margin: '0 0 12px 0', lineHeight: 1.5 }}>&quot;{log.note}&quot;</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div style={{ color: '#64748b', fontSize: '0.8rem' }}>
-                                        {formatDate(log.createdAt)} at {formatTime(log.createdAt)}
-                                    </div>
+                            <>
+                                <GlowCard glowColor="#a78bfa20" borderRadius={20} style={{ padding: '24px 20px', marginBottom: 8, height: 280 }}>
+                                    <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', color: '#e2e8f0' }}>Intensity Over Time</h3>
+                                    <ResponsiveContainer width="100%" height="80%">
+                                        <LineChart data={[...moods].reverse().map(m => ({ time: formatTime(m.createdAt), intensity: m.intensity, mood: m.mood }))}>
+                                            <XAxis dataKey="time" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} tickMargin={12} />
+                                            <Tooltip 
+                                                contentStyle={{ background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#f8fafc', boxShadow: '0 8px 32px rgba(0,0,0,0.4)', padding: '12px' }}
+                                                itemStyle={{ color: '#a78bfa', fontWeight: 600, fontSize: '0.95rem' }}
+                                                labelStyle={{ color: '#94a3b8', marginBottom: 4, fontSize: '0.85rem' }}
+                                                formatter={(val: any, name: any, props: any) => [`${val}/10 (Feeling ${props.payload.mood})`, 'Intensity']}
+                                            />
+                                            <Line type="monotone" dataKey="intensity" stroke="#a78bfa" strokeWidth={3} dot={{ r: 4, fill: '#1e293b', stroke: '#a78bfa', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#a78bfa', stroke: '#fff' }} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
                                 </GlowCard>
-                            ))
+                                {moods.map((log) => (
+                                    <GlowCard key={log.id} glowColor="#a78bfa15" borderRadius={16} style={{ padding: '20px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                            <div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                                                    <h4 style={{ color: '#f8fafc', fontSize: '1.1rem', margin: 0, textTransform: 'capitalize' }}>
+                                                        {log.mood}
+                                                    </h4>
+                                                    <span style={{ 
+                                                        padding: '2px 8px', borderRadius: 8, fontSize: '0.75rem', 
+                                                        background: log.intensity >= 8 ? 'rgba(239, 68, 68, 0.1)' : log.intensity >= 5 ? 'rgba(251, 191, 36, 0.1)' : 'rgba(45, 212, 191, 0.1)',
+                                                        color: log.intensity >= 8 ? '#ef4444' : log.intensity >= 5 ? '#fbbf24' : '#2dd4bf',
+                                                        border: '1px solid rgba(255,255,255,0.05)'
+                                                    }}>
+                                                        Intensity {log.intensity}/10
+                                                    </span>
+                                                </div>
+                                                {log.note && (
+                                                    <p style={{ color: '#cbd5e1', fontSize: '0.9rem', margin: '0 0 12px 0', lineHeight: 1.5 }}>&quot;{log.note}&quot;</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                                            {formatDate(log.createdAt)} at {formatTime(log.createdAt)}
+                                        </div>
+                                    </GlowCard>
+                                ))}
+                            </>
                         )}
                     </div>
                 )}

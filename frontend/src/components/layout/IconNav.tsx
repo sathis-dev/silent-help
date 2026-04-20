@@ -201,6 +201,7 @@ export default function IconNav({ accentColor = '#2dd4bf' }: IconNavProps) {
                         className="icon-nav-sos"
                         aria-label="SOS - Emergency support"
                         title="SOS - Emergency support"
+                        onClick={() => router.push('/sos')}
                     >
                         SOS
                     </button>
@@ -255,6 +256,7 @@ export default function IconNav({ accentColor = '#2dd4bf' }: IconNavProps) {
                 <button
                     className="icon-nav-mobile-item sos"
                     aria-label="SOS"
+                    onClick={() => router.push('/sos')}
                 >
                     <div className="icon-nav-mobile-sos">SOS</div>
                 </button>
