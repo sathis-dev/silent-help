@@ -89,7 +89,7 @@ export function PressureRecovery({ accent }: PressureRecoveryProps) {
                 <div style={{ display: 'flex', gap: 8 }}>
                     <input type="text" placeholder="Type one task or demand..." style={{ flex: 1, padding: '16px', borderRadius: 12, background: 'rgba(2,6,23,0.5)', border: `1px solid ${accent}30`, color: '#f8fafc', outline: 'none' }} />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 16 }}>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
                     <div style={{ padding: 12, borderRadius: 8, border: `1px solid ${accent}40`, textAlign: 'center', color: '#e2e8f0', fontSize: '0.9rem', cursor: 'pointer' }}>Must do soon</div>
                     <div style={{ padding: 12, borderRadius: 8, border: '1px solid #475569', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem', cursor: 'pointer' }}>Can wait</div>
                     <div style={{ padding: 12, borderRadius: 8, border: '1px solid #334155', textAlign: 'center', color: '#64748b', fontSize: '0.9rem', cursor: 'pointer' }}>Not mine / Not now</div>

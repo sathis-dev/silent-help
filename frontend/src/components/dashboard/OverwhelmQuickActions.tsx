@@ -122,7 +122,7 @@ export function OverwhelmQuickActions({ accent }: OverwhelmQuickActionsProps) {
                         />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                             <p style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Now filter what you wrote:</p>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                 <div style={{ padding: 12, textAlign: 'center', border: `1px solid ${accent}40`, borderRadius: 8, color: '#e2e8f0', fontSize: '0.85rem' }}>Must happen now</div>
                                 <div style={{ padding: 12, textAlign: 'center', border: '1px solid #475569', borderRadius: 8, color: '#94a3b8', fontSize: '0.85rem' }}>Can wait</div>
                                 <div style={{ padding: 12, textAlign: 'center', border: '1px dashed #475569', borderRadius: 8, color: '#64748b', fontSize: '0.85rem' }}>Not in my control</div>
@@ -146,7 +146,7 @@ export function OverwhelmQuickActions({ accent }: OverwhelmQuickActionsProps) {
                             />
                         </div>
                         <p style={{ fontSize: '0.9rem', color: '#94a3b8', marginTop: 8 }}>Choose a quick sprint:</p>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {renderToolBtn("3-minute start", () => setActiveActivity({ type: 'timer', duration: 180, label: microStep || '3-minute start' }))}
                             {renderToolBtn("5-minute timer", () => setActiveActivity({ type: 'timer', duration: 300, label: microStep || '5-minute timer' }))}
                         </div>

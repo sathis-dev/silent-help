@@ -111,7 +111,7 @@ export function FrustratedRecovery({ accent }: FrustratedRecoveryProps) {
             </div>)}
 
             {step === 4 && renderCard("Split control", "What can you control right now?", <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div style={{ border: `1px solid ${accent}40`, borderRadius: 16, padding: '20px 24px', background: 'rgba(2,6,23,0.4)' }}>
                         <h4 style={{ color: '#f8fafc', fontSize: '1.1rem', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ width: 10, height: 10, borderRadius: '50%', background: accent }} />Can control
