@@ -1,399 +1,436 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { listJournalEntries, createJournalEntry, getJournalInsight, type JournalEntry } from '@/lib/api';
-import GlowCard from '@/components/animations/GlowCard';
-import FadeIn from '@/components/animations/FadeIn';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  BookText,
+  Mic,
+  MicOff,
+  Send,
+  Sparkles,
+  Search,
+  Loader2,
+  Calendar as CalendarIcon,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  listJournalEntries,
+  createJournalEntry,
+  getJournalInsight,
+  type JournalEntry,
+} from '@/lib/api';
 import { recordActivity } from '@/lib/streak';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/cn';
 
 const MOODS = [
-    { emoji: '😔', label: 'Sad', color: '#818cf8' },
-    { emoji: '😰', label: 'Anxious', color: '#38bdf8' },
-    { emoji: '😐', label: 'Neutral', color: '#94a3b8' },
-    { emoji: '🙂', label: 'Okay', color: '#2dd4bf' },
-    { emoji: '😊', label: 'Good', color: '#a3e635' },
-    { emoji: '😄', label: 'Great', color: '#fcd34d' },
+  { emoji: '😔', label: 'Sad', color: '#818cf8' },
+  { emoji: '😰', label: 'Anxious', color: '#38bdf8' },
+  { emoji: '😐', label: 'Neutral', color: '#94a3b8' },
+  { emoji: '🙂', label: 'Okay', color: '#2dd4bf' },
+  { emoji: '😊', label: 'Good', color: '#a3e635' },
+  { emoji: '😄', label: 'Great', color: '#fcd34d' },
 ];
 
+const PROMPTS = [
+  'What is quietly asking for your attention right now?',
+  'What would you tell a friend who felt what you feel?',
+  'Name one small thing that worked today.',
+  'Where in your body is this showing up?',
+];
+
+function formatDateLong(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function formatTime(dateStr: string) {
+  return new Date(dateStr).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
 export default function JournalPage() {
-    const [entries, setEntries] = useState<JournalEntry[]>([]);
-    const [content, setContent] = useState('');
-    const [selectedMood, setSelectedMood] = useState<string | null>(null);
-    const [saving, setSaving] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const [insight, setInsight] = useState<string | null>(null);
-    const [insightLoading, setInsightLoading] = useState(false);
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [content, setContent] = useState('');
+  const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [insight, setInsight] = useState<string | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [query, setQuery] = useState('');
+  const [promptIdx, setPromptIdx] = useState(0);
 
-    const { isListening, transcript, startListening, stopListening, isSupported: isMicSupported } = useSpeechRecognition();
-    const contentBeforeDictation = useRef('');
+  const { isListening, transcript, startListening, stopListening, isSupported: isMicSupported } =
+    useSpeechRecognition();
+  const contentBeforeDictation = useRef('');
 
-    useEffect(() => {
-        if (isListening && transcript) {
-            const prefix = contentBeforeDictation.current;
-            setContent((prefix + (prefix && !prefix.endsWith(' ') && !prefix.endsWith('\n') ? ' ' : '') + transcript).trimStart());
-        }
-    }, [transcript, isListening]);
+  useEffect(() => {
+    if (isListening && transcript) {
+      const prefix = contentBeforeDictation.current;
+      const needsSpace = prefix && !prefix.endsWith(' ') && !prefix.endsWith('\n');
+      setContent((prefix + (needsSpace ? ' ' : '') + transcript).trimStart());
+    }
+  }, [transcript, isListening]);
 
-    useEffect(() => {
-        loadEntries();
-    }, []);
-
-    const loadEntries = async () => {
-        try {
-            const data = await listJournalEntries();
-            setEntries(data.entries);
-        } catch (err) {
-            console.error('Failed to load journal entries:', err);
-        } finally {
-            setLoading(false);
-        }
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const data = await listJournalEntries();
+        if (active) setEntries(data.entries);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
     };
+  }, []);
 
-    const handleSave = async () => {
-        if (!content.trim()) return;
-        setSaving(true);
-        try {
-            const data = await createJournalEntry(content, selectedMood || undefined);
-            setEntries(prev => [data.entry, ...prev]);
-            setContent('');
-            setSelectedMood(null);
-            recordActivity();
-        } catch (err) {
-            console.error('Failed to save journal entry:', err);
-        } finally {
-            setSaving(false);
-        }
-    };
+  const handleSave = async () => {
+    if (!content.trim()) return;
+    setSaving(true);
+    try {
+      const data = await createJournalEntry(content, selectedMood || undefined);
+      setEntries((prev) => [data.entry, ...prev]);
+      setContent('');
+      setSelectedMood(null);
+      recordActivity();
+      toast.success('Entry saved', { description: 'A quiet win. Come back anytime.' });
+    } catch (err) {
+      console.error(err);
+      toast.error('Could not save entry');
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('en-GB', { 
-            weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' 
-        });
-    };
+  const loadInsight = async () => {
+    setInsightLoading(true);
+    try {
+      const res = await getJournalInsight();
+      setInsight(res.insight);
+    } catch (err) {
+      console.error(err);
+      toast.error('Insight unavailable right now');
+    } finally {
+      setInsightLoading(false);
+    }
+  };
 
-    const formatTime = (dateStr: string) => {
-        const date = new Date(dateStr);
-        return date.toLocaleTimeString('en-US', { 
-            hour: 'numeric', minute: '2-digit', hour12: true 
-        });
-    };
-
-    const activeMoodData = MOODS.find(m => m.label === selectedMood);
-    const activeAccent = activeMoodData ? activeMoodData.color : '#6366f1';
-
-    return (
-        <div style={{ padding: '32px 24px', maxWidth: '800px', margin: '0 auto', overflowY: 'auto', height: '100%', WebkitOverflowScrolling: 'touch' }}>
-            <FadeIn direction="up">
-                <div style={{ marginBottom: '40px' }}>
-                    <h1 style={{ fontWeight: 600, fontSize: '2rem', marginBottom: '8px', color: '#f8fafc' }}>Your Journal</h1>
-                    <p style={{ color: '#94a3b8', fontSize: '1.05rem', margin: 0 }}>
-                        A private, safe space to untangle your thoughts.
-                    </p>
-                </div>
-            </FadeIn>
-
-            {/* New entry form */}
-            <FadeIn direction="up" delay={100}>
-                <GlowCard 
-                    glowColor={`${activeAccent}40`} 
-                    borderRadius={24} 
-                    style={{ marginBottom: '48px', transition: 'all 0.5s ease' }}
-                >
-                    <div style={{ padding: '24px' }}>
-                        <div style={{ position: 'relative' }}>
-                            <textarea
-                                value={content}
-                                onChange={e => setContent(e.target.value)}
-                            placeholder="What's heavily on your mind right now? Give it to the page..."
-                            rows={5}
-                            style={{ 
-                                width: '100%',
-                                background: 'rgba(15,23,42,0.5)',
-                                border: `1px solid ${content.trim() ? activeAccent + '60' : 'rgba(255,255,255,0.1)'}`,
-                                borderRadius: '16px',
-                                padding: '20px',
-                                color: '#f8fafc',
-                                fontSize: '1.05rem',
-                                lineHeight: 1.6,
-                                resize: 'vertical',
-                                outline: 'none',
-                                marginBottom: '24px',
-                                transition: 'all 0.3s ease',
-                                boxShadow: isListening ? `0 0 0 2px #ef4444 inset, 0 0 20px rgba(239, 68, 68, 0.2)` : content.trim() ? `0 0 0 1px ${activeAccent}30 inset` : 'none'
-                            }}
-                            onFocus={e => { if (!isListening) e.target.style.borderColor = activeAccent + '80'; }}
-                            onBlur={e => { if (!isListening) e.target.style.borderColor = content.trim() ? activeAccent + '60' : 'rgba(255,255,255,0.1)'; }}
-                        />
-
-                        {isMicSupported && (
-                            <button
-                                onClick={() => {
-                                    if (isListening) {
-                                        stopListening();
-                                    } else {
-                                        contentBeforeDictation.current = content;
-                                        startListening();
-                                    }
-                                }}
-                                title="Voice dictate"
-                                style={{
-                                    position: 'absolute',
-                                    bottom: '40px',
-                                    right: '16px',
-                                    width: 44, height: 44,
-                                    borderRadius: '50%',
-                                    background: isListening ? '#ef444420' : 'rgba(15,23,42,0.6)',
-                                    border: isListening ? '1px solid #ef444480' : '1px solid rgba(255,255,255,0.1)',
-                                    color: isListening ? '#ef4444' : '#94a3b8',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    cursor: 'pointer', transition: 'all 0.2s',
-                                    boxShadow: isListening ? '0 0 15px rgba(239, 68, 68, 0.3)' : 'none',
-                                    animation: isListening ? 'pulse-glow-red 2s infinite' : 'none'
-                                }}
-                            >
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill={isListening ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
-                                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                                    <line x1="12" x2="12" y1="19" y2="22" />
-                                </svg>
-                            </button>
-                        )}
-                        </div>
-
-                        {/* Mood selector & Actions */}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                            <div>
-                                <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '12px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    How are you feeling right now?
-                                </p>
-                                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                    {MOODS.map(m => {
-                                        const isSelected = selectedMood === m.label;
-                                        return (
-                                            <button
-                                                key={m.label}
-                                                onClick={() => setSelectedMood(isSelected ? null : m.label)}
-                                                style={{
-                                                    padding: '8px 16px',
-                                                    borderRadius: '99px',
-                                                    border: isSelected ? `1px solid ${m.color}` : '1px solid rgba(255,255,255,0.1)',
-                                                    background: isSelected ? `${m.color}15` : 'rgba(15,23,42,0.4)',
-                                                    color: isSelected ? m.color : '#cbd5e1',
-                                                    cursor: 'pointer',
-                                                    fontSize: '0.9rem',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '6px',
-                                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                    outline: 'none',
-                                                    boxShadow: isSelected ? `0 0 15px ${m.color}30` : 'none',
-                                                    transform: isSelected ? 'scale(1.05)' : 'scale(1)'
-                                                }}
-                                                onMouseEnter={e => {
-                                                    if (!isSelected) {
-                                                        e.currentTarget.style.borderColor = `${m.color}60`;
-                                                        e.currentTarget.style.transform = 'translateY(-2px)';
-                                                    }
-                                                }}
-                                                onMouseLeave={e => {
-                                                    if (!isSelected) {
-                                                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
-                                                        e.currentTarget.style.transform = 'scale(1)';
-                                                    }
-                                                }}
-                                            >
-                                                <span>{m.emoji}</span> {m.label}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={handleSave}
-                                disabled={!content.trim() || saving}
-                                style={{
-                                    padding: '12px 32px',
-                                    borderRadius: '16px',
-                                    background: content.trim() ? activeAccent : 'rgba(255,255,255,0.1)',
-                                    color: content.trim() ? '#0f172a' : '#64748b',
-                                    border: 'none',
-                                    fontWeight: 600,
-                                    fontSize: '1rem',
-                                    cursor: content.trim() && !saving ? 'pointer' : 'not-allowed',
-                                    transition: 'all 0.3s ease',
-                                    boxShadow: content.trim() ? `0 10px 25px -5px ${activeAccent}60` : 'none',
-                                    flexShrink: 0
-                                }}
-                            >
-                                {saving ? (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <div style={{ width: 16, height: 16, border: '2px solid #0f172a', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                                        Saving...
-                                    </div>
-                                ) : 'Save Entry'}
-                            </button>
-                        </div>
-                    </div>
-                </GlowCard>
-            </FadeIn>
-
-            {/* AI Weekly Insight */}
-            <FadeIn direction="up" delay={150}>
-                <GlowCard glowColor="#a78bfa25" borderRadius={20} style={{ marginBottom: '40px' }}>
-                    <div style={{ padding: '24px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: insight ? 16 : 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <span style={{ fontSize: '1.3rem' }}>🔮</span>
-                                <div>
-                                    <h3 style={{ margin: 0, fontSize: '1rem', color: '#e2e8f0' }}>AI Weekly Insight</h3>
-                                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>Patterns from your recent entries</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={async () => {
-                                    setInsightLoading(true);
-                                    try {
-                                        const res = await getJournalInsight();
-                                        setInsight(res.insight || res.message || 'No insight available yet.');
-                                    } catch {
-                                        setInsight('Unable to generate insight right now. Please try again later.');
-                                    } finally {
-                                        setInsightLoading(false);
-                                    }
-                                }}
-                                disabled={insightLoading}
-                                style={{
-                                    padding: '8px 16px', borderRadius: 10,
-                                    background: insightLoading ? 'rgba(167,139,250,0.05)' : 'rgba(167,139,250,0.1)',
-                                    border: '1px solid rgba(167,139,250,0.3)',
-                                    color: '#a78bfa', cursor: insightLoading ? 'wait' : 'pointer',
-                                    fontSize: '0.8rem', fontWeight: 500,
-                                    transition: 'all 0.2s',
-                                }}
-                            >
-                                {insightLoading ? 'Analyzing...' : insight ? 'Refresh' : 'Generate Insight'}
-                            </button>
-                        </div>
-                        {insight && (
-                            <div style={{
-                                padding: '16px', borderRadius: 12,
-                                background: 'rgba(2,6,23,0.4)',
-                                borderLeft: '4px solid #a78bfa',
-                                color: '#cbd5e1', fontSize: '0.9rem', lineHeight: 1.7,
-                                whiteSpace: 'pre-wrap',
-                            }}>
-                                {insight}
-                            </div>
-                        )}
-                    </div>
-                </GlowCard>
-            </FadeIn>
-
-            {/* Entries list Timeline */}
-            <FadeIn direction="up" delay={200}>
-                <div style={{ marginBottom: '24px' }}>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Past Entries</h2>
-                </div>
-
-                {loading ? (
-                    <div style={{ textAlign: 'center', padding: '60px 0' }}>
-                        <div className="loading-dots"><span /><span /><span /></div>
-                    </div>
-                ) : entries.length === 0 ? (
-                    <GlowCard glowColor="#334155" borderRadius={20}>
-                        <div style={{ textAlign: 'center', padding: '60px 24px', color: '#94a3b8' }}>
-                            <span style={{ fontSize: '3rem', display: 'block', marginBottom: '16px', opacity: 0.5 }}>📝</span>
-                            <p style={{ margin: 0, fontSize: '1.05rem' }}>No journal entries yet.</p>
-                            <p style={{ marginTop: '8px', fontSize: '0.9rem' }}>Whenever you&apos;re ready, the page is yours.</p>
-                        </div>
-                    </GlowCard>
-                ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', position: 'relative' }}>
-                        {/* Timeline line */}
-                        <div style={{ position: 'absolute', left: '20px', top: '24px', bottom: '24px', width: '2px', background: 'rgba(255,255,255,0.05)', zIndex: 0 }} />
-
-                        {entries.map((entry, index) => {
-                            const moodObj = entry.mood ? MOODS.find(m => m.label === entry.mood) : null;
-                            const entryColor = moodObj ? moodObj.color : '#6366f1';
-                            
-                            return (
-                                <FadeIn key={entry.id} direction="up" delay={index * 50}>
-                                    <div style={{ position: 'relative', paddingLeft: '56px' }}>
-                                        {/* Timeline Dot */}
-                                        <div style={{ 
-                                            position: 'absolute', 
-                                            left: '14px', 
-                                            top: '28px', 
-                                            width: '14px', 
-                                            height: '14px', 
-                                            borderRadius: '50%', 
-                                            background: entryColor,
-                                            boxShadow: `0 0 10px ${entryColor}80`,
-                                            zIndex: 1,
-                                            border: '3px solid #0f172a'
-                                        }} />
-
-                                        <GlowCard glowColor={`${entryColor}15`} borderRadius={20} style={{ width: '100%' }}>
-                                            <div style={{ padding: '24px' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                                                    <div>
-                                                        <div style={{ color: '#e2e8f0', fontWeight: 600, fontSize: '1.1rem', marginBottom: '4px' }}>
-                                                            {formatDate(entry.createdAt)}
-                                                        </div>
-                                                        <div style={{ color: '#64748b', fontSize: '0.85rem' }}>
-                                                            {formatTime(entry.createdAt)}
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    {moodObj && (
-                                                        <div style={{ 
-                                                            display: 'flex', 
-                                                            alignItems: 'center', 
-                                                            gap: '6px',
-                                                            background: `${entryColor}15`,
-                                                            border: `1px solid ${entryColor}30`,
-                                                            padding: '6px 12px',
-                                                            borderRadius: '99px',
-                                                            color: entryColor,
-                                                            fontSize: '0.85rem',
-                                                            fontWeight: 500
-                                                        }}>
-                                                            <span>{moodObj.emoji}</span> {moodObj.label}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                
-                                                <div style={{ 
-                                                    fontSize: '1rem', 
-                                                    lineHeight: 1.6, 
-                                                    color: '#cbd5e1',
-                                                    whiteSpace: 'pre-wrap'
-                                                }}>
-                                                    {entry.content}
-                                                </div>
-                                            </div>
-                                        </GlowCard>
-                                    </div>
-                                </FadeIn>
-                            );
-                        })}
-                    </div>
-                )}
-            </FadeIn>
-            
-            <style jsx>{`
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-                @keyframes pulse-glow-red {
-                    0%, 100% { filter: drop-shadow(0 0 2px rgba(239, 68, 68, 0.3)); }
-                    50% { filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6)); }
-                }
-            `}</style>
-        </div>
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return entries;
+    return entries.filter(
+      (e) =>
+        e.content.toLowerCase().includes(q) || (e.mood ?? '').toLowerCase().includes(q),
     );
+  }, [entries, query]);
+
+  const moodInfo = MOODS.find((m) => m.label === selectedMood);
+  const accent = moodInfo?.color ?? '#7dd3fc';
+
+  const wordCount = useMemo(() => content.trim().split(/\s+/).filter(Boolean).length, [content]);
+
+  return (
+    <div className="mx-auto max-w-4xl px-6 pt-6 sm:px-10">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Badge variant="outline" className="mb-3">
+          <BookText className="h-3.5 w-3.5" />
+          Private journal
+        </Badge>
+        <h1 className="text-balance text-4xl font-semibold tracking-tight">
+          Let it out{' '}
+          <span className="font-display italic text-[color:var(--color-fg-muted)]">
+            — softly, onto the page.
+          </span>
+        </h1>
+        <p className="mt-2 max-w-xl text-[color:var(--color-fg-muted)]">
+          Nothing is saved anywhere public. Stream of consciousness is fine. No one is grading this.
+        </p>
+      </motion.div>
+
+      {/* Editor */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.05 }}
+        className="mt-8"
+      >
+        <Card
+          className="relative overflow-hidden"
+          style={{ boxShadow: `0 20px 60px -40px ${accent}70` }}
+        >
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full opacity-30 blur-3xl"
+            style={{ background: `radial-gradient(circle, ${accent}, transparent 70%)` }}
+          />
+          <CardContent className="relative p-6 sm:p-8">
+            <div className="mb-3 flex items-center justify-between text-xs text-[color:var(--color-fg-subtle)]">
+              <button
+                onClick={() => setPromptIdx((i) => (i + 1) % PROMPTS.length)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] transition-colors hover:border-white/20 hover:text-[color:var(--color-fg-muted)]"
+              >
+                <Sparkles className="h-3 w-3" />
+                Prompt · tap for another
+              </button>
+              <span>{wordCount} words</span>
+            </div>
+            <div className="mb-4 font-display text-lg italic text-[color:var(--color-fg-muted)]">
+              “{PROMPTS[promptIdx]}”
+            </div>
+
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Start here. No one is reading over your shoulder…"
+              rows={6}
+              className={cn(
+                'w-full resize-y rounded-2xl border bg-[color:var(--color-bg)] px-5 py-4 text-base leading-relaxed outline-none transition-colors placeholder:text-[color:var(--color-fg-subtle)]',
+                isListening
+                  ? 'border-[color:var(--color-danger)] ring-2 ring-[color:var(--color-danger)]/30'
+                  : 'border-white/[0.08] focus:border-white/20',
+              )}
+            />
+
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap gap-1.5">
+                {MOODS.map((m) => {
+                  const selected = selectedMood === m.label;
+                  return (
+                    <button
+                      key={m.label}
+                      onClick={() => setSelectedMood(selected ? null : m.label)}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-all',
+                        selected
+                          ? 'scale-[1.03]'
+                          : 'border-white/10 bg-white/[0.02] text-[color:var(--color-fg-muted)] hover:border-white/20 hover:text-[color:var(--color-fg)]',
+                      )}
+                      style={
+                        selected
+                          ? {
+                              borderColor: m.color,
+                              background: `${m.color}14`,
+                              color: m.color,
+                              boxShadow: `0 0 0 3px ${m.color}10`,
+                            }
+                          : undefined
+                      }
+                    >
+                      <span>{m.emoji}</span>
+                      {m.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="ml-auto flex items-center gap-2">
+                {isMicSupported && (
+                  <Button
+                    variant={isListening ? 'danger' : 'ghost'}
+                    size="icon"
+                    title={isListening ? 'Stop dictating' : 'Dictate'}
+                    onClick={() => {
+                      if (isListening) {
+                        stopListening();
+                      } else {
+                        contentBeforeDictation.current = content;
+                        startListening();
+                      }
+                    }}
+                  >
+                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  </Button>
+                )}
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={handleSave}
+                  disabled={!content.trim() || saving}
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving…
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      Save entry
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* AI insight card */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="mt-6"
+      >
+        <Card
+          className="relative overflow-hidden"
+          style={{ boxShadow: `0 20px 60px -40px #a78bfa70` }}
+        >
+          <CardContent className="p-6">
+            <div className="flex items-start gap-4">
+              <div
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+                style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa' }}
+              >
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold tracking-tight">Weekly reflection</h3>
+                    <p className="text-xs text-[color:var(--color-fg-subtle)]">
+                      A private, semantic pattern across your last entries.
+                    </p>
+                  </div>
+                  <Button size="sm" variant="secondary" onClick={loadInsight} disabled={insightLoading}>
+                    {insightLoading ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Reading…
+                      </>
+                    ) : insight ? (
+                      'Refresh'
+                    ) : (
+                      'Reveal insight'
+                    )}
+                  </Button>
+                </div>
+                <AnimatePresence>
+                  {insight && (
+                    <motion.p
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="mt-3 text-sm leading-relaxed text-[color:var(--color-fg-muted)]"
+                    >
+                      {insight}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Entries */}
+      <div className="mt-10">
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm uppercase tracking-[0.22em] text-[color:var(--color-fg-subtle)]">
+            Past entries
+          </h2>
+          <span className="text-xs text-[color:var(--color-fg-subtle)]">
+            {loading ? '…' : `${entries.length} total`}
+          </span>
+          <div className="ml-auto w-full max-w-xs">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--color-fg-subtle)]" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search entries"
+                className="pl-9"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          {loading &&
+            Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-2xl" />
+            ))}
+
+          {!loading && filtered.length === 0 && (
+            <Card className="p-10 text-center">
+              <CardContent className="p-0">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.02]">
+                  <CalendarIcon className="h-5 w-5 text-[color:var(--color-fg-muted)]" />
+                </div>
+                <p className="mt-3 text-sm text-[color:var(--color-fg-muted)]">
+                  {query ? 'No entries match that search.' : 'Your first entry will live here.'}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {!loading &&
+            filtered.map((entry, i) => {
+              const mood = MOODS.find((m) => m.label === entry.mood);
+              return (
+                <motion.div
+                  key={entry.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, delay: 0.02 * i }}
+                >
+                  <Card className="group transition-colors hover:border-white/15">
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          {mood && (
+                            <div
+                              className="flex h-10 w-10 items-center justify-center rounded-xl text-lg"
+                              style={{
+                                background: `${mood.color}14`,
+                                border: `1px solid ${mood.color}40`,
+                              }}
+                            >
+                              {mood.emoji}
+                            </div>
+                          )}
+                          <div>
+                            <div className="text-sm font-medium tracking-tight">
+                              {formatDateLong(entry.createdAt)}
+                            </div>
+                            <div className="text-xs text-[color:var(--color-fg-subtle)]">
+                              {formatTime(entry.createdAt)}
+                              {entry.mood ? <> · <span style={{ color: mood?.color }}>{entry.mood}</span></> : null}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[color:var(--color-fg-muted)]">
+                        {entry.content}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+        </div>
+      </div>
+    </div>
+  );
 }
