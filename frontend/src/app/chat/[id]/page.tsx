@@ -1,432 +1,454 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, use } from 'react';
-import { getConversation, sendMessage, type Message, type CrisisInfo } from '@/lib/api';
-import FadeIn from '@/components/animations/FadeIn';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
+import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ArrowLeft,
+  LifeBuoy,
+  Mic,
+  Send,
+  Square,
+  Volume2,
+  VolumeX,
+  Sparkles,
+} from 'lucide-react';
+import {
+  getConversation,
+  sendMessage,
+  type Message,
+  type CrisisInfo,
+} from '@/lib/api';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { useWellness } from '@/components/wellness/WellnessProvider';
+import { resolveEmotion } from '@/lib/emotion-theme';
+import { cn } from '@/lib/cn';
 
 export default function ConversationPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = use(params);
-    const [messages, setMessages] = useState<Message[]>([]);
-    const [input, setInput] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSending, setIsSending] = useState(false);
-    const [streamingContent, setStreamingContent] = useState('');
-    const [crisis, setCrisis] = useState<CrisisInfo | null>(null);
-    const [autoSpeak, setAutoSpeak] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { id } = use(params);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user } = useUser();
+  const { profile } = useWellness();
+  const theme = resolveEmotion(profile?.emotionalProfile);
 
-    const { isListening, transcript, startListening, stopListening, isSupported: isMicSupported } = useSpeechRecognition();
-    const { isSpeaking, speak, stop: stopSpeaking, isSupported: isVoiceSupported } = useSpeechSynthesis();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
+  const [crisis, setCrisis] = useState<CrisisInfo | null>(null);
+  const [autoSpeak, setAutoSpeak] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const autoPromptRef = useRef(false);
 
-    useEffect(() => {
-        if (isListening && transcript) {
-            setInput(transcript);
-        }
-    }, [transcript, isListening]);
+  const {
+    isListening,
+    transcript,
+    startListening,
+    stopListening,
+    isSupported: isMicSupported,
+  } = useSpeechRecognition();
+  const {
+    isSpeaking,
+    speak,
+    stop: stopSpeaking,
+    isSupported: isVoiceSupported,
+  } = useSpeechSynthesis();
 
-    const loadConversation = useCallback(async () => {
-        try {
-            const data = await getConversation(id);
-            setMessages(data.conversation.messages);
-        } catch (err) {
-            console.error('Failed to load conversation:', err);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [id]);
+  useEffect(() => {
+    if (isListening && transcript) setInput(transcript);
+  }, [transcript, isListening]);
 
-    useEffect(() => {
-        loadConversation();
-    }, [loadConversation]);
-
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, streamingContent]);
-
-    const handleSend = useCallback(async () => {
-        const text = input.trim();
-        if (!text || isSending) return;
-
-        setInput('');
-        setIsSending(true);
-        setStreamingContent('');
-        setCrisis(null);
-
-        // Optimistically add user message
-        const userMsg: Message = {
-            id: `temp-${Date.now()}`,
-            role: 'user',
-            content: text,
-            createdAt: new Date().toISOString(),
-        };
-        setMessages(prev => [...prev, userMsg]);
-
-        // Auto-resize textarea back
-        if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-        }
-
-        await sendMessage(
-            id,
-            text,
-            // onChunk
-            (chunk) => {
-                setStreamingContent(prev => prev + chunk);
-            },
-            // onDone
-            (data) => {
-                setStreamingContent(prev => {
-                    const finalMsg = prev;
-                    // Move streaming content into messages
-                    const assistantMsg: Message = {
-                        id: data.messageId || `msg-${Date.now()}`,
-                        role: 'assistant',
-                        content: finalMsg,
-                        createdAt: new Date().toISOString(),
-                    };
-                    setMessages(msgs => [...msgs, assistantMsg]);
-                    
-                    if (autoSpeak) {
-                        speak(finalMsg);
-                    }
-                    
-                    return '';
-                });
-                if (data.crisis) setCrisis(data.crisis);
-                setIsSending(false);
-            },
-            // onError
-            (error) => {
-                console.error('Chat error:', error);
-                const errorMsg: Message = {
-                    id: `error-${Date.now()}`,
-                    role: 'assistant',
-                    content: "I'm sorry, something went wrong. Please try again.",
-                    createdAt: new Date().toISOString(),
-                };
-                setMessages(prev => [...prev, errorMsg]);
-                setStreamingContent('');
-                setIsSending(false);
-            },
-        );
-    }, [id, input, isSending, autoSpeak, speak]);
-
-    function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSend();
-        }
+  const loadConversation = useCallback(async () => {
+    try {
+      const data = await getConversation(id);
+      setMessages(data.conversation.messages);
+    } catch (err) {
+      console.error('Failed to load conversation:', err);
+    } finally {
+      setIsLoading(false);
     }
+  }, [id]);
 
-    function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-        setInput(e.target.value);
-        // Auto-resize
-        const ta = e.target;
-        ta.style.height = 'auto';
-        ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+  useEffect(() => {
+    loadConversation();
+  }, [loadConversation]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, streamingContent]);
+
+  const doSend = useCallback(
+    async (text: string) => {
+      if (!text.trim() || isSending) return;
+      setInput('');
+      setIsSending(true);
+      setStreamingContent('');
+      setCrisis(null);
+
+      const userMsg: Message = {
+        id: `temp-${Date.now()}`,
+        role: 'user',
+        content: text,
+        createdAt: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      if (textareaRef.current) textareaRef.current.style.height = 'auto';
+
+      await sendMessage(
+        id,
+        text,
+        (chunk) => setStreamingContent((prev) => prev + chunk),
+        (data) => {
+          setStreamingContent((prev) => {
+            const finalMsg = prev;
+            const assistantMsg: Message = {
+              id: data.messageId || `msg-${Date.now()}`,
+              role: 'assistant',
+              content: finalMsg,
+              createdAt: new Date().toISOString(),
+            };
+            setMessages((msgs) => [...msgs, assistantMsg]);
+            if (autoSpeak) speak(finalMsg);
+            return '';
+          });
+          if (data.crisis) setCrisis(data.crisis);
+          setIsSending(false);
+        },
+        () => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `error-${Date.now()}`,
+              role: 'assistant',
+              content: "I'm sorry, something went wrong. Please try again.",
+              createdAt: new Date().toISOString(),
+            },
+          ]);
+          setStreamingContent('');
+          setIsSending(false);
+        },
+      );
+    },
+    [id, isSending, autoSpeak, speak],
+  );
+
+  // Auto-submit prompt from URL once conversation is loaded
+  useEffect(() => {
+    if (isLoading || autoPromptRef.current) return;
+    const prompt = searchParams.get('prompt');
+    if (prompt && messages.length === 0) {
+      autoPromptRef.current = true;
+      void doSend(prompt);
     }
+  }, [isLoading, searchParams, messages.length, doSend]);
 
-    if (isLoading) {
-        return (
-            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div className="loading-dots"><span /><span /><span /></div>
-            </div>
-        );
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      void doSend(input);
     }
+  };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    const ta = e.target;
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
+  };
+
+  if (isLoading) {
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', maxWidth: '900px', margin: '0 auto', width: '100%' }}>
-            
-            {/* Header */}
-            <div style={{ 
-                padding: '24px 32px', 
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
-                display: 'flex',
-                alignItems: 'center',
-                background: 'rgba(2, 6, 23, 0.6)',
-                backdropFilter: 'blur(12px)',
-                zIndex: 10,
-            }}>
-                <div style={{ 
-                    width: 32, height: 32, borderRadius: '50%', background: '#38bdf820', 
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 12,
-                    border: '1px solid #38bdf840'
-                }}>
-                    ✨
-                </div>
-                <div>
-                    <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>AI Companion</h2>
-                    <span style={{ fontSize: '0.8rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }}/>
-                        Active session
-                    </span>
-                </div>
-                {isVoiceSupported && (
-                    <button
-                        onClick={() => {
-                            if (autoSpeak && isSpeaking) stopSpeaking();
-                            setAutoSpeak(!autoSpeak);
-                        }}
-                        style={{
-                            marginLeft: 'auto',
-                            display: 'flex', alignItems: 'center', gap: 8,
-                            padding: '8px 16px', borderRadius: 20,
-                            background: autoSpeak ? '#10b98115' : 'rgba(255,255,255,0.03)',
-                            border: `1px solid ${autoSpeak ? '#10b98140' : 'rgba(255,255,255,0.05)'}`,
-                            color: autoSpeak ? '#10b981' : '#94a3b8',
-                            fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s',
-                            boxShadow: autoSpeak ? '0 0 15px rgba(16,185,129,0.1)' : 'none'
-                        }}
-                    >
-                        {autoSpeak ? '🔊 Stop Auto-Reading' : '🔈 Read Replies Aloud'}
-                    </button>
-                )}
-            </div>
-
-            {/* Messages area */}
-            <div style={{
-                flex: 1, overflowY: 'auto', padding: '32px',
-                display: 'flex', flexDirection: 'column', gap: '24px',
-                scrollBehavior: 'smooth'
-            }}>
-                {messages.length === 0 && !isSending && (
-                    <FadeIn direction="up">
-                        <div style={{
-                            textAlign: 'center', padding: '60px 20px', color: '#94a3b8',
-                            background: 'rgba(15,23,42,0.3)', borderRadius: 24,
-                            border: '1px solid rgba(255,255,255,0.05)'
-                        }}>
-                            <div style={{ fontSize: '3rem', marginBottom: 16 }}>💬</div>
-                            <h2 style={{ fontSize: '1.25rem', color: '#e2e8f0', marginBottom: 8, fontWeight: 500 }}>Start the conversation</h2>
-                            <p style={{ margin: 0, fontSize: '0.95rem' }}>Type a message below. I&apos;m here to listen.</p>
-                        </div>
-                    </FadeIn>
-                )}
-
-                {messages.map((msg) => {
-                    const isUser = msg.role === 'user';
-                    return (
-                        <div
-                            key={msg.id}
-                            style={{
-                                alignSelf: isUser ? 'flex-end' : 'flex-start',
-                                maxWidth: '80%',
-                                animation: 'activity-fade-in 0.3s ease-out forwards',
-                            }}
-                        >
-                            <div style={{
-                                background: isUser ? '#38bdf8' : 'rgba(30, 41, 59, 0.7)',
-                                color: isUser ? '#0f172a' : '#f8fafc',
-                                padding: '14px 20px',
-                                borderRadius: isUser ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                                fontSize: '0.95rem',
-                                lineHeight: 1.5,
-                                border: isUser ? 'none' : '1px solid rgba(255,255,255,0.05)',
-                                boxShadow: isUser ? '0 8px 20px -5px rgba(56, 189, 248, 0.3)' : '0 8px 20px -5px rgba(0,0,0,0.2)',
-                            }}>
-                                {msg.content.split('\n').map((line, i) => (
-                                    <p key={i} style={{ margin: i === 0 ? 0 : '8px 0 0 0' }}>{line || '\u00A0'}</p>
-                                ))}
-                            </div>
-                            <div style={{
-                                fontSize: '0.7rem',
-                                color: '#64748b',
-                                marginTop: 6,
-                                textAlign: isUser ? 'right' : 'left',
-                                padding: '0 4px'
-                            }}>
-                                {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </div>
-                        </div>
-                    );
-                })}
-
-                {/* Streaming indicator */}
-                {isSending && streamingContent && (
-                    <div style={{ alignSelf: 'flex-start', maxWidth: '80%', animation: 'activity-fade-in 0.3s ease-out' }}>
-                        <div style={{
-                            background: 'rgba(30, 41, 59, 0.7)',
-                            color: '#f8fafc',
-                            padding: '14px 20px',
-                            borderRadius: '20px 20px 20px 4px',
-                            fontSize: '0.95rem',
-                            lineHeight: 1.5,
-                            border: '1px solid rgba(56, 189, 248, 0.2)',
-                            boxShadow: '0 0 20px rgba(56, 189, 248, 0.1)',
-                        }}>
-                            {streamingContent.split('\n').map((line, i) => (
-                                <p key={i} style={{ margin: i === 0 ? 0 : '8px 0 0 0' }}>{line || '\u00A0'}</p>
-                            ))}
-                            <span style={{ 
-                                display: 'inline-block', width: '6px', height: '14px', 
-                                background: '#38bdf8', borderRadius: '2px', 
-                                animation: 'pulse-glow 1s ease infinite', 
-                                verticalAlign: 'text-bottom',
-                                marginLeft: '4px'
-                            }} />
-                        </div>
-                    </div>
-                )}
-
-                {isSending && !streamingContent && (
-                    <div style={{ alignSelf: 'flex-start', animation: 'activity-fade-in 0.3s ease-out' }}>
-                        <div style={{
-                            background: 'rgba(30, 41, 59, 0.7)',
-                            padding: '16px 20px',
-                            borderRadius: '20px 20px 20px 4px',
-                            border: '1px solid rgba(255,255,255,0.05)',
-                        }}>
-                            <div style={{ display: 'flex', gap: 6 }}>
-                                <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#94a3b8', animation: 'float-gentle 1s infinite 0s' }} />
-                                <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#94a3b8', animation: 'float-gentle 1s infinite 0.2s' }} />
-                                <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#94a3b8', animation: 'float-gentle 1s infinite 0.4s' }} />
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Crisis resources */}
-                {crisis && crisis.isCrisis && (
-                    <FadeIn direction="up">
-                        <div style={{
-                            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)',
-                            border: '1px solid rgba(239, 68, 68, 0.3)',
-                            borderRadius: 20,
-                            padding: 24,
-                            marginTop: 16,
-                            boxShadow: '0 10px 30px -10px rgba(239, 68, 68, 0.15)'
-                        }}>
-                            <h3 style={{ color: '#fca5a5', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                💚 Support is available
-                            </h3>
-                            <p style={{ color: '#e2e8f0', fontSize: '0.9rem', marginBottom: 20 }}>
-                                {crisis.safetyMessage || "It sounds like you're going through a really tough time. There are people who want to support you right now:"}
-                            </p>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                {Object.values(crisis.resources).map(res => (
-                                    <div key={res.name} style={{ background: 'rgba(0,0,0,0.2)', padding: 16, borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
-                                        <strong style={{ color: '#f8fafc', display: 'block', marginBottom: 4 }}>{res.name}</strong>
-                                        <div style={{ color: '#ef4444', fontSize: '1.2rem', fontWeight: 700, marginBottom: 4 }}>{res.number}</div>
-                                        <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>{res.description}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </FadeIn>
-                )}
-
-                <div ref={messagesEndRef} style={{ height: 1 }} />
-            </div>
-
-            {/* Input area */}
-            <div style={{ padding: '0 32px 32px 32px', zIndex: 10 }}>
-                <div style={{ 
-                    position: 'relative', 
-                    background: 'rgba(15, 23, 42, 0.8)',
-                    backdropFilter: 'blur(16px)',
-                    border: `1px solid ${input.trim() ? '#38bdf860' : 'rgba(255,255,255,0.1)'}`,
-                    borderRadius: 24,
-                    padding: '8px 8px 8px 24px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    boxShadow: input.trim() ? '0 0 30px rgba(56, 189, 248, 0.1)' : '0 10px 30px -10px rgba(0,0,0,0.3)',
-                    transition: 'all 0.3s ease'
-                }}>
-                    <textarea
-                        ref={textareaRef}
-                        placeholder="Type a message..."
-                        value={input}
-                        onChange={handleInputChange}
-                        onKeyDown={handleKeyDown}
-                        rows={1}
-                        disabled={isSending}
-                        style={{
-                            flex: 1,
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#f8fafc',
-                            fontSize: '1rem',
-                            resize: 'none',
-                            outline: 'none',
-                            maxHeight: 120,
-                            padding: '12px 0',
-                            lineHeight: 1.5,
-                        }}
-                    />
-                    
-                    {isMicSupported && (
-                        <button
-                            onClick={isListening ? stopListening : startListening}
-                            disabled={isSending}
-                            aria-label="Voice input"
-                            style={{
-                                width: 44, height: 44,
-                                borderRadius: 16,
-                                background: isListening ? '#ef444420' : 'transparent',
-                                border: isListening ? '1px solid #ef444440' : '1px solid transparent',
-                                color: isListening ? '#ef4444' : '#64748b',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                cursor: isSending ? 'default' : 'pointer', transition: 'all 0.2s',
-                                marginLeft: 8, flexShrink: 0,
-                                animation: isListening ? 'pulse-glow-red 2s infinite' : 'none'
-                            }}
-                        >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill={isListening ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.5">
-                                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                                <line x1="12" x2="12" y1="19" y2="22" />
-                            </svg>
-                        </button>
-                    )}
-
-                    <button
-                        onClick={handleSend}
-                        disabled={!input.trim() || isSending}
-                        aria-label="Send message"
-                        style={{
-                            width: 44, height: 44,
-                            borderRadius: 16,
-                            background: input.trim() ? '#38bdf8' : 'rgba(255,255,255,0.05)',
-                            color: input.trim() ? '#0f172a' : '#64748b',
-                            border: 'none',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            cursor: input.trim() && !isSending ? 'pointer' : 'default',
-                            transition: 'all 0.2s',
-                            marginLeft: 8,
-                            flexShrink: 0,
-                            boxShadow: input.trim() ? '0 5px 15px -3px rgba(56, 189, 248, 0.4)' : 'none',
-                        }}
-                        onMouseEnter={(e) => {
-                            if (input.trim() && !isSending) e.currentTarget.style.transform = 'scale(1.05)';
-                        }}
-                        onMouseLeave={(e) => {
-                            if (input.trim() && !isSending) e.currentTarget.style.transform = 'scale(1)';
-                        }}
-                    >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginLeft: 2 }}>
-                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            
-            <style jsx>{`
-                @keyframes pulse-glow {
-                    0%, 100% { opacity: 1; filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.8)); }
-                    50% { opacity: 0.5; filter: drop-shadow(0 0 2px rgba(56, 189, 248, 0.3)); }
-                }
-                @keyframes float-gentle {
-                    0%, 100% { transform: translateY(0); }
-                    50% { transform: translateY(-3px); }
-                }
-                @keyframes pulse-glow-red {
-                    0%, 100% { filter: drop-shadow(0 0 2px rgba(239, 68, 68, 0.3)); }
-                    50% { filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6)); }
-                }
-            `}</style>
+      <div className="flex h-full min-h-[60vh] items-center justify-center">
+        <div className="loading-dots">
+          <span />
+          <span />
+          <span />
         </div>
+      </div>
     );
+  }
+
+  const initials = (user?.firstName?.[0] ?? user?.username?.[0] ?? 'Y').toUpperCase();
+
+  return (
+    <div className="mx-auto flex h-[calc(100vh-76px)] max-w-4xl flex-col px-4 sm:px-8">
+      {/* Conversation header */}
+      <div className="flex items-center gap-3 py-5">
+        <button
+          onClick={() => router.push('/chat')}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-[color:var(--color-fg-muted)] transition-colors hover:border-white/20 hover:bg-white/[0.06] hover:text-[color:var(--color-fg)]"
+          aria-label="Back"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <div
+          className="flex h-10 w-10 items-center justify-center rounded-full"
+          style={{ background: `${theme.accent}18`, border: `1px solid ${theme.accent}38` }}
+        >
+          <Sparkles className="h-4 w-4" style={{ color: theme.accent }} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h1 className="truncate text-base font-semibold">AI Companion</h1>
+            <Badge variant="outline" className="gap-1.5">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              </span>
+              Active
+            </Badge>
+          </div>
+          <div className="text-xs text-[color:var(--color-fg-muted)]">
+            {profile?.aiPersonality?.tone ?? 'gentle'} tone · end-to-end private
+          </div>
+        </div>
+        {isVoiceSupported && (
+          <Button
+            variant={autoSpeak ? 'accent' : 'ghost'}
+            size="sm"
+            onClick={() => {
+              if (autoSpeak && isSpeaking) stopSpeaking();
+              setAutoSpeak(!autoSpeak);
+            }}
+          >
+            {autoSpeak ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            {autoSpeak ? 'Reading' : 'Silent'}
+          </Button>
+        )}
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto py-4">
+        {messages.length === 0 && !isSending && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-auto flex max-w-xl flex-col items-center gap-4 rounded-[var(--radius-xl)] border border-white/[0.06] bg-white/[0.02] p-10 text-center"
+          >
+            <div
+              className="flex h-14 w-14 items-center justify-center rounded-full"
+              style={{ background: theme.gradient, boxShadow: `0 0 40px -8px ${theme.glow}` }}
+            >
+              <Sparkles className="h-5 w-5 text-slate-950" />
+            </div>
+            <h2 className="font-display text-2xl italic">Begin when ready.</h2>
+            <p className="max-w-md text-sm text-[color:var(--color-fg-muted)]">
+              Type or dictate — whatever is present for you. There is no right place to start.
+            </p>
+          </motion.div>
+        )}
+
+        <div className="flex flex-col gap-6">
+          <AnimatePresence initial={false}>
+            {messages.map((msg) => (
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                accent={theme.accent}
+                initials={initials}
+                userImage={user?.imageUrl}
+              />
+            ))}
+          </AnimatePresence>
+
+          {streamingContent && (
+            <MessageBubble
+              message={{
+                id: 'streaming',
+                role: 'assistant',
+                content: streamingContent,
+                createdAt: new Date().toISOString(),
+              }}
+              accent={theme.accent}
+              initials={initials}
+              userImage={user?.imageUrl}
+              streaming
+            />
+          )}
+
+          {isSending && !streamingContent && (
+            <div className="flex gap-3">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback
+                  style={{ background: theme.gradient, color: '#05070d' }}
+                  className="text-xs font-semibold"
+                >
+                  AI
+                </AvatarFallback>
+              </Avatar>
+              <div className="rounded-2xl rounded-bl-sm border border-white/[0.06] bg-white/[0.03] px-4 py-3">
+                <div className="loading-dots">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Crisis banner */}
+      <AnimatePresence>
+        {crisis && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mb-3 flex items-start gap-3 rounded-2xl border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/10 p-4"
+          >
+            <LifeBuoy className="mt-0.5 h-5 w-5 text-[color:var(--color-danger)]" />
+            <div className="flex-1 text-sm">
+              <div className="font-medium text-[color:var(--color-fg)]">
+                {crisis.safetyMessage || "It sounds like you're in a tough place."}
+              </div>
+              <div className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
+                Open the crisis page for immediate UK help lines.
+              </div>
+            </div>
+            <Link href="/sos">
+              <Button variant="danger" size="sm">
+                Open SOS
+              </Button>
+            </Link>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Composer */}
+      <div className="sticky bottom-0 border-t border-white/[0.04] bg-[color:var(--color-bg)]/70 pb-6 pt-3 backdrop-blur-xl">
+        <div
+          className={cn(
+            'relative flex items-end gap-2 rounded-3xl border border-white/10 bg-white/[0.03] p-2 transition-all',
+            'focus-within:border-white/25 focus-within:bg-white/[0.05]',
+          )}
+          style={{
+            boxShadow: `0 0 0 3px ${theme.accent}15`,
+          }}
+        >
+          {isMicSupported && (
+            <button
+              onClick={isListening ? stopListening : startListening}
+              className={cn(
+                'flex h-10 w-10 items-center justify-center rounded-full transition-all',
+                isListening
+                  ? 'bg-[color:var(--color-danger)] text-white shadow-lg shadow-[color:var(--color-danger)]/30'
+                  : 'text-[color:var(--color-fg-muted)] hover:bg-white/[0.06] hover:text-[color:var(--color-fg)]',
+              )}
+              aria-label={isListening ? 'Stop listening' : 'Voice input'}
+            >
+              {isListening ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </button>
+          )}
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder={isListening ? 'Listening…' : 'Share what is present for you…'}
+            rows={1}
+            className="flex-1 resize-none bg-transparent px-2 py-2.5 text-sm leading-relaxed outline-none placeholder:text-[color:var(--color-fg-subtle)]"
+            style={{ maxHeight: 200 }}
+          />
+          <button
+            onClick={() => doSend(input)}
+            disabled={!input.trim() || isSending}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-40"
+            style={{
+              background: input.trim() ? theme.gradient : 'rgba(255,255,255,0.06)',
+              color: input.trim() ? '#05070d' : 'var(--color-fg-muted)',
+              boxShadow: input.trim() ? `0 6px 20px -6px ${theme.glow}` : 'none',
+            }}
+            aria-label="Send"
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="mt-2 text-center text-[10px] uppercase tracking-[0.2em] text-[color:var(--color-fg-subtle)]">
+          Enter to send · Shift + Enter for new line
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MessageBubble({
+  message,
+  accent,
+  initials,
+  userImage,
+  streaming,
+}: {
+  message: Message;
+  accent: string;
+  initials: string;
+  userImage?: string;
+  streaming?: boolean;
+}) {
+  const isUser = message.role === 'user';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      className={cn('flex gap-3', isUser ? 'justify-end' : 'justify-start')}
+    >
+      {!isUser && (
+        <Avatar className="h-8 w-8 shrink-0">
+          <AvatarFallback
+            style={{
+              background: `linear-gradient(135deg, ${accent}, #a78bfa)`,
+              color: '#05070d',
+            }}
+            className="text-[10px] font-semibold"
+          >
+            AI
+          </AvatarFallback>
+        </Avatar>
+      )}
+      <div
+        className={cn(
+          'max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed',
+          isUser
+            ? 'rounded-br-sm text-slate-950 shadow-lg'
+            : 'rounded-bl-sm border border-white/[0.06] bg-white/[0.03] text-[color:var(--color-fg)]',
+        )}
+        style={
+          isUser
+            ? {
+                background: `linear-gradient(135deg, ${accent}, #a78bfa)`,
+                boxShadow: `0 10px 24px -12px ${accent}60`,
+              }
+            : undefined
+        }
+      >
+        {message.content.split('\n').map((line, i) => (
+          <p key={i} className={i > 0 ? 'mt-2' : ''}>
+            {line}
+            {streaming && i === message.content.split('\n').length - 1 && (
+              <span className="ml-0.5 inline-block h-3.5 w-[2px] translate-y-0.5 animate-pulse bg-current opacity-70" />
+            )}
+          </p>
+        ))}
+      </div>
+      {isUser && (
+        <Avatar className="h-8 w-8 shrink-0">
+          <AvatarImage src={userImage} alt="" />
+          <AvatarFallback className="text-[10px] font-semibold">{initials}</AvatarFallback>
+        </Avatar>
+      )}
+    </motion.div>
+  );
 }

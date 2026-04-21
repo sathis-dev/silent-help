@@ -1,176 +1,242 @@
 'use client';
 
-import { useState, FormEvent, useEffect, Suspense, useCallback } from 'react';
+import { FormEvent, Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { SignUpButton, SignInButton, useUser, useAuth } from '@clerk/nextjs';
+import Link from 'next/link';
+import { SignInButton, SignUpButton, useAuth, useUser } from '@clerk/nextjs';
+import { motion } from 'framer-motion';
+import { ArrowRight, Feather, Lock, ShieldCheck } from 'lucide-react';
 import { useWellness } from '@/components/wellness/WellnessProvider';
+import { Aurora, NoiseOverlay } from '@/components/ui/aurora';
+import { Logo } from '@/components/ui/logo';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
 
 function AuthForms() {
-    const router = useRouter();
-    const { isSignedIn } = useUser();
-    const { getToken } = useAuth();
-    const { setContextProfile } = useWellness();
-    const [guestName, setGuestName] = useState('');
-    const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const { isSignedIn } = useUser();
+  const { getToken } = useAuth();
+  const { setContextProfile } = useWellness();
+  const [guestName, setGuestName] = useState('');
+  const [loading, setLoading] = useState(false);
 
-    const checkAndSubmitPending = useCallback(async (token?: string) => {
-        const pending = localStorage.getItem('sh_pending_assessment');
-        if (!pending) return false;
-        
-        try {
-            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            if (token) headers['Authorization'] = `Bearer ${token}`; 
-            
-            const res = await fetch('/api/assessment/submit', {
-                method: 'POST',
-                headers,
-                body: pending
-            });
-            const data = await res.json();
-            
-            if (data.profile) {
-                if (!token) {
-                    localStorage.setItem('sh_guest_profile', JSON.stringify(data.profile));
-                }
-                setContextProfile(data.profile);
-                localStorage.removeItem('sh_pending_assessment');
-            }
-        } catch (e) {
-            console.error('Failed to submit assessment:', e);
+  const checkAndSubmitPending = useCallback(
+    async (token?: string) => {
+      const pending = localStorage.getItem('sh_pending_assessment');
+      if (!pending) return false;
+      try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetch('/api/assessment/submit', {
+          method: 'POST',
+          headers,
+          body: pending,
+        });
+        const data = await res.json();
+        if (data.profile) {
+          if (!token) localStorage.setItem('sh_guest_profile', JSON.stringify(data.profile));
+          setContextProfile(data.profile);
+          localStorage.removeItem('sh_pending_assessment');
         }
-        return true;
-    }, [setContextProfile]);
+      } catch (e) {
+        console.error('Failed to submit assessment:', e);
+      }
+      return true;
+    },
+    [setContextProfile],
+  );
 
-    useEffect(() => {
-        if (isSignedIn) {
-            const finishFlow = async () => {
-                const token = await getToken();
-                await checkAndSubmitPending(token || undefined);
-                router.replace('/dashboard');
-            };
-            finishFlow();
-        }
-    }, [isSignedIn, router, getToken, checkAndSubmitPending]);
+  useEffect(() => {
+    if (!isSignedIn) return;
+    (async () => {
+      const token = await getToken();
+      await checkAndSubmitPending(token || undefined);
+      router.replace('/dashboard');
+    })();
+  }, [isSignedIn, router, getToken, checkAndSubmitPending]);
 
-    const handleGuestSubmit = async (e: FormEvent) => {
-        e.preventDefault();
-        if (guestName.trim()) {
-            localStorage.setItem('sh_guest_name', guestName.trim());
-            setLoading(true);
-            const hasPending = await checkAndSubmitPending();
-            setLoading(false);
-            
-            if (hasPending) {
-                router.push('/dashboard');
-            } else {
-                router.push('/onboarding');
-            }
-        }
-    };
+  const handleGuestSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!guestName.trim()) return;
+    localStorage.setItem('sh_guest_name', guestName.trim());
+    setLoading(true);
+    const hasPending = await checkAndSubmitPending();
+    setLoading(false);
+    router.push(hasPending ? '/dashboard' : '/onboarding');
+  };
 
-    if (isSignedIn) {
-        return (
-            <div className="auth-container min-h-screen flex items-center justify-center bg-[#0f172a]">
-                <div className="loading-dots"><span /><span /><span /></div>
-            </div>
-        );
-    }
-
+  if (isSignedIn) {
     return (
-        <div className="auth-page w-full min-h-screen relative overflow-hidden bg-[#0f172a]">
-            {/* Ambient Background with slow pulse animations */}
-            <div className="auth-ambient absolute inset-0 pointer-events-none">
-                <div className="ambient-orb orb-1 absolute top-[-20%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-cyan-500/10 blur-[100px] animate-pulse" style={{ animationDuration: '4s' }} />
-                <div className="ambient-orb orb-2 absolute bottom-[-20%] left-[-10%] w-[40vw] h-[40vw] rounded-full bg-blue-600/10 blur-[100px] animate-pulse" style={{ animationDelay: '2s', animationDuration: '5s' }} />
-            </div>
-
-            <div className="auth-container relative z-10 flex flex-col min-h-screen items-center justify-center p-4">
-                <div className="auth-card bg-[#1e293b]/80 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8 sm:p-10 shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-fade-in" style={{ width: '100%', maxWidth: '440px' }}>
-                    
-                    <div className="auth-header text-center mb-8">
-                        <div className="mx-auto w-14 h-14 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-full flex items-center justify-center mb-5 border border-cyan-500/30">
-                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" strokeWidth="2">
-                                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                                <circle cx="12" cy="7" r="4" />
-                            </svg>
-                        </div>
-                        <h2 className="text-3xl font-bold mb-3 text-white tracking-tight">Save Your Progress</h2>
-                        <p className="text-slate-400 text-sm leading-relaxed px-2">Create a free account to instantly save your personalized wellness profile securely, or continue as a guest.</p>
-                    </div>
-
-                    <div className="auth-options flex flex-col gap-4">
-                        <div className="flex justify-center w-full group">
-                            <SignUpButton mode="modal">
-                                <button className="landing-cta w-full !px-0 flex justify-center items-center gap-3 shadow-[0_0_20px_rgba(6,182,212,0.3)] group-hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all duration-300 transform group-hover:-translate-y-1">
-                                    <span className="whitespace-nowrap font-semibold">Create Free Account</span>
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="group-hover:translate-x-1 transition-transform">
-                                        <path d="M5 12h14M12 5l7 7-7 7" />
-                                    </svg>
-                                </button>
-                            </SignUpButton>
-                        </div>
-
-                        <div className="flex justify-center w-full">
-                            <SignInButton mode="modal">
-                                <button className="w-full flex justify-center items-center h-[54px] rounded-full font-medium text-slate-300 border border-slate-700 bg-slate-800/40 hover:bg-slate-700 hover:text-white hover:border-slate-500 transition-all duration-300">
-                                    <span>Sign In</span>
-                                </button>
-                            </SignInButton>
-                        </div>
-
-                        <div className="flex items-center text-slate-500 my-4">
-                            <div className="flex-1 h-px bg-slate-700/60" />
-                            <span className="px-5 text-[11px] font-bold tracking-widest text-slate-500">OR</span>
-                            <div className="flex-1 h-px bg-slate-700/60" />
-                        </div>
-
-                        <div className="guest-section">
-                            <form onSubmit={handleGuestSubmit} className="flex flex-col gap-4">
-                                <div className="form-group flex flex-col gap-2 mb-0">
-                                    <label className="text-xs font-semibold text-slate-400 tracking-wider uppercase ml-1">Guest Access</label>
-                                    <input
-                                        type="text"
-                                        value={guestName}
-                                        onChange={(e) => setGuestName(e.target.value)}
-                                        placeholder="What should we call you?"
-                                        required
-                                        disabled={loading}
-                                        className="w-full rounded-xl px-5 py-4 bg-slate-900/50 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all duration-300"
-                                    />
-                                </div>
-                                <button 
-                                    type="submit" 
-                                    disabled={loading || !guestName.trim()}
-                                    className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white rounded-xl font-medium h-[54px] transition-all duration-300 disabled:opacity-50 mt-1 hover:shadow-lg flex items-center justify-center gap-2 group/guest hover:border-slate-500"
-                                >
-                                    {loading ? (
-                                        <div className="loading-dots"><span /><span /><span /></div>
-                                    ) : (
-                                        <>
-                                            Continue as Guest
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-50 group-hover/guest:translate-x-1 group-hover/guest:opacity-100 transition-all">
-                                                <path d="M5 12h14M12 5l7 7-7 7" />
-                                            </svg>
-                                        </>
-                                    )}
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="loading-dots">
+          <span />
+          <span />
+          <span />
         </div>
+      </div>
     );
+  }
+
+  return (
+    <div className="relative min-h-screen overflow-hidden">
+      <Aurora intensity="soft" />
+      <NoiseOverlay />
+
+      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-8">
+        <header className="flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5">
+            <Logo size={32} />
+            <span className="text-sm font-medium tracking-tight">Silent Help</span>
+          </Link>
+          <Link
+            href="/"
+            className="text-sm text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-fg)]"
+          >
+            ← Back home
+          </Link>
+        </header>
+
+        <div className="mt-10 grid flex-1 gap-12 lg:grid-cols-[1.1fr_1fr] lg:items-center">
+          {/* Narrative panel */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="hidden flex-col lg:flex"
+          >
+            <h1 className="text-balance text-5xl font-semibold leading-[1.05] tracking-tight">
+              The quiet place{' '}
+              <span className="font-display italic text-[color:var(--color-fg-muted)]">
+                between you and the storm.
+              </span>
+            </h1>
+            <p className="mt-6 max-w-md text-lg text-[color:var(--color-fg-muted)]">
+              Save your wellness profile, keep encrypted journal entries, and pick up conversations
+              with an AI companion trained for calm — not engagement.
+            </p>
+
+            <div className="mt-10 space-y-4">
+              {[
+                { icon: ShieldCheck, label: 'End-to-end encrypted journal + chat' },
+                { icon: Lock, label: 'Your data stays yours. Export or delete anytime.' },
+                { icon: Feather, label: 'Offline-first tools work even with no internet.' },
+              ].map((i) => (
+                <div key={i.label} className="flex items-center gap-3 text-sm text-[color:var(--color-fg-muted)]">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03]">
+                    <i.icon className="h-4 w-4 text-[color:var(--color-fg)]" />
+                  </div>
+                  {i.label}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+            className="relative"
+          >
+            <Card glow className="p-8 sm:p-10">
+              <CardContent className="p-0">
+                <div className="mb-6 flex items-center gap-3">
+                  <Logo size={44} />
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--color-fg-subtle)]">
+                      Silent Help
+                    </div>
+                    <h2 className="text-xl font-semibold tracking-tight">Save your progress</h2>
+                  </div>
+                </div>
+
+                <p className="mb-6 text-sm leading-relaxed text-[color:var(--color-fg-muted)]">
+                  Create a free account to sync your wellness profile across devices, or continue
+                  as a guest and upgrade later.
+                </p>
+
+                <div className="flex flex-col gap-3">
+                  <SignUpButton mode="modal">
+                    <Button variant="primary" size="lg" className="w-full">
+                      Create free account
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </SignUpButton>
+                  <SignInButton mode="modal">
+                    <Button variant="secondary" size="lg" className="w-full">
+                      Sign in
+                    </Button>
+                  </SignInButton>
+                </div>
+
+                <div className="my-6 flex items-center gap-4 text-[10px] font-medium uppercase tracking-[0.25em] text-[color:var(--color-fg-subtle)]">
+                  <span className="h-px flex-1 bg-white/[0.06]" />
+                  or continue as guest
+                  <span className="h-px flex-1 bg-white/[0.06]" />
+                </div>
+
+                <form onSubmit={handleGuestSubmit} className="space-y-3">
+                  <Input
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    placeholder="What should we call you?"
+                    required
+                    disabled={loading}
+                  />
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    size="lg"
+                    className="w-full"
+                    disabled={loading || !guestName.trim()}
+                  >
+                    {loading ? (
+                      <span className="loading-dots">
+                        <span />
+                        <span />
+                        <span />
+                      </span>
+                    ) : (
+                      <>
+                        Continue as guest
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </form>
+
+                <p className="mt-6 text-center text-[11px] leading-relaxed text-[color:var(--color-fg-subtle)]">
+                  By continuing, you agree that Silent Help is a support tool, not a substitute for
+                  clinical care.{' '}
+                  <Link href="/sos" className="underline hover:text-[color:var(--color-fg-muted)]">
+                    Crisis resources
+                  </Link>
+                  .
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function AuthPage() {
-    return (
-        <Suspense fallback={
-            <div className="auth-container min-h-screen flex items-center justify-center bg-[#0f172a]">
-                <div className="loading-dots"><span /><span /><span /></div>
-            </div>
-        }>
-            <AuthForms />
-        </Suspense>
-    );
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="loading-dots">
+            <span />
+            <span />
+            <span />
+          </div>
+        </div>
+      }
+    >
+      <AuthForms />
+    </Suspense>
+  );
 }
