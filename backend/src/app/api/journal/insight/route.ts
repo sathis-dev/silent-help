@@ -1,39 +1,33 @@
 import { NextRequest } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest, unauthorizedResponse } from '@/lib/auth';
+import { decryptForUser } from '@/lib/encryption';
+import { generate } from '@/lib/ai/provider';
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { requestLogger } from '@/lib/logger';
+import { jsonOk, jsonError } from '@/lib/http';
 
-/**
- * POST /api/journal/insight — Generate AI insight from recent journal entries
- */
+/** POST /api/journal/insight — AI-written reflection over the last 7 entries */
 export async function POST(req: NextRequest) {
     const payload = getUserFromRequest(req);
     if (!payload) return unauthorizedResponse();
+    const log = requestLogger(req);
+
+    const rl = await rateLimit({ key: `journal.insight:${payload.userId}`, limit: 10, windowMs: 60_000 });
+    if (!rl.ok) return rateLimitResponse(rl);
 
     try {
-        // Get last 7 journal entries
         const entries = await prisma.journalEntry.findMany({
             where: { userId: payload.userId },
             orderBy: { createdAt: 'desc' },
             take: 7,
         });
-
         if (entries.length < 2) {
-            return Response.json({
+            return jsonOk({
                 insight: null,
                 message: 'Write at least 2 journal entries to unlock AI insights.',
             });
         }
-
-        const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
-        if (!apiKey) {
-            return Response.json({
-                insight: 'AI insights are currently unavailable. Please configure the Gemini API key.',
-                message: 'API key missing',
-            });
-        }
-
-        const ai = new GoogleGenAI({ apiKey });
 
         const journalText = entries
             .reverse()
@@ -41,15 +35,12 @@ export async function POST(req: NextRequest) {
                 const date = new Date(e.createdAt).toLocaleDateString('en-GB', {
                     weekday: 'short', day: 'numeric', month: 'short',
                 });
-                return `Entry ${i + 1} (${date})${e.mood ? ` [Mood: ${e.mood}]` : ''}:\n${e.content}`;
+                const content = decryptForUser(payload.userId, e.cipherText, e.content);
+                return `Entry ${i + 1} (${date})${e.mood ? ` [Mood: ${e.mood}]` : ''}:\n${content}`;
             })
             .join('\n\n---\n\n');
 
-        const prompt = `You are a compassionate wellness companion analyzing someone's private journal entries. Your goal is to identify emotional patterns, hidden stressors, and positive moments they might not have noticed themselves.
-
-Here are their most recent journal entries (oldest to newest):
-
-${journalText}
+        const system = `You are a compassionate wellness companion analyzing someone's private journal entries. Your goal is to identify emotional patterns, hidden stressors, and positive moments they might not have noticed themselves.
 
 Please provide a brief, warm, insightful analysis (3-4 paragraphs max) that:
 1. Identifies any emotional patterns or recurring themes
@@ -59,16 +50,20 @@ Please provide a brief, warm, insightful analysis (3-4 paragraphs max) that:
 
 Important: Be warm and encouraging, not clinical. Write as a caring friend, not a therapist. Do NOT diagnose anything. Use "I notice" language rather than definitive statements.`;
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.0-flash',
-            contents: prompt,
+        const { text, provider } = await generate({
+            system,
+            turns: [{ role: 'user', content: `Here are my recent journal entries (oldest to newest):\n\n${journalText}` }],
+            maxTokens: 600,
+            temperature: 0.6,
         });
 
-        const insight = response.text || 'Unable to generate insight at this time.';
-
-        return Response.json({ insight, entryCount: entries.length });
-    } catch (error) {
-        console.error('Journal insight error:', error);
-        return Response.json({ error: 'Failed to generate insight' }, { status: 500 });
+        return jsonOk({
+            insight: text || 'Unable to generate insight at this time.',
+            entryCount: entries.length,
+            provider,
+        });
+    } catch (e) {
+        log.error({ err: String(e) }, 'journal.insight.failed');
+        return jsonError(500, 'Failed to generate insight');
     }
 }

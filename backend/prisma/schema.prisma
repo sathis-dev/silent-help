@@ -1,10 +1,12 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector, pgcrypto]
 }
 
 // ============================================================================
@@ -20,13 +22,22 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  // Relations
-  conversations  Conversation[]
-  journalEntries JournalEntry[]
-   moodLogs       MoodLog[]
-  wellnessProfile WellnessProfile?
-  userState      UserState?
+  // Soft-delete for GDPR — row purged by scheduled job 30d later
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
 
+  // Relations
+  conversations   Conversation[]
+  journalEntries  JournalEntry[]
+  moodLogs        MoodLog[]
+  wellnessProfile WellnessProfile?
+  userState       UserState?
+  memories        Memory[]
+  safetyPlan      SafetyPlan?
+  auditLogs       AuditLog[]
+  reminders       Reminder[]
+  digestCaches    DigestCache[]
+
+  @@index([deletedAt])
   @@map("users")
 }
 
@@ -146,6 +157,9 @@ model Message {
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   role           String       @db.VarChar(20) // 'user' | 'assistant' | 'system'
   content        String       @db.Text
+  // Semantic embedding (only stored for 'user' messages to feed RAG)
+  embedding      Unsupported("vector(1536)")?
+  embeddingModel String?      @map("embedding_model") @db.VarChar(50)
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([conversationId])
@@ -158,13 +172,19 @@ model Message {
 // ============================================================================
 
 model JournalEntry {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content   String   @db.Text
-  mood      String?  @db.VarChar(50)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Plaintext fallback (kept for legacy rows + when encryption disabled)
+  content        String   @db.Text
+  // AES-256-GCM ciphertext (iv|tag|ct, base64). When set, `content` is a summary placeholder.
+  cipherText     String?  @map("cipher_text") @db.Text
+  mood           String?  @db.VarChar(50)
+  // Semantic embedding (1536-dim, OpenAI text-embedding-3-small size; nullable until backfilled)
+  embedding      Unsupported("vector(1536)")?
+  embeddingModel String?  @map("embedding_model") @db.VarChar(50)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([userId])
   @@index([createdAt])
@@ -231,5 +251,110 @@ model ToolUsage {
   @@index([toolId])
   @@index([createdAt])
   @@map("tool_usage")
+}
+
+// ============================================================================
+// MEMORY — User-blessed long-term memories surfaced to AI chat via RAG
+// ============================================================================
+
+model Memory {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // What the user (or AI with consent) asked us to remember
+  content        String   @db.Text
+  // Category helps the prompt ("context", "preference", "goal", "boundary", "relationship", "event")
+  kind           String   @default("context") @db.VarChar(20)
+  // 0.0-1.0 — how confident we are this is still relevant (decays over time)
+  salience       Float    @default(1.0)
+  // Semantic embedding for similarity retrieval
+  embedding      Unsupported("vector(1536)")?
+  embeddingModel String?  @map("embedding_model") @db.VarChar(50)
+  // Source that produced this memory: 'user' (explicit save) or 'ai' (inferred with consent)
+  source         String   @default("user") @db.VarChar(20)
+  lastUsedAt     DateTime? @map("last_used_at") @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("memories")
+}
+
+// ============================================================================
+// SAFETY PLAN — User's personal crisis plan (structured, private)
+// ============================================================================
+
+model SafetyPlan {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @unique @map("user_id") @db.Uuid
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  warningSigns   Json     @default("[]") @map("warning_signs") @db.JsonB // string[]
+  copingStrategies Json   @default("[]") @map("coping_strategies") @db.JsonB // string[]
+  reasonsToLive  Json     @default("[]") @map("reasons_to_live") @db.JsonB // string[]
+  supportPeople  Json     @default("[]") @map("support_people") @db.JsonB // {name, phone, relationship}[]
+  professionals  Json     @default("[]") @map("professionals") @db.JsonB // {name, phone, role}[]
+  safeSpaces     Json     @default("[]") @map("safe_spaces") @db.JsonB // string[]
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("safety_plans")
+}
+
+// ============================================================================
+// AUDIT LOG — every mutating user-initiated action (for privacy/export)
+// ============================================================================
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String   @db.VarChar(64)   // e.g. 'journal.create'
+  resource  String?  @db.VarChar(64)   // e.g. 'journal:<uuid>'
+  ipHash    String?  @map("ip_hash") @db.VarChar(64)
+  meta      Json?    @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// REMINDER — gentle scheduled nudges ("check in in 2 hours", "journal tonight")
+// ============================================================================
+
+model Reminder {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String   @db.VarChar(32)   // 'check_in', 'journal', 'tool', 'custom'
+  message   String   @db.Text
+  dueAt     DateTime @map("due_at") @db.Timestamptz(6)
+  status    String   @default("pending") @db.VarChar(16) // pending | delivered | canceled
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, status])
+  @@index([dueAt])
+  @@map("reminders")
+}
+
+// ============================================================================
+// DIGEST CACHE — generated weekly/daily AI digests, one per period
+// ============================================================================
+
+model DigestCache {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  period    String   @db.VarChar(16)   // e.g. 'weekly', 'daily'
+  periodKey String   @map("period_key") @db.VarChar(20)   // e.g. '2026-W17'
+  payload   Json     @db.JsonB        // { summary, highlights, themes, nudge, moodTrend }
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([userId, period, periodKey])
+  @@index([userId, createdAt])
+  @@map("digest_caches")
 }
 
