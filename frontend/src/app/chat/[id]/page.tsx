@@ -70,6 +70,8 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoPromptRef = useRef(false);
+  const streamingContentRef = useRef('');
+  const liveMetaRef = useRef<AssistantMeta | null>(null);
 
   const accent = latestPersona?.accent ?? baseTheme.accent;
   const theme = { ...baseTheme, accent };
@@ -131,39 +133,55 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
       setMessages((prev) => [...prev, userMsg]);
       if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
+      streamingContentRef.current = '';
+      liveMetaRef.current = null;
+
       await sendMessage(id, text, {
         onMeta: (meta) => {
-          setLiveMeta({
+          const nextMeta = {
             persona: meta.persona,
             citations: meta.citations,
             crisis: meta.crisis,
-          });
+          };
+          liveMetaRef.current = nextMeta;
+          setLiveMeta(nextMeta);
           setLatestPersona(meta.persona);
         },
-        onChunk: (chunk) => setStreamingContent((prev) => prev + chunk),
+        onChunk: (chunk) => {
+          streamingContentRef.current += chunk;
+          setStreamingContent(streamingContentRef.current);
+        },
         onDone: (data) => {
-          setStreamingContent((prev) => {
-            const finalMsg = prev;
-            const assistantMsg: Message = {
-              id: data.messageId || `msg-${Date.now()}`,
-              role: 'assistant',
-              content: finalMsg,
-              createdAt: new Date().toISOString(),
-            };
-            setMessages((msgs) => [...msgs, assistantMsg]);
-            setMetaByMessageId((m) => ({
-              ...m,
-              [assistantMsg.id]: {
-                persona: liveMeta?.persona,
-                citations: liveMeta?.citations ?? [],
-                crisis: liveMeta?.crisis ?? null,
-                suggestions: data.suggestions,
-                groundingActions: data.groundingActions,
-              },
-            }));
-            if (autoSpeak) speak(finalMsg);
-            return '';
-          });
+          const finalMsg = streamingContentRef.current;
+          const assistantId = data.messageId || `msg-${Date.now()}`;
+          const assistantMsg: Message = {
+            id: assistantId,
+            role: 'assistant',
+            content: finalMsg,
+            createdAt: new Date().toISOString(),
+          };
+          const snapshotMeta = liveMetaRef.current;
+          setMessages((msgs) =>
+            msgs.some((m) => m.id === assistantId) ? msgs : [...msgs, assistantMsg],
+          );
+          setMetaByMessageId((m) =>
+            m[assistantId]
+              ? m
+              : {
+                  ...m,
+                  [assistantId]: {
+                    persona: snapshotMeta?.persona,
+                    citations: snapshotMeta?.citations ?? [],
+                    crisis: snapshotMeta?.crisis ?? null,
+                    suggestions: data.suggestions,
+                    groundingActions: data.groundingActions,
+                  },
+                },
+          );
+          if (autoSpeak && finalMsg) speak(finalMsg);
+          streamingContentRef.current = '';
+          liveMetaRef.current = null;
+          setStreamingContent('');
           if (data.crisis) setCrisisBanner(data.crisis);
           setLatestSuggestions(data.suggestions ?? []);
           setLatestGrounding(data.groundingActions ?? []);
@@ -186,7 +204,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
         },
       });
     },
-    [id, isSending, autoSpeak, speak, liveMeta],
+    [id, isSending, autoSpeak, speak],
   );
 
   // Auto-submit prompt from URL once conversation is loaded
