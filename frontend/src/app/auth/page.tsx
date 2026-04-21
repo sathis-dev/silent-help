@@ -7,6 +7,7 @@ import { SignInButton, SignUpButton, useAuth, useUser } from '@clerk/nextjs';
 import { motion } from 'framer-motion';
 import { ArrowRight, Feather, Lock, ShieldCheck } from 'lucide-react';
 import { useWellness } from '@/components/wellness/WellnessProvider';
+import { provisionGuestAuth } from '@/lib/api';
 import { Aurora, NoiseOverlay } from '@/components/ui/aurora';
 import { Logo } from '@/components/ui/logo';
 import { Button } from '@/components/ui/button';
@@ -61,7 +62,10 @@ function AuthForms() {
     if (!guestName.trim()) return;
     localStorage.setItem('sh_guest_name', guestName.trim());
     setLoading(true);
-    const hasPending = await checkAndSubmitPending();
+    // Mint a backend-signed JWT up-front so journal/mood/chat/onboarding
+    // endpoints stop 401-ing for guest sessions.
+    const guestToken = await provisionGuestAuth();
+    const hasPending = await checkAndSubmitPending(guestToken || undefined);
     setLoading(false);
     router.push(hasPending ? '/dashboard' : '/onboarding');
   };

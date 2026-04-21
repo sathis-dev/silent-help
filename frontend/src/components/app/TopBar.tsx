@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AmbientPlayerButton } from './AmbientPlayerButton';
+import { clearGuestAuth } from '@/lib/api';
 import type { EmotionTheme } from '@/lib/emotion-theme';
 
 interface TopBarProps {
@@ -127,7 +128,19 @@ export function TopBar({ theme, onOpenCommand }: TopBarProps) {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() => signOut(() => router.push('/'))}
+              onClick={() => {
+                const isGuest =
+                  typeof window !== 'undefined' &&
+                  !!localStorage.getItem('sh_guest_name');
+                if (isGuest) {
+                  localStorage.removeItem('sh_guest_name');
+                  localStorage.removeItem('sh_guest_profile');
+                  clearGuestAuth();
+                  router.push('/');
+                } else {
+                  signOut(() => router.push('/'));
+                }
+              }}
               className="text-[color:var(--color-danger)] focus:text-[color:var(--color-danger)]"
             >
               <LogOut className="h-4 w-4" /> Sign out
