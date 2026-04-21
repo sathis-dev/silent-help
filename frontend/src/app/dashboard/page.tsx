@@ -16,7 +16,6 @@ import {
   Sparkles,
   Wind,
 } from 'lucide-react';
-import AppLayout from '@/components/layout/AppLayout';
 import { useWellness } from '@/components/wellness/WellnessProvider';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -63,14 +62,6 @@ function greeting() {
 }
 
 export default function DashboardPage() {
-  return (
-    <AppLayout>
-      <DashboardContent />
-    </AppLayout>
-  );
-}
-
-function DashboardContent() {
   const router = useRouter();
   const { user } = useUser();
   const { profile, isLoading, loadProfile } = useWellness();
