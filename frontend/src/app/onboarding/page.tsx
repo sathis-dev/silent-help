@@ -1,9 +1,26 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, ShieldAlert, Heart, Loader2, Sparkles, Phone, MessageCircle } from 'lucide-react';
+import {
+  ArrowRight,
+  ArrowLeft,
+  ShieldAlert,
+  Heart,
+  Loader2,
+  Sparkles,
+  Phone,
+  MessageCircle,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { Aurora, NoiseOverlay } from '@/components/ui/aurora';
+import {
+  resolveEmotion,
+  emotionCssVars,
+  DEFAULT_EMOTION,
+  type EmotionKey,
+} from '@/lib/emotion-theme';
+import { cn } from '@/lib/cn';
 
 /* --- Types --- */
 interface AssessmentQuestion {
@@ -43,16 +60,18 @@ interface SafetyState {
 
 /* --- Animation variants --- */
 const questionVariants = {
-  enter: { x: 60, opacity: 0, filter: 'blur(4px)' },
+  enter: { x: 48, opacity: 0, filter: 'blur(8px)' },
   center: { x: 0, opacity: 1, filter: 'blur(0px)' },
-  exit: { x: -60, opacity: 0, filter: 'blur(4px)' },
+  exit: { x: -48, opacity: 0, filter: 'blur(8px)' },
 };
 
 const cardStagger = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 16, filter: 'blur(6px)' },
   visible: (i: number) => ({
-    opacity: 1, y: 0,
-    transition: { delay: 0.15 + i * 0.1, duration: 0.4, ease: 'easeOut' as const },
+    opacity: 1,
+    y: 0,
+    filter: 'blur(0px)',
+    transition: { delay: 0.12 + i * 0.07, duration: 0.5, ease: [0.22, 1, 0.36, 1] as const },
   }),
 };
 
@@ -63,6 +82,26 @@ const STEP_SUBTITLES: Record<number, string> = {
   2: 'Understanding Intensity',
   3: 'Impact & Response',
 };
+
+const STEP_HINTS: Record<number, string> = {
+  1: 'Pick the one that feels closest — there is no wrong answer.',
+  2: 'Notice how it shows up in your body and mind.',
+  3: 'Tell us how it is shaping your day-to-day.',
+};
+
+const EMOTION_ROUTES: ReadonlySet<string> = new Set<string>([
+  'overwhelmed',
+  'anxious',
+  'frustrated',
+  'sad',
+  'pressure',
+]);
+
+function resolveRouteEmotion(route: string): EmotionKey {
+  const lower = route?.toLowerCase();
+  if (EMOTION_ROUTES.has(lower)) return lower as EmotionKey;
+  return DEFAULT_EMOTION;
+}
 
 /* --- Component --- */
 export default function OnboardingFlow() {
@@ -173,12 +212,29 @@ export default function OnboardingFlow() {
     return '✨';
   };
 
+  /* --- Active emotion theme (based on chosen route) --- */
+  const activeEmotion = useMemo(() => {
+    // After step 1, routeGroup becomes one of the emotion keys.
+    // On step 1 (shared), fall back to default emotion for the aurora.
+    return resolveEmotion(EMOTION_ROUTES.has(routeGroup) ? routeGroup : DEFAULT_EMOTION);
+  }, [routeGroup]);
+
+  const auroraColors = useMemo<[string, string, string]>(() => {
+    return [activeEmotion.soft, activeEmotion.glow, activeEmotion.tint];
+  }, [activeEmotion]);
+
   /* --- Loading --- */
   if (loading) {
     return (
-      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#020617' }}>
-        <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}>
-          <Loader2 style={{ width: 48, height: 48, color: '#2dd4bf' }} />
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden">
+        <Aurora colors={[...auroraColors]} intensity="soft" />
+        <NoiseOverlay />
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ repeat: Infinity, duration: 1.4, ease: 'linear' }}
+          className="relative"
+        >
+          <Loader2 className="h-12 w-12" style={{ color: activeEmotion.accent }} />
         </motion.div>
       </div>
     );
@@ -187,23 +243,44 @@ export default function OnboardingFlow() {
   /* --- Submitting --- */
   if (submitting) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#020617', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(45,212,191,0.12) 0%, transparent 70%)', top: '-15%', right: '-10%', filter: 'blur(60px)' }} />
-        <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(129,140,248,0.10) 0%, transparent 70%)', bottom: '-10%', left: '-8%', filter: 'blur(60px)' }} />
-        <motion.div animate={{ scale: [1, 1.15, 1], opacity: [0.8, 1, 0.8] }} transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }} style={{ marginBottom: 32 }}>
-          <Heart style={{ width: 64, height: 64, color: '#2dd4bf' }} />
+      <div
+        className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6"
+        style={emotionCssVars(activeEmotion)}
+      >
+        <Aurora colors={[...auroraColors]} intensity="strong" />
+        <NoiseOverlay />
+
+        <motion.div
+          animate={{ scale: [1, 1.12, 1], opacity: [0.8, 1, 0.8] }}
+          transition={{ repeat: Infinity, duration: 2.6, ease: 'easeInOut' }}
+          className="relative mb-8 flex h-24 w-24 items-center justify-center rounded-full"
+          style={{
+            background: `radial-gradient(circle, ${activeEmotion.soft} 0%, transparent 70%)`,
+          }}
+        >
+          <Heart className="h-14 w-14" style={{ color: activeEmotion.accent }} />
         </motion.div>
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} style={{ textAlign: 'center', padding: '0 24px' }}>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 300, letterSpacing: '0.05em', color: '#e2e8f0', marginBottom: 12 }}>
-            Generating your personalized wellness profile
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="relative text-center"
+        >
+          <h2 className="font-display text-3xl italic sm:text-4xl text-[color:var(--color-fg)]">
+            Gently weaving your wellness profile
           </h2>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#94a3b8' }}>
-            <Sparkles style={{ width: 16, height: 16 }} />
-            <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Analyzing your responses with care...</span>
+          <div className="mt-3 flex items-center justify-center gap-2 text-sm text-[color:var(--color-fg-muted)]">
+            <Sparkles className="h-4 w-4" style={{ color: activeEmotion.accent }} />
+            <span>Listening to your answers with care…</span>
           </div>
         </motion.div>
-        <motion.div animate={{ scale: [1, 1.8], opacity: [0.3, 0] }} transition={{ repeat: Infinity, duration: 2, ease: 'easeOut' }}
-          style={{ position: 'absolute', width: 120, height: 120, borderRadius: '50%', border: '2px solid rgba(45,212,191,0.25)', top: '50%', left: '50%', transform: 'translate(-50%, -80%)' }}
+
+        <motion.div
+          animate={{ scale: [1, 1.9], opacity: [0.35, 0] }}
+          transition={{ repeat: Infinity, duration: 2.2, ease: 'easeOut' }}
+          className="pointer-events-none absolute left-1/2 top-1/2 h-32 w-32 -translate-x-1/2 -translate-y-[80%] rounded-full border"
+          style={{ borderColor: activeEmotion.ring }}
         />
       </div>
     );
@@ -229,123 +306,200 @@ export default function OnboardingFlow() {
       case 'soft':
         return {
           title: 'Just checking in',
-          message: 'It sounds like things feel tough right now. We want to make sure you have the support you need. Would you like to continue, or would it help to see some support options?',
+          message:
+            'It sounds like things feel tough right now. We want to make sure you have the support you need. Would you like to continue, or would it help to see some support options?',
           accentColor: '#fbbf24',
-          borderColor: 'rgba(251,191,36,0.2)',
+          borderColor: 'rgba(251,191,36,0.28)',
+          tint: 'rgba(251,191,36,0.10)',
           showCrisis: false,
         };
       case 'medium':
         return {
           title: 'We want to support you',
-          message: 'We noticed you may need extra support right now. Please know that help is always available. Would you like to see support options, or continue with the assessment?',
+          message:
+            'We noticed you may need extra support right now. Please know that help is always available. Would you like to see support options, or continue with the assessment?',
           accentColor: '#fb923c',
-          borderColor: 'rgba(251,146,60,0.2)',
+          borderColor: 'rgba(251,146,60,0.28)',
+          tint: 'rgba(251,146,60,0.10)',
           showCrisis: true,
         };
       case 'hard':
       default:
         return {
           title: 'You are not alone',
-          message: 'We are concerned about how you are feeling right now. Your safety matters most. Please reach out to one of the services below, or let us know how we can help.',
+          message:
+            'We are concerned about how you are feeling right now. Your safety matters most. Please reach out to one of the services below, or let us know how we can help.',
           accentColor: '#f43f5e',
-          borderColor: 'rgba(244,63,94,0.2)',
+          borderColor: 'rgba(244,63,94,0.32)',
+          tint: 'rgba(244,63,94,0.10)',
           showCrisis: true,
         };
     }
   };
 
-  /* --- Q1 subtitle helper --- */
-  const q1Subtitle = stepNumber === 1 ? 'Pick the closest one.' : undefined;
-
   /* --- Main UI --- */
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #020617 0%, #0f172a 40%, #1e1b4b 100%)', color: '#f1f5f9', fontFamily: "'Inter', system-ui, sans-serif", display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', overflow: 'hidden' }}>
+    <div
+      className="relative flex min-h-screen flex-col items-center overflow-hidden"
+      style={emotionCssVars(activeEmotion)}
+    >
+      <Aurora colors={[...auroraColors]} intensity="normal" />
+      <NoiseOverlay />
 
-      {/* Ambient orbs */}
-      <div style={{ position: 'absolute', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle, rgba(45,212,191,0.07) 0%, transparent 70%)', top: '-20%', right: '-15%', filter: 'blur(80px)', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(129,140,248,0.06) 0%, transparent 70%)', bottom: '-15%', left: '-10%', filter: 'blur(80px)', pointerEvents: 'none' }} />
+      {/* Top chrome — back + progress */}
+      <div className="relative z-10 w-full max-w-2xl px-6 pt-10 sm:pt-14">
+        <div className="flex items-center justify-between">
+          <motion.button
+            type="button"
+            onClick={handleBack}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: stepNumber > 1 ? 1 : 0 }}
+            transition={{ duration: 0.25 }}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-xs text-[color:var(--color-fg-muted)] backdrop-blur-md transition-colors',
+              stepNumber > 1 && 'hover:border-white/20 hover:text-[color:var(--color-fg)]',
+            )}
+            style={{ pointerEvents: stepNumber > 1 ? 'auto' : 'none' }}
+            aria-hidden={stepNumber <= 1}
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Go back
+          </motion.button>
 
-      {/* Progress — 3 steps + Back Button */}
-      <div style={{ width: '100%', maxWidth: 640, padding: '48px 24px 16px', zIndex: 10, position: 'relative' }}>
-        {stepNumber > 1 && (
-          <button 
-            onClick={handleBack} 
-            style={{ 
-              position: 'absolute', top: 12, left: 24, 
-              background: 'transparent', border: 'none', 
-              color: '#94a3b8', fontSize: '0.85rem', fontWeight: 500, 
-              display: 'flex', alignItems: 'center', gap: 6, 
-              cursor: 'pointer', outline: 'none' 
+          <span
+            className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[0.65rem] font-medium uppercase tracking-[0.18em] backdrop-blur-md"
+            style={{
+              borderColor: activeEmotion.ring,
+              background: activeEmotion.tint,
+              color: activeEmotion.accent,
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-            Go Back
-          </button>
-        )}
-        <div style={{ display: 'flex', gap: 6, marginTop: stepNumber > 1 ? 24 : 0 }}>
-          {[1, 2, 3].map((step) => (
-            <div key={step} style={{ flex: 1, height: 6, background: 'rgba(30,41,59,0.8)', borderRadius: 999, overflow: 'hidden' }}>
-              {step <= stepNumber && (
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: '100%' }}
-                  transition={{ duration: 0.5, ease: 'easeOut', delay: step === stepNumber ? 0.2 : 0 }}
-                  style={{ height: '100%', background: 'linear-gradient(90deg, #2dd4bf, #38bdf8)', borderRadius: 999, boxShadow: '0 0 12px rgba(45,212,191,0.4)' }}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-        <div style={{ textAlign: 'center', marginTop: 20 }}>
-          <span style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase' as const, color: '#64748b' }}>
+            <Sparkles className="h-3 w-3" />
             Step {stepNumber} of {TOTAL_STEPS}
           </span>
-          <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: 4 }}>{STEP_SUBTITLES[stepNumber]}</p>
+        </div>
+
+        {/* Progress pills */}
+        <div className="mt-6 flex gap-2">
+          {[1, 2, 3].map((step) => {
+            const done = step < stepNumber;
+            const active = step === stepNumber;
+            return (
+              <div
+                key={step}
+                className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]"
+              >
+                {(done || active) && (
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: '100%' }}
+                    transition={{ duration: 0.55, ease: 'easeOut', delay: active ? 0.2 : 0 }}
+                    className="h-full rounded-full"
+                    style={{
+                      background: activeEmotion.gradient,
+                      boxShadow: `0 0 16px ${activeEmotion.glow}`,
+                    }}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 text-center">
+          <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-[color:var(--color-fg-subtle)]">
+            {STEP_SUBTITLES[stepNumber]}
+          </p>
         </div>
       </div>
 
       {/* Question + Options */}
-      <div style={{ flex: 1, display: 'flex', width: '100%', maxWidth: 640, flexDirection: 'column', justifyContent: 'center', padding: '0 24px 48px' }}>
+      <div className="relative z-10 flex w-full max-w-2xl flex-1 flex-col justify-center px-6 py-10 sm:py-14">
         <AnimatePresence mode="wait">
           {currentQ && (
-            <motion.div key={currentQ.id} variants={questionVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}>
-              <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2.5rem)', fontWeight: 300, textAlign: 'center', lineHeight: 1.35, marginBottom: q1Subtitle ? 8 : 48, color: '#f8fafc' }}>
+            <motion.div
+              key={currentQ.id}
+              variants={questionVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <h1 className="font-display text-balance text-center text-4xl italic leading-[1.1] text-[color:var(--color-fg)] sm:text-5xl">
                 {currentQ.questionText}
               </h1>
 
-              {q1Subtitle && (
-                <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.95rem', marginBottom: 40 }}>
-                  {q1Subtitle}
-                </p>
-              )}
+              <p className="mx-auto mt-5 max-w-md text-center text-sm text-[color:var(--color-fg-muted)] sm:text-base">
+                {STEP_HINTS[stepNumber] ?? 'Choose what resonates with you right now.'}
+              </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="mt-10 flex flex-col gap-3">
                 {options.map((opt, i) => {
                   const emoji = getEmojiForOption(opt.text, opt.route, stepNumber);
+                  const optionEmotion = stepNumber === 1
+                    ? resolveEmotion(resolveRouteEmotion(opt.route))
+                    : activeEmotion;
+
                   return (
                     <motion.button
-                      key={i} custom={i} variants={cardStagger} initial="hidden" animate="visible"
+                      key={`${currentQ.id}-${i}`}
+                      type="button"
+                      custom={i}
+                      variants={cardStagger}
+                      initial="hidden"
+                      animate="visible"
                       onClick={() => handleSelect(opt.label, opt.route, opt.flag)}
-                      whileHover={{ scale: 1.025, y: -2 }} whileTap={{ scale: 0.97 }}
+                      whileHover={{ y: -2 }}
+                      whileTap={{ scale: 0.985 }}
+                      className="group relative flex w-full items-center gap-4 overflow-hidden rounded-[var(--radius-lg)] border border-white/[0.08] bg-white/[0.03] px-5 py-4 text-left backdrop-blur-xl transition-all duration-300 hover:border-white/20 hover:bg-white/[0.06] focus:outline-none focus-visible:ring-2"
                       style={{
-                        width: '100%', textAlign: 'left', background: 'rgba(15,23,42,0.6)',
-                        backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
-                        border: '1px solid rgba(148,163,184,0.1)', borderRadius: 20,
-                        padding: '20px 24px', cursor: 'pointer', color: '#cbd5e1',
-                        fontFamily: 'inherit', fontSize: '1.05rem',
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
-                        transition: 'border-color 0.3s, background 0.3s, box-shadow 0.3s, color 0.3s', outline: 'none',
+                        ['--option-accent' as string]: optionEmotion.accent,
+                        ['--option-glow' as string]: optionEmotion.glow,
+                        ['--option-soft' as string]: optionEmotion.soft,
+                        ['--option-tint' as string]: optionEmotion.tint,
+                        ['--option-ring' as string]: optionEmotion.ring,
                       }}
-                      onMouseEnter={(e) => { const el = e.currentTarget; el.style.borderColor = 'rgba(45,212,191,0.4)'; el.style.background = 'rgba(15,23,42,0.85)'; el.style.boxShadow = '0 0 24px rgba(45,212,191,0.08), inset 0 1px 0 rgba(45,212,191,0.1)'; el.style.color = '#f1f5f9'; }}
-                      onMouseLeave={(e) => { const el = e.currentTarget; el.style.borderColor = 'rgba(148,163,184,0.1)'; el.style.background = 'rgba(15,23,42,0.6)'; el.style.boxShadow = 'none'; el.style.color = '#cbd5e1'; }}
                     >
-                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 10, background: 'rgba(45,212,191,0.1)', color: '#2dd4bf', fontSize: '1.1rem', flexShrink: 0, border: '1px solid rgba(45,212,191,0.2)' }}>
-                        {emoji}
+                      {/* Hover glow */}
+                      <span
+                        aria-hidden
+                        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                        style={{
+                          background: `radial-gradient(520px circle at 10% 50%, var(--option-soft), transparent 55%)`,
+                        }}
+                      />
+                      {/* Left accent bar */}
+                      <span
+                        aria-hidden
+                        className="pointer-events-none absolute inset-y-2 left-0 w-[3px] rounded-full opacity-60 transition-opacity duration-300 group-hover:opacity-100"
+                        style={{ background: `linear-gradient(180deg, var(--option-accent), transparent)` }}
+                      />
+
+                      <span
+                        className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border text-xl"
+                        style={{
+                          background: `var(--option-tint)`,
+                          borderColor: `var(--option-ring)`,
+                          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.06)`,
+                        }}
+                      >
+                        <span className="drop-shadow-sm">{emoji}</span>
                       </span>
-                      <span style={{ flex: 1, paddingLeft: 6 }}>{opt.text}</span>
-                      <ArrowRight style={{ width: 20, height: 20, color: '#2dd4bf', opacity: 0.4, flexShrink: 0 }} />
+
+                      <span className="relative flex-1 text-[0.98rem] font-medium leading-snug text-[color:var(--color-fg)] sm:text-[1.04rem]">
+                        {opt.text}
+                      </span>
+
+                      <span
+                        className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border opacity-70 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100"
+                        style={{
+                          borderColor: `var(--option-ring)`,
+                          color: `var(--option-accent)`,
+                          background: `var(--option-tint)`,
+                        }}
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </span>
                     </motion.button>
                   );
                 })}
@@ -355,53 +509,123 @@ export default function OnboardingFlow() {
         </AnimatePresence>
       </div>
 
+      {/* Footer reassurance */}
+      <div className="relative z-10 pb-8 text-center text-xs text-[color:var(--color-fg-subtle)]">
+        Private by design · You can pause any time
+      </div>
+
       {/* Safety Modal */}
       <AnimatePresence>
         {safetyOverlay && (() => {
           const cfg = getSafetyConfig(safetyOverlay.flagLevel);
           return (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
-              style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(2,6,23,0.85)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
-              <motion.div initial={{ scale: 0.92, y: 24, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.92, y: 24, opacity: 0 }}
-                style={{ background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)', border: `1px solid ${cfg.borderColor}`, borderRadius: 24, padding: 36, maxWidth: 440, width: '100%', position: 'relative', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: 2, background: `linear-gradient(90deg, transparent 0%, ${cfg.accentColor} 50%, transparent 100%)` }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 14, background: `${cfg.accentColor}15`, border: `1px solid ${cfg.borderColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <ShieldAlert style={{ width: 22, height: 22, color: cfg.accentColor }} />
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-5 backdrop-blur-xl"
+            >
+              <motion.div
+                initial={{ scale: 0.94, y: 20, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.94, y: 20, opacity: 0 }}
+                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                className="relative w-full max-w-md overflow-hidden rounded-[var(--radius-xl)] border bg-white/[0.04] p-8 backdrop-blur-2xl"
+                style={{
+                  borderColor: cfg.borderColor,
+                  boxShadow: `0 32px 72px rgba(2,6,23,0.55), inset 0 1px 0 rgba(255,255,255,0.06)`,
+                }}
+              >
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-0 top-0 h-px"
+                  style={{
+                    background: `linear-gradient(90deg, transparent, ${cfg.accentColor}, transparent)`,
+                  }}
+                />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 opacity-60"
+                  style={{
+                    background: `radial-gradient(520px circle at 80% -10%, ${cfg.tint}, transparent 60%)`,
+                  }}
+                />
+
+                <div className="relative flex items-center gap-3">
+                  <div
+                    className="flex h-11 w-11 items-center justify-center rounded-2xl border"
+                    style={{ background: cfg.tint, borderColor: cfg.borderColor }}
+                  >
+                    <ShieldAlert className="h-5 w-5" style={{ color: cfg.accentColor }} />
                   </div>
-                  <h3 style={{ fontSize: '1.35rem', fontWeight: 600, color: cfg.accentColor }}>{cfg.title}</h3>
+                  <h3
+                    className="font-display text-2xl italic"
+                    style={{ color: cfg.accentColor }}
+                  >
+                    {cfg.title}
+                  </h3>
                 </div>
-                <p style={{ color: '#94a3b8', fontSize: '1rem', lineHeight: 1.7, marginBottom: cfg.showCrisis ? 20 : 28 }}>
+
+                <p className="relative mt-4 text-sm leading-relaxed text-[color:var(--color-fg-muted)]">
                   {cfg.message}
                 </p>
+
                 {cfg.showCrisis && (
-                  <div style={{ background: 'rgba(244,63,94,0.05)', border: '1px solid rgba(244,63,94,0.1)', borderRadius: 16, padding: '16px 20px', marginBottom: 24 }}>
-                    <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 12 }}>Immediate Support</p>
-                    {[
-                      { icon: Phone, name: 'Samaritans', detail: '116 123 (free, 24/7)' },
-                      { icon: MessageCircle, name: 'SHOUT', detail: 'Text SHOUT to 85258' },
-                      { icon: Phone, name: 'NHS 111', detail: '111 (mental health option)' },
-                    ].map((r, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', color: '#94a3b8', fontSize: '0.85rem' }}>
-                        <r.icon style={{ width: 14, height: 14, color: cfg.accentColor, flexShrink: 0 }} />
-                        <strong style={{ color: '#e2e8f0' }}>{r.name}</strong> &mdash; {r.detail}
-                      </div>
-                    ))}
+                  <div
+                    className="relative mt-5 rounded-[var(--radius-md)] border p-4"
+                    style={{
+                      borderColor: 'rgba(244,63,94,0.22)',
+                      background: 'rgba(244,63,94,0.05)',
+                    }}
+                  >
+                    <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-fg-subtle)]">
+                      Immediate Support
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {[
+                        { icon: Phone, name: 'Samaritans', detail: '116 123 · free, 24/7' },
+                        { icon: MessageCircle, name: 'SHOUT', detail: 'Text SHOUT to 85258' },
+                        { icon: Phone, name: 'NHS 111', detail: '111 · mental health option' },
+                      ].map((r, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2.5 text-sm text-[color:var(--color-fg-muted)]"
+                        >
+                          <r.icon
+                            className="h-3.5 w-3.5 flex-shrink-0"
+                            style={{ color: cfg.accentColor }}
+                          />
+                          <span className="font-semibold text-[color:var(--color-fg)]">{r.name}</span>
+                          <span className="opacity-80">— {r.detail}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+                <div className="relative mt-6 flex flex-col gap-2">
                   {cfg.showCrisis && (
-                    <button onClick={() => router.push('/crisis-support')}
-                      style={{ width: '100%', padding: '14px 20px', background: `${cfg.accentColor}15`, color: cfg.accentColor, fontWeight: 600, fontSize: '0.95rem', borderRadius: 16, border: `1px solid ${cfg.borderColor}`, cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.2s' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = `${cfg.accentColor}30`; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = `${cfg.accentColor}15`; }}
-                    >Get Immediate Support</button>
+                    <button
+                      type="button"
+                      onClick={() => router.push('/crisis-support')}
+                      className="w-full rounded-[var(--radius-md)] border px-5 py-3 text-sm font-semibold transition-all hover:brightness-110"
+                      style={{
+                        background: cfg.tint,
+                        borderColor: cfg.borderColor,
+                        color: cfg.accentColor,
+                      }}
+                    >
+                      Get Immediate Support
+                    </button>
                   )}
-                  <button onClick={() => proceedNext(safetyOverlay.answerDetail, safetyOverlay.next)}
-                    style={{ width: '100%', padding: '14px 20px', background: 'transparent', color: '#64748b', fontWeight: 500, fontSize: '0.9rem', borderRadius: 16, border: 'none', cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.2s, color 0.2s' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(30,41,59,0.6)'; e.currentTarget.style.color = '#94a3b8'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
-                  >Continue Assessment</button>
+                  <button
+                    type="button"
+                    onClick={() => proceedNext(safetyOverlay.answerDetail, safetyOverlay.next)}
+                    className="w-full rounded-[var(--radius-md)] border border-transparent px-5 py-3 text-sm font-medium text-[color:var(--color-fg-subtle)] transition-colors hover:bg-white/[0.04] hover:text-[color:var(--color-fg-muted)]"
+                  >
+                    Continue Assessment
+                  </button>
                 </div>
               </motion.div>
             </motion.div>
