@@ -185,7 +185,11 @@ export async function POST(
                         const { value: chunk, done } = await geminiStream.next();
                         if (done) break;
 
-                        const text = chunk?.text || (chunk?.candidates?.[0]?.content?.parts?.[0]?.text) || '';
+                        const c = chunk as {
+                            text?: string;
+                            candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+                        };
+                        const text = c?.text || c?.candidates?.[0]?.content?.parts?.[0]?.text || '';
                         if (text) {
                             fullResponse += text;
                             controller.enqueue(

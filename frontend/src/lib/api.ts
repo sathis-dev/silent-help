@@ -5,22 +5,101 @@
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+const GUEST_TOKEN_KEY = 'sh_guest_token';
+const GUEST_NAME_KEY = 'sh_guest_name';
+
 // Support type definition to prevent ESLint 'any' warnings for window injection
 interface ClerkWindow extends Window {
     Clerk?: {
+        loaded?: boolean;
         session?: {
             getToken: () => Promise<string>;
         };
     };
 }
 
+/**
+ * Wait briefly for the Clerk SDK (`window.Clerk`) to finish hydrating. Without
+ * this, API calls that fire on first render attach no Authorization header
+ * because `window.Clerk` hasn't been populated yet — every protected endpoint
+ * then responds with 401 even though the user is actually signed in.
+ */
+async function waitForClerk(timeoutMs = 1500): Promise<void> {
+    if (typeof window === 'undefined') return;
+    const clerkWin = window as unknown as ClerkWindow;
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        if (clerkWin.Clerk?.loaded) return;
+        await new Promise((r) => setTimeout(r, 50));
+    }
+}
+
+/**
+ * Fetch a backend-signed JWT for the current guest session, caching it in
+ * localStorage so we only mint one per device. Lets guest users (no Clerk
+ * account) call protected endpoints like journal/mood/chat without hitting 401.
+ */
+async function ensureGuestToken(): Promise<string | null> {
+    if (typeof window === 'undefined') return null;
+    const existing = localStorage.getItem(GUEST_TOKEN_KEY);
+    if (existing) return existing;
+    try {
+        const res = await fetch(`${API_BASE}/api/auth/guest`, { method: 'POST' });
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (typeof data.token === 'string') {
+            localStorage.setItem(GUEST_TOKEN_KEY, data.token);
+            return data.token;
+        }
+    } catch {
+        /* network error — caller will get 401 and retry next time */
+    }
+    return null;
+}
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (typeof window !== 'undefined' && (window as unknown as ClerkWindow).Clerk?.session) {
-        const token = await (window as unknown as ClerkWindow).Clerk!.session!.getToken();
-        if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (typeof window === 'undefined') return headers;
+
+    await waitForClerk();
+    const clerkWin = window as unknown as ClerkWindow;
+
+    // Signed-in Clerk user → use their session token
+    if (clerkWin.Clerk?.session) {
+        try {
+            const token = await clerkWin.Clerk.session.getToken();
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+                return headers;
+            }
+        } catch {
+            /* fall through to guest fallback */
+        }
     }
+
+    // Guest session (either explicit guest_name flag, or legacy guest with only a cached token)
+    const hasGuestName = !!localStorage.getItem(GUEST_NAME_KEY);
+    const hasGuestToken = !!localStorage.getItem(GUEST_TOKEN_KEY);
+    if (hasGuestName || hasGuestToken) {
+        const guestToken = await ensureGuestToken();
+        if (guestToken) headers['Authorization'] = `Bearer ${guestToken}`;
+    }
+
     return headers;
+}
+
+/**
+ * Public helper so code paths outside `apiFetch` (e.g. the onboarding submit in
+ * `app/auth/page.tsx`) can mint the guest token proactively when a user picks
+ * the guest flow, rather than waiting for the first protected call to 401.
+ */
+export async function provisionGuestAuth(): Promise<string | null> {
+    return ensureGuestToken();
+}
+
+export function clearGuestAuth(): void {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(GUEST_TOKEN_KEY);
 }
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
