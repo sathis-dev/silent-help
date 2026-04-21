@@ -149,13 +149,55 @@ export async function deleteConversation(id: string) {
 
 // ─── Chat Messages (Streaming) ──────────────────────────────
 
+export interface ChatCitation {
+    kind: 'memory' | 'journal' | 'message';
+    id: string;
+    label: string;
+    preview: string;
+    when: string;
+    similarity: number;
+}
+
+export interface ChatPersona {
+    emotion: 'anxious' | 'overwhelmed' | 'frustrated' | 'sad' | 'pressure' | 'neutral';
+    label: string;
+    tone: string;
+    pace: string;
+    accent: string;
+}
+
+export interface GroundingAction {
+    id: string;
+    label: string;
+    toolHref: string;
+}
+
+export interface ChatMeta {
+    persona: ChatPersona;
+    citations: ChatCitation[];
+    crisis: { severity: string; source: string; matchedKeywords: string[] } | null;
+}
+
+export interface ChatDoneData {
+    messageId: string;
+    crisis?: CrisisInfo | null;
+    suggestions?: string[];
+    groundingActions?: GroundingAction[];
+}
+
+export interface ChatStreamCallbacks {
+    onMeta?: (meta: ChatMeta) => void;
+    onChunk: (text: string) => void;
+    onDone: (data: ChatDoneData) => void;
+    onError: (error: string) => void;
+}
+
 export async function sendMessage(
     conversationId: string,
     content: string,
-    onChunk: (text: string) => void,
-    onDone: (data: { messageId: string; crisis?: CrisisInfo | null }) => void,
-    onError: (error: string) => void,
+    callbacks: ChatStreamCallbacks,
 ) {
+    const { onMeta, onChunk, onDone, onError } = callbacks;
     try {
         const authHeaders = await getAuthHeaders();
         const res = await fetch(`${API_BASE}/api/chat/${conversationId}/message`, {
@@ -177,7 +219,12 @@ export async function sendMessage(
             const data = await res.json();
             if (data.message) {
                 onChunk(data.message.content);
-                onDone({ messageId: data.message.id, crisis: data.crisis });
+                onDone({
+                    messageId: data.message.id,
+                    crisis: data.crisis,
+                    suggestions: data.suggestions,
+                    groundingActions: data.groundingActions,
+                });
             }
             return;
         }
@@ -201,8 +248,16 @@ export async function sendMessage(
                 if (line.startsWith('data: ')) {
                     try {
                         const data = JSON.parse(line.slice(6));
+                        if (data.meta && onMeta) onMeta(data.meta as ChatMeta);
                         if (data.content) onChunk(data.content);
-                        if (data.done) onDone({ messageId: data.messageId, crisis: data.crisis });
+                        if (data.done) {
+                            onDone({
+                                messageId: data.messageId,
+                                crisis: data.crisis,
+                                suggestions: data.suggestions,
+                                groundingActions: data.groundingActions,
+                            });
+                        }
                         if (data.error) onError(data.error);
                     } catch { /* skip malformed */ }
                 }
@@ -257,8 +312,9 @@ export interface DistortionHit {
 export interface DistortionResponse {
     summary: string;
     distortions: DistortionHit[];
-    provider: 'gemini' | 'openai' | 'heuristic';
+    provider: 'gemini' | 'openai' | 'heuristic' | 'fallback';
     degraded: boolean;
+    degradedReason?: 'ai_output_unparseable' | 'ai_unavailable' | string;
 }
 
 export async function detectDistortions(content: string) {

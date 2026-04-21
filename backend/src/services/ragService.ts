@@ -15,6 +15,16 @@ export interface RagContext {
     usedMemoryIds: string[];
     usedJournalIds: string[];
     usedMessageIds: string[];
+    citations: RagCitation[];
+}
+
+export interface RagCitation {
+    kind: 'memory' | 'journal' | 'message';
+    id: string;
+    label: string;           // short human-readable pill text (e.g. "yesterday · anxious")
+    preview: string;         // one-line preview for tooltip
+    when: string;            // relative time
+    similarity: number;      // 0..1
 }
 
 const MAX_JOURNAL = 3;
@@ -66,12 +76,21 @@ export async function buildRagContext(userId: string, query: string): Promise<Ra
     const usedMemoryIds: string[] = [];
     const usedJournalIds: string[] = [];
     const usedMessageIds: string[] = [];
+    const citations: RagCitation[] = [];
 
     if (memories.length > 0) {
         pieces.push('Known about the user (they asked you to remember):');
         for (const m of memories) {
             usedMemoryIds.push(m.id);
             pieces.push(`• [${m.kind}] ${truncate(m.content, 180)}`);
+            citations.push({
+                kind: 'memory',
+                id: m.id,
+                label: m.kind.replace(/_/g, ' '),
+                preview: truncate(m.content, 140),
+                when: 'remembered',
+                similarity: 1,
+            });
         }
     }
 
@@ -84,6 +103,16 @@ export async function buildRagContext(userId: string, query: string): Promise<Ra
             const when = formatWhen(j.created_at);
             const moodTag = j.mood ? ` (mood: ${j.mood})` : '';
             pieces.push(`• ${when}${moodTag}: "${truncate(plaintext, 180)}"`);
+            if (typeof j.similarity === 'number' && j.similarity >= 0.25) {
+                citations.push({
+                    kind: 'journal',
+                    id: j.id,
+                    label: `journal · ${when}${j.mood ? ` · ${j.mood}` : ''}`,
+                    preview: truncate(plaintext, 140),
+                    when,
+                    similarity: Math.max(0, Math.min(1, j.similarity)),
+                });
+            }
         }
     }
 
@@ -93,13 +122,25 @@ export async function buildRagContext(userId: string, query: string): Promise<Ra
         for (const msg of messages) {
             usedMessageIds.push(msg.id);
             pieces.push(`• ${formatWhen(msg.created_at)}: "${truncate(msg.content, 160)}"`);
+            if (typeof msg.similarity === 'number' && msg.similarity >= 0.3) {
+                citations.push({
+                    kind: 'message',
+                    id: msg.id,
+                    label: `past chat · ${formatWhen(msg.created_at)}`,
+                    preview: truncate(msg.content, 140),
+                    when: formatWhen(msg.created_at),
+                    similarity: Math.max(0, Math.min(1, msg.similarity)),
+                });
+            }
         }
     }
 
     let block = pieces.join('\n').trim();
     if (block.length > MAX_CHARS) block = block.slice(0, MAX_CHARS - 1) + '…';
 
-    return { block, usedMemoryIds, usedJournalIds, usedMessageIds };
+    // Surface the highest-similarity citations first; cap at 6 total
+    citations.sort((a, b) => b.similarity - a.similarity);
+    return { block, usedMemoryIds, usedJournalIds, usedMessageIds, citations: citations.slice(0, 6) };
 }
 
 function truncate(s: string, n: number): string {
