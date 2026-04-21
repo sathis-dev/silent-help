@@ -232,6 +232,119 @@ export async function getJournalInsight() {
     });
 }
 
+// ─── Cognitive distortion detector (CBT) ────────────────────
+
+export type DistortionLabel =
+    | 'catastrophising'
+    | 'all_or_nothing'
+    | 'mind_reading'
+    | 'fortune_telling'
+    | 'should_statements'
+    | 'personalisation'
+    | 'emotional_reasoning'
+    | 'disqualifying_the_positive'
+    | 'magnification'
+    | 'labeling'
+    | 'mental_filter'
+    | 'overgeneralisation';
+
+export interface DistortionHit {
+    label: DistortionLabel;
+    evidence: string;
+    reframe: string;
+}
+
+export interface DistortionResponse {
+    summary: string;
+    distortions: DistortionHit[];
+    provider: 'gemini' | 'openai' | 'heuristic';
+    degraded: boolean;
+}
+
+export async function detectDistortions(content: string) {
+    return apiFetch<DistortionResponse>('/api/journal/distortions', {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+    });
+}
+
+// ─── Daily affirmation ──────────────────────────────────────
+
+export interface AffirmationResponse {
+    affirmation: string;
+    tone: string;
+    cached: boolean;
+}
+
+export async function getDailyAffirmation() {
+    return apiFetch<AffirmationResponse>('/api/affirmation');
+}
+
+// ─── Gratitude ──────────────────────────────────────────────
+
+export interface GratitudeEntry {
+    id: string;
+    content: string;
+    createdAt: string;
+}
+
+export async function listGratitude() {
+    return apiFetch<{ entries: GratitudeEntry[]; streak: number }>('/api/gratitude');
+}
+
+export async function createGratitude(content: string) {
+    return apiFetch<{ entry: GratitudeEntry; streak: number }>('/api/gratitude', {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+    });
+}
+
+// ─── Letter to future you ───────────────────────────────────
+
+export interface FutureLetter {
+    id: string;
+    content: string;
+    deliverAt: string;
+    delivered: boolean;
+    createdAt: string;
+}
+
+export async function listFutureLetters() {
+    return apiFetch<{ letters: FutureLetter[] }>('/api/letters');
+}
+
+export async function createFutureLetter(content: string, deliverInDays: number) {
+    return apiFetch<{ letter: FutureLetter }>('/api/letters', {
+        method: 'POST',
+        body: JSON.stringify({ content, deliverInDays }),
+    });
+}
+
+// ─── Clinical questionnaires (PHQ-9 / GAD-7) ─────────────────
+
+export type ClinicalInstrument = 'phq9' | 'gad7';
+
+export interface ClinicalResult {
+    id: string;
+    instrument: ClinicalInstrument;
+    score: number;
+    severity: 'minimal' | 'mild' | 'moderate' | 'moderately_severe' | 'severe';
+    answers: number[];
+    createdAt: string;
+}
+
+export async function listClinical(instrument?: ClinicalInstrument) {
+    const q = instrument ? `?instrument=${instrument}` : '';
+    return apiFetch<{ results: ClinicalResult[] }>(`/api/clinical${q}`);
+}
+
+export async function submitClinical(instrument: ClinicalInstrument, answers: number[]) {
+    return apiFetch<{ result: ClinicalResult }>('/api/clinical', {
+        method: 'POST',
+        body: JSON.stringify({ instrument, answers }),
+    });
+}
+
 // ─── Mood ───────────────────────────────────────────────────
 
 export async function getMoodHistory() {

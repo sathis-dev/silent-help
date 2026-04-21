@@ -36,6 +36,10 @@ model User {
   auditLogs       AuditLog[]
   reminders       Reminder[]
   digestCaches    DigestCache[]
+  gratitude       GratitudeEntry[]
+  futureLetters   FutureLetter[]
+  clinicalResults ClinicalResult[]
+  affirmations    AffirmationCache[]
 
   @@index([deletedAt])
   @@map("users")
@@ -358,3 +362,76 @@ model DigestCache {
   @@map("digest_caches")
 }
 
+
+// ============================================================================
+// GRATITUDE — daily gratitude entries + streak
+// ============================================================================
+
+model GratitudeEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Plaintext or summary placeholder — when cipherText is present, this is redacted
+  content       String   @db.Text
+  // AES-256-GCM ciphertext (iv|tag|ct, base64) — same pattern as JournalEntry
+  cipherText    String?  @map("cipher_text") @db.Text
+  dayKey        String   @map("day_key") @db.VarChar(10)   // 'YYYY-MM-DD' in UTC
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, createdAt])
+  @@index([userId, dayKey])
+  @@map("gratitude_entries")
+}
+
+// ============================================================================
+// FUTURE LETTER — "Letter to future you", encrypted, delivered on a date
+// ============================================================================
+
+model FutureLetter {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content    String   @db.Text
+  cipherText String?  @map("cipher_text") @db.Text
+  deliverAt  DateTime @map("deliver_at") @db.Timestamptz(6)
+  delivered  Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, deliverAt])
+  @@map("future_letters")
+}
+
+// ============================================================================
+// CLINICAL RESULT — validated questionnaires (PHQ-9, GAD-7)
+// ============================================================================
+
+model ClinicalResult {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instrument String   @db.VarChar(16)   // 'phq9' | 'gad7'
+  score      Int      @db.SmallInt
+  severity   String   @db.VarChar(32)   // minimal | mild | moderate | moderately_severe | severe
+  answers    Json     @db.JsonB        // number[]
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, instrument, createdAt])
+  @@map("clinical_results")
+}
+
+// ============================================================================
+// AFFIRMATION CACHE — one per user per day
+// ============================================================================
+
+model AffirmationCache {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dayKey    String   @map("day_key") @db.VarChar(10)
+  content   String   @db.Text
+  tone      String   @db.VarChar(32)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([userId, dayKey])
+  @@map("affirmation_caches")
+}

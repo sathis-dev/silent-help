@@ -23,7 +23,7 @@ function AuthForms() {
   const [loading, setLoading] = useState(false);
 
   const checkAndSubmitPending = useCallback(
-    async (token?: string) => {
+    async ({ token, isGuest }: { token?: string; isGuest: boolean }) => {
       const pending = localStorage.getItem('sh_pending_assessment');
       if (!pending) return false;
       try {
@@ -36,7 +36,11 @@ function AuthForms() {
         });
         const data = await res.json();
         if (data.profile) {
-          if (!token) localStorage.setItem('sh_guest_profile', JSON.stringify(data.profile));
+          // Guests don't have a server-side Clerk copy — mirror to localStorage so
+          // dashboard can render without a round-trip. Clerk users read from server.
+          if (isGuest) {
+            localStorage.setItem('sh_guest_profile', JSON.stringify(data.profile));
+          }
           setContextProfile(data.profile);
           localStorage.removeItem('sh_pending_assessment');
         }
@@ -52,7 +56,7 @@ function AuthForms() {
     if (!isSignedIn) return;
     (async () => {
       const token = await getToken();
-      await checkAndSubmitPending(token || undefined);
+      await checkAndSubmitPending({ token: token || undefined, isGuest: false });
       router.replace('/dashboard');
     })();
   }, [isSignedIn, router, getToken, checkAndSubmitPending]);
@@ -65,7 +69,7 @@ function AuthForms() {
     // Mint a backend-signed JWT up-front so journal/mood/chat/onboarding
     // endpoints stop 401-ing for guest sessions.
     const guestToken = await provisionGuestAuth();
-    const hasPending = await checkAndSubmitPending(guestToken || undefined);
+    const hasPending = await checkAndSubmitPending({ token: guestToken || undefined, isGuest: true });
     setLoading(false);
     router.push(hasPending ? '/dashboard' : '/onboarding');
   };

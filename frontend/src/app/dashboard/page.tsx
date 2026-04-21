@@ -26,6 +26,7 @@ import {
   createConversation,
   getMoodHistory,
   getWeeklyDigest,
+  getDailyAffirmation,
   listJournalEntries,
   logMood,
   suggestCoachAction,
@@ -76,6 +77,7 @@ export default function DashboardPage() {
   const [digestLoading, setDigestLoading] = useState(true);
   const [coach, setCoach] = useState<CoachSuggestion | null>(null);
   const [coachLoading, setCoachLoading] = useState(true);
+  const [affirmation, setAffirmation] = useState<string | null>(null);
   const loadedRef = useRef(false);
 
   useEffect(() => {
@@ -102,6 +104,9 @@ export default function DashboardPage() {
       .then((r) => setCoach(r.suggestion))
       .catch(() => setCoach(null))
       .finally(() => setCoachLoading(false));
+    getDailyAffirmation()
+      .then((r) => setAffirmation(r.affirmation))
+      .catch(() => setAffirmation(null));
   }, [loadProfile, router]);
 
   const theme = resolveEmotion(profile?.emotionalProfile);
@@ -159,7 +164,7 @@ export default function DashboardPage() {
           <h1 className="mt-1 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
             {firstName}.{' '}
             <span className="font-display italic text-[color:var(--color-fg-muted)]">
-              {profile?.affirmation ?? "Today's intention is softness."}
+              {affirmation ?? profile?.affirmation ?? "Today's intention is softness."}
             </span>
           </h1>
         </div>

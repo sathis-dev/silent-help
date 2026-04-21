@@ -1,49 +1,21 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowLeft, MessageCircle, Phone, ShieldCheck } from 'lucide-react';
 import BreathingExercise from '@/components/activities/BreathingExercise';
 import { Button } from '@/components/ui/button';
 import { Aurora, NoiseOverlay } from '@/components/ui/aurora';
+import {
+  CRISIS_BY_COUNTRY,
+  detectCountry,
+  getCountryResources,
+  setCountry,
+  type ResourceTone,
+} from '@/lib/crisis-resources';
 
-const RESOURCES = [
-  {
-    key: '999',
-    title: '999',
-    description: 'Emergency services — police, ambulance, fire.',
-    tel: '999',
-    mode: 'call',
-    tone: 'danger',
-  },
-  {
-    key: '111',
-    title: 'NHS 111',
-    description: 'Urgent medical help, 24/7. Option 2 for mental health.',
-    tel: '111',
-    mode: 'call',
-    tone: 'warning',
-  },
-  {
-    key: 'samaritans',
-    title: 'Samaritans',
-    description: 'Free listening, 24/7. Call 116 123 from any phone.',
-    tel: '116123',
-    mode: 'call',
-    tone: 'info',
-  },
-  {
-    key: 'shout',
-    title: 'SHOUT 85258',
-    description: 'UK crisis text line. Text SHOUT to 85258.',
-    tel: '85258',
-    smsBody: 'SHOUT',
-    mode: 'text',
-    tone: 'calm',
-  },
-] as const;
-
-const TONE: Record<string, { border: string; bg: string; accent: string }> = {
+const TONE: Record<ResourceTone, { border: string; bg: string; accent: string }> = {
   danger: { border: 'rgba(251,113,133,0.35)', bg: 'rgba(251,113,133,0.1)', accent: '#fb7185' },
   warning: { border: 'rgba(251,191,36,0.35)', bg: 'rgba(251,191,36,0.1)', accent: '#fbbf24' },
   info: { border: 'rgba(56,189,248,0.35)', bg: 'rgba(56,189,248,0.1)', accent: '#7dd3fc' },
@@ -52,6 +24,12 @@ const TONE: Record<string, { border: string; bg: string; accent: string }> = {
 
 export default function SOSPage() {
   const accent = '#fb7185';
+  const [country, setCountryState] = useState<keyof typeof CRISIS_BY_COUNTRY>(() =>
+    detectCountry(),
+  );
+
+  const resources = getCountryResources(country);
+  const countryList = Object.keys(CRISIS_BY_COUNTRY) as Array<keyof typeof CRISIS_BY_COUNTRY>;
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -103,15 +81,37 @@ export default function SOSPage() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="mt-10"
         >
-          <h2 className="mb-4 text-sm uppercase tracking-[0.22em] text-[color:var(--color-fg-subtle)]">
-            UK crisis support — tap to reach out
-          </h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm uppercase tracking-[0.22em] text-[color:var(--color-fg-subtle)]">
+              {resources.countryName} · crisis support — tap to reach out
+            </h2>
+            <label className="flex items-center gap-2 text-xs text-[color:var(--color-fg-muted)]">
+              <span>Country</span>
+              <select
+                value={country}
+                onChange={(e) => {
+                  const next = e.target.value as keyof typeof CRISIS_BY_COUNTRY;
+                  setCountry(next);
+                  setCountryState(next);
+                }}
+                className="rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1 text-xs text-[color:var(--color-fg)] focus:outline-none focus:ring-1 focus:ring-white/30"
+              >
+                {countryList.map((c) => (
+                  <option key={c} value={c}>
+                    {CRISIS_BY_COUNTRY[c].countryName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
-            {RESOURCES.map((r, i) => {
+            {resources.resources.map((r, i) => {
               const tone = TONE[r.tone];
-              const href = r.mode === 'call'
-                ? `tel:${r.tel}`
-                : `sms:${r.tel}${'smsBody' in r && r.smsBody ? `?body=${encodeURIComponent(r.smsBody)}` : ''}`;
+              const href =
+                r.mode === 'call'
+                  ? `tel:${r.dest}`
+                  : `sms:${r.dest}${r.smsBody ? `?body=${encodeURIComponent(r.smsBody)}` : ''}`;
               return (
                 <motion.a
                   key={r.key}

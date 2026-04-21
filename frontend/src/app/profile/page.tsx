@@ -47,6 +47,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import AccessibilitySettings from '@/components/a11y/AccessibilitySettings';
+import MemoryGraph from '@/components/memory/MemoryGraph';
 
 function formatDateShort(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-GB', {
@@ -428,6 +430,10 @@ export default function ProfilePage() {
           </TabsContent>
 
           <TabsContent value="privacy" className="mt-6 space-y-5">
+            <AccessibilitySettings />
+
+            <MemoryGraph memories={memories} loading={memoriesLoading} />
+
             <Card>
               <CardContent className="p-6">
                 <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight">

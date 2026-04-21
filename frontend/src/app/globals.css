@@ -317,3 +317,73 @@ select:focus-visible {
 .loading-dots span:nth-child(3) {
   animation-delay: 0.4s;
 }
+
+/* ────────────────────────────────────────────────────────────────
+   Accessibility — data-* attributes on <html>
+   (see components/a11y/AccessibilityProvider.tsx)
+   ──────────────────────────────────────────────────────────────── */
+
+/* Font scale — resets rem root (affects everything downstream) */
+html[data-font-scale='S'] { font-size: 14px; }
+html[data-font-scale='M'] { font-size: 16px; }
+html[data-font-scale='L'] { font-size: 18px; }
+html[data-font-scale='XL'] { font-size: 20px; }
+
+/* Dyslexic-friendly font — stack that degrades gracefully */
+html[data-dyslexic='on'] {
+  --font-sans: 'OpenDyslexic', 'Comic Sans MS', 'Atkinson Hyperlegible', var(--font-inter), sans-serif;
+}
+html[data-dyslexic='on'] body,
+html[data-dyslexic='on'] .font-sans {
+  font-family: 'OpenDyslexic', 'Comic Sans MS', 'Atkinson Hyperlegible', var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.01em;
+  line-height: 1.7;
+}
+
+/* Reduce motion — honour user pref or manual override */
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-reduce-motion='off']) *,
+  html:not([data-reduce-motion='off']) *::before,
+  html:not([data-reduce-motion='off']) *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+html[data-reduce-motion='on'] *,
+html[data-reduce-motion='on'] *::before,
+html[data-reduce-motion='on'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Quiet mode — greyscale + kill all animation (overstimulation relief) */
+html[data-quiet-mode='on'] body {
+  filter: grayscale(0.85) contrast(0.95);
+}
+html[data-quiet-mode='on'] *,
+html[data-quiet-mode='on'] *::before,
+html[data-quiet-mode='on'] *::after {
+  animation: none !important;
+  transition-duration: 0.12s !important;
+}
+/* Gentle opacity-only transitions kept as a visual cue */
+html[data-quiet-mode='on'] a:hover,
+html[data-quiet-mode='on'] button:hover {
+  opacity: 0.85;
+}
+
+/* High contrast — stronger text on dim backgrounds */
+html[data-high-contrast='on'] {
+  --color-fg: #ffffff;
+  --color-fg-muted: #d9e0ea;
+  --color-fg-subtle: #a9b3c2;
+  --color-border: rgba(255, 255, 255, 0.22);
+}
+html[data-high-contrast='on'] .glass,
+html[data-high-contrast='on'] [class*='border-white/[0.0'] {
+  border-color: rgba(255, 255, 255, 0.28) !important;
+}

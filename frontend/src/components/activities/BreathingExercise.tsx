@@ -69,6 +69,23 @@ const PATTERNS: Record<string, BreathPattern> = {
         ],
         cycles: 6,
     },
+    '4-7-8': {
+        name: '4-7-8 Relaxing Breath',
+        phases: [
+            { phase: 'inhale', duration: 4, label: 'Quiet inhale through nose...' },
+            { phase: 'hold-in', duration: 7, label: 'Hold — let the body settle...' },
+            { phase: 'exhale', duration: 8, label: 'Whoosh out through mouth...' },
+        ],
+        cycles: 4,
+    },
+    'coherent': {
+        name: 'Coherent Breathing',
+        phases: [
+            { phase: 'inhale', duration: 6, label: 'Inhale smoothly...' },
+            { phase: 'exhale', duration: 6, label: 'Exhale smoothly...' },
+        ],
+        cycles: 10,
+    },
 };
 
 export type BreathingVariant = keyof typeof PATTERNS;
