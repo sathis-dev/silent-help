@@ -12,6 +12,9 @@ import {
   User,
   LifeBuoy,
   ChevronRight,
+  Heart,
+  Mail,
+  Activity,
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -23,6 +26,9 @@ const NAV = [
   { href: '/chat', icon: MessageSquare, label: 'Conversations' },
   { href: '/journal', icon: BookText, label: 'Journal' },
   { href: '/tools', icon: Sparkles, label: 'Tools' },
+  { href: '/gratitude', icon: Heart, label: 'Gratitude' },
+  { href: '/letters', icon: Mail, label: 'Letters' },
+  { href: '/clinical', icon: Activity, label: 'Check-ins' },
   { href: '/onboarding', icon: Compass, label: 'Re-assess' },
 ];
 
