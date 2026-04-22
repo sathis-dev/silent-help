@@ -1,11 +1,18 @@
 /**
  * Unified AI provider interface with automatic fallback.
  *
- * Providers:
- *   - primary: Gemini (gemini-2.5-flash) — fast, free-tier generous, used for chat + insights
- *   - fallback: OpenAI (gpt-4o-mini) — used when Gemini errors or no Gemini key
- *   - embeddings: OpenAI text-embedding-3-small (1536-dim) — primary
- *   - embeddings fallback: deterministic local hash embedding (keeps RAG functional without keys in dev)
+ * Chat providers (in order of preference when AI_MODE=hybrid):
+ *   - local   : any OpenAI-compatible self-hosted LLM at LOCAL_LLM_URL (vLLM, Ollama, Together, Groq, …)
+ *   - gemini  : Google Gemini 2.5 Flash
+ *   - openai  : gpt-4o-mini
+ *   - fallback: hard-coded gentle text (all providers offline)
+ *
+ * AI_MODE controls which tiers are allowed:
+ *   - 'local'  → only local LLM (no Gemini/OpenAI); falls through to hard-coded reply if local missing
+ *   - 'cloud'  → skip local LLM, use Gemini/OpenAI
+ *   - 'hybrid' → try local first, fall back through Gemini/OpenAI (default)
+ *
+ * Embeddings: self-hosted bge-small (384-dim, padded to 1536) → OpenAI text-embedding-3-small → hash.
  *
  * Callers should import the ergonomic helpers (`generate`, `stream`, `embed`)
  * rather than the provider classes directly.
@@ -34,14 +41,20 @@ export interface GenerateInput {
     temperature?: number;
 }
 
+export type ChatProvider = 'local' | 'gemini' | 'openai' | 'fallback';
+
 export interface GenerateResult {
     text: string;
-    provider: 'gemini' | 'openai' | 'fallback';
+    provider: ChatProvider;
+    model?: string;
 }
 
 export interface StreamChunk {
     content: string;
     done: boolean;
+    /** Emitted once (on the first chunk) so callers can report which provider handled the reply. */
+    provider?: ChatProvider;
+    model?: string;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -53,6 +66,25 @@ export function hasGemini(): boolean {
 }
 export function hasOpenAI(): boolean {
     return Boolean(process.env.OPENAI_API_KEY);
+}
+export function hasLocalLlm(): boolean {
+    return Boolean(process.env.LOCAL_LLM_URL);
+}
+
+export interface LocalLlmConfig {
+    url: string;
+    apiKey: string;
+    model: string;
+}
+
+export function getLocalLlmConfig(): LocalLlmConfig | null {
+    const url = process.env.LOCAL_LLM_URL;
+    if (!url) return null;
+    return {
+        url: url.replace(/\/+$/, ''),
+        apiKey: process.env.LOCAL_LLM_API_KEY || 'not-needed',
+        model: process.env.LOCAL_LLM_MODEL || 'silent-help-llm',
+    };
 }
 
 const EMBED_DIM = 1536;
@@ -74,6 +106,23 @@ function gemini(): GoogleGenAI {
     return _gemini;
 }
 
+/**
+ * OpenAI-compatible client pointed at our self-hosted LLM endpoint.
+ * Works with vLLM, Ollama, Together, Groq, OpenRouter — anything that
+ * speaks the `/v1/chat/completions` protocol.
+ */
+let _localLlm: OpenAI | null = null;
+function localLlm(): OpenAI | null {
+    const cfg = getLocalLlmConfig();
+    if (!cfg) return null;
+    if (_localLlm) return _localLlm;
+    _localLlm = new OpenAI({
+        apiKey: cfg.apiKey,
+        baseURL: cfg.url,
+    });
+    return _localLlm;
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // Non-streaming generation (used for coach suggestions, digests, etc.)
 // ────────────────────────────────────────────────────────────────────────────
@@ -81,8 +130,40 @@ function gemini(): GoogleGenAI {
 export async function generate(input: GenerateInput): Promise<GenerateResult> {
     const maxTokens = input.maxTokens ?? 600;
     const temperature = input.temperature ?? 0.7;
+    const mode = aiMode();
 
-    // Try Gemini first
+    // Try self-hosted LLM first (Phase B). In strict local mode this is the only tier.
+    if (mode !== 'cloud' && hasLocalLlm()) {
+        const cfg = getLocalLlmConfig()!;
+        try {
+            const client = localLlm();
+            if (client) {
+                const messages = [
+                    { role: 'system' as const, content: input.system },
+                    ...input.turns.map((t) => ({ role: t.role, content: t.content })),
+                ];
+                const r = await client.chat.completions.create({
+                    model: cfg.model,
+                    messages,
+                    max_tokens: maxTokens,
+                    temperature,
+                });
+                const text = r.choices[0]?.message?.content?.trim() || '';
+                if (text) return { text, provider: 'local', model: cfg.model };
+                logger.warn('ai.generate.local_llm_empty_fallback');
+            }
+        } catch (e) {
+            logger.warn({ err: String(e) }, 'ai.generate.local_llm_failed');
+        }
+        if (mode === 'local') {
+            return {
+                text: "I'm here with you. My self-hosted companion is warming up — your words are saved and safe.",
+                provider: 'fallback',
+            };
+        }
+    }
+
+    // Try Gemini
     if (hasGemini()) {
         try {
             const contents = toGeminiContents(input.turns);
@@ -96,7 +177,7 @@ export async function generate(input: GenerateInput): Promise<GenerateResult> {
                 },
             });
             const text = extractGeminiText(r) || '';
-            if (text) return { text, provider: 'gemini' };
+            if (text) return { text, provider: 'gemini', model: 'gemini-2.5-flash' };
             logger.warn('ai.generate.gemini_empty_fallback_openai');
         } catch (e) {
             logger.warn({ err: String(e) }, 'ai.generate.gemini_failed');
@@ -116,7 +197,7 @@ export async function generate(input: GenerateInput): Promise<GenerateResult> {
                 max_tokens: maxTokens,
                 temperature,
             });
-            return { text: r.choices[0]?.message?.content?.trim() || '', provider: 'openai' };
+            return { text: r.choices[0]?.message?.content?.trim() || '', provider: 'openai', model: 'gpt-4o-mini' };
         } catch (e) {
             logger.warn({ err: String(e) }, 'ai.generate.openai_failed');
         }
@@ -136,6 +217,58 @@ export async function generate(input: GenerateInput): Promise<GenerateResult> {
 export async function* stream(input: GenerateInput): AsyncGenerator<StreamChunk> {
     const maxTokens = input.maxTokens ?? 1000;
     const temperature = input.temperature ?? 0.7;
+    const mode = aiMode();
+
+    // ── Self-hosted LLM (Phase B) ──
+    if (mode !== 'cloud' && hasLocalLlm()) {
+        const cfg = getLocalLlmConfig()!;
+        try {
+            const client = localLlm();
+            if (client) {
+                const messages = [
+                    { role: 'system' as const, content: input.system },
+                    ...input.turns.map((t) => ({ role: t.role, content: t.content })),
+                ];
+                const s = await client.chat.completions.create({
+                    model: cfg.model,
+                    messages,
+                    max_tokens: maxTokens,
+                    temperature,
+                    stream: true,
+                });
+                let emittedMeta = false;
+                let emittedAny = false;
+                for await (const chunk of s) {
+                    const text = chunk.choices?.[0]?.delta?.content || '';
+                    if (!text) continue;
+                    emittedAny = true;
+                    if (!emittedMeta) {
+                        emittedMeta = true;
+                        yield { content: text, done: false, provider: 'local', model: cfg.model };
+                    } else {
+                        yield { content: text, done: false };
+                    }
+                }
+                if (emittedAny) {
+                    yield { content: '', done: true };
+                    return;
+                }
+                logger.warn('ai.stream.local_llm_empty_fallback');
+            }
+        } catch (e) {
+            logger.warn({ err: String(e) }, 'ai.stream.local_llm_failed');
+        }
+        if (mode === 'local') {
+            yield {
+                content:
+                    "I'm here with you — my self-hosted companion is warming up. Your words are safe. Give me a moment and try again.",
+                done: false,
+                provider: 'fallback',
+            };
+            yield { content: '', done: true };
+            return;
+        }
+    }
 
     // ── Gemini ──
     if (hasGemini()) {
@@ -150,11 +283,18 @@ export async function* stream(input: GenerateInput): AsyncGenerator<StreamChunk>
                     temperature,
                 },
             })) as unknown as AsyncGenerator<unknown>;
+            let emittedMeta = false;
             while (true) {
                 const { value, done } = await s.next();
                 if (done) break;
                 const text = extractGeminiText(value);
-                if (text) yield { content: text, done: false };
+                if (!text) continue;
+                if (!emittedMeta) {
+                    emittedMeta = true;
+                    yield { content: text, done: false, provider: 'gemini', model: 'gemini-2.5-flash' };
+                } else {
+                    yield { content: text, done: false };
+                }
             }
             yield { content: '', done: true };
             return;
@@ -177,9 +317,16 @@ export async function* stream(input: GenerateInput): AsyncGenerator<StreamChunk>
                 temperature,
                 stream: true,
             });
+            let emittedMeta = false;
             for await (const chunk of s) {
                 const text = chunk.choices?.[0]?.delta?.content || '';
-                if (text) yield { content: text, done: false };
+                if (!text) continue;
+                if (!emittedMeta) {
+                    emittedMeta = true;
+                    yield { content: text, done: false, provider: 'openai', model: 'gpt-4o-mini' };
+                } else {
+                    yield { content: text, done: false };
+                }
             }
             yield { content: '', done: true };
             return;
@@ -193,6 +340,7 @@ export async function* stream(input: GenerateInput): AsyncGenerator<StreamChunk>
         content:
             "I'm here, and I hear you. My AI companion is resting for the moment — your words are safe and saved. Try again in a bit, or write to yourself in the journal.",
         done: false,
+        provider: 'fallback',
     };
     yield { content: '', done: true };
 }

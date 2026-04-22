@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma';
-import { hasGemini, hasOpenAI } from '@/lib/ai/provider';
+import { hasGemini, hasOpenAI, hasLocalLlm, getLocalLlmConfig } from '@/lib/ai/provider';
 import { isEncryptionEnabled } from '@/lib/encryption';
 import { aiMode, localAiHealth } from '@/lib/ai/local';
 
@@ -30,6 +30,7 @@ export async function GET() {
     }
 
     const localHealth = localAiHealth();
+    const localLlm = getLocalLlmConfig();
     out.ai = {
         mode: aiMode(),
         local: {
@@ -37,13 +38,20 @@ export async function GET() {
             emotion: localHealth.models.emotion,
             zeroShot: localHealth.models.zeroShot,
             failed: localHealth.failed,
+            // Self-hosted chat LLM (Phase B). Configured via LOCAL_LLM_URL/MODEL env vars.
+            llm: {
+                configured: hasLocalLlm(),
+                model: localLlm?.model ?? null,
+                // Expose host only (never leak API keys); useful for ops/debug visibility.
+                host: localLlm ? safeHost(localLlm.url) : null,
+            },
         },
         cloud: {
             gemini: hasGemini(),
             openai: hasOpenAI(),
         },
-        // Ok if local mode is enabled (models load lazily) OR a cloud provider is configured.
-        ok: aiMode() !== 'cloud' || hasGemini() || hasOpenAI(),
+        // Ok if any chat tier is reachable; or if mode is hybrid/local with at least classifiers.
+        ok: aiMode() !== 'cloud' || hasGemini() || hasOpenAI() || hasLocalLlm(),
     };
 
     out.privacy = {
@@ -54,4 +62,13 @@ export async function GET() {
 
     const status = out.status === 'ok' ? 200 : 503;
     return Response.json(out, { status });
+}
+
+function safeHost(url: string): string {
+    try {
+        const u = new URL(url);
+        return `${u.protocol}//${u.host}`;
+    } catch {
+        return '';
+    }
 }

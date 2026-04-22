@@ -285,6 +285,18 @@ select:focus-visible {
   animation: shimmer 2s linear infinite;
 }
 
+/* Streaming cursor — smoother than a raw pulse: fades + tiny slide so it reads
+   as "typing" rather than "blinking". Falls back gracefully under reduced-motion. */
+@keyframes sh-stream-cursor {
+  0%, 100% { opacity: 0.15; transform: translateY(2px) scaleY(0.9); }
+  50% { opacity: 0.95; transform: translateY(2px) scaleY(1); }
+}
+.sh-stream-cursor {
+  border-radius: 1px;
+  animation: sh-stream-cursor 0.9s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *,

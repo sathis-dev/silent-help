@@ -26,11 +26,13 @@ import {
   sendMessage,
   type ChatCitation,
   type ChatPersona,
+  type ChatProvider,
   type CrisisInfo,
   type GroundingAction,
   type Message,
 } from '@/lib/api';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { useOnDeviceDictation } from '@/hooks/useOnDeviceDictation';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -45,7 +47,16 @@ interface AssistantMeta {
   crisis?: { severity: string; source: string; matchedKeywords: string[] } | null;
   suggestions?: string[];
   groundingActions?: GroundingAction[];
+  provider?: ChatProvider;
+  model?: string | null;
 }
+
+const PROVIDER_LABEL: Record<ChatProvider, { label: string; tone: 'private' | 'cloud' | 'warn' }> = {
+  local: { label: 'Private · self-hosted', tone: 'private' },
+  gemini: { label: 'Via Gemini', tone: 'cloud' },
+  openai: { label: 'Via OpenAI', tone: 'cloud' },
+  fallback: { label: 'Offline fallback', tone: 'warn' },
+};
 
 export default function ConversationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -66,7 +77,9 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
   const [crisisBanner, setCrisisBanner] = useState<CrisisInfo | null>(null);
   const [latestSuggestions, setLatestSuggestions] = useState<string[]>([]);
   const [latestGrounding, setLatestGrounding] = useState<GroundingAction[]>([]);
+  const [liveProvider, setLiveProvider] = useState<ChatProvider | null>(null);
   const [autoSpeak, setAutoSpeak] = useState(false);
+  const liveProviderRef = useRef<ChatProvider | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoPromptRef = useRef(false);
@@ -76,13 +89,37 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
   const accent = latestPersona?.accent ?? baseTheme.accent;
   const theme = { ...baseTheme, accent };
 
+  // Web Speech API (Google-backed on Chrome) — legacy voice-in path.
   const {
-    isListening,
-    transcript,
-    startListening,
-    stopListening,
-    isSupported: isMicSupported,
+    isListening: browserIsListening,
+    transcript: browserTranscript,
+    startListening: browserStart,
+    stopListening: browserStop,
+    isSupported: browserMicSupported,
   } = useSpeechRecognition();
+
+  // On-device Whisper (Phase E) — audio never leaves the browser tab.
+  const dictation = useOnDeviceDictation();
+
+  const useOnDevice = dictation.isSupported;
+  const isListening = useOnDevice ? dictation.isListening : browserIsListening;
+  const isTranscribing = useOnDevice && dictation.isTranscribing;
+  const isMicSupported = useOnDevice || browserMicSupported;
+
+  const handleMicClick = useCallback(() => {
+    if (useOnDevice) {
+      if (dictation.isListening) {
+        void dictation.stopListening();
+      } else {
+        void dictation.startListening();
+      }
+    } else if (browserIsListening) {
+      browserStop();
+    } else {
+      browserStart();
+    }
+  }, [useOnDevice, dictation, browserIsListening, browserStart, browserStop]);
+
   const {
     isSpeaking,
     speak,
@@ -90,9 +127,14 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
     isSupported: isVoiceSupported,
   } = useSpeechSynthesis();
 
+  // Transcript pipe — whichever source is active writes into the composer.
   useEffect(() => {
-    if (isListening && transcript) setInput(transcript);
-  }, [transcript, isListening]);
+    if (useOnDevice) {
+      if (dictation.transcript) setInput(dictation.transcript);
+    } else if (browserIsListening && browserTranscript) {
+      setInput(browserTranscript);
+    }
+  }, [useOnDevice, dictation.transcript, browserIsListening, browserTranscript]);
 
   const loadConversation = useCallback(async () => {
     try {
@@ -123,6 +165,8 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
       setLatestSuggestions([]);
       setLatestGrounding([]);
       setCrisisBanner(null);
+      setLiveProvider(null);
+      liveProviderRef.current = null;
 
       const userMsg: Message = {
         id: `temp-${Date.now()}`,
@@ -138,7 +182,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
 
       await sendMessage(id, text, {
         onMeta: (meta) => {
-          const nextMeta = {
+          const nextMeta: AssistantMeta = {
             persona: meta.persona,
             citations: meta.citations,
             crisis: meta.crisis,
@@ -146,6 +190,10 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
           liveMetaRef.current = nextMeta;
           setLiveMeta(nextMeta);
           setLatestPersona(meta.persona);
+        },
+        onProviderMeta: (pm) => {
+          liveProviderRef.current = pm.provider;
+          setLiveProvider(pm.provider);
         },
         onChunk: (chunk) => {
           streamingContentRef.current += chunk;
@@ -161,6 +209,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
             createdAt: new Date().toISOString(),
           };
           const snapshotMeta = liveMetaRef.current;
+          const provider = data.provider ?? liveProviderRef.current ?? undefined;
           setMessages((msgs) =>
             msgs.some((m) => m.id === assistantId) ? msgs : [...msgs, assistantMsg],
           );
@@ -175,17 +224,21 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                     crisis: snapshotMeta?.crisis ?? null,
                     suggestions: data.suggestions,
                     groundingActions: data.groundingActions,
+                    provider,
+                    model: data.model ?? null,
                   },
                 },
           );
           if (autoSpeak && finalMsg) speak(finalMsg);
           streamingContentRef.current = '';
           liveMetaRef.current = null;
+          liveProviderRef.current = null;
           setStreamingContent('');
           if (data.crisis) setCrisisBanner(data.crisis);
           setLatestSuggestions(data.suggestions ?? []);
           setLatestGrounding(data.groundingActions ?? []);
           setLiveMeta(null);
+          setLiveProvider(null);
           setIsSending(false);
         },
         onError: () => {
@@ -361,6 +414,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
               userImage={user?.imageUrl}
               streaming
               meta={liveMeta ?? undefined}
+              liveProvider={liveProvider}
             />
           )}
 
@@ -467,17 +521,36 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
         >
           {isMicSupported && (
             <button
-              onClick={isListening ? stopListening : startListening}
+              onClick={handleMicClick}
+              disabled={isTranscribing}
               className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-full transition-all',
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all',
                 isListening
                   ? 'bg-[color:var(--color-danger)] text-white shadow-lg shadow-[color:var(--color-danger)]/30'
-                  : 'text-[color:var(--color-fg-muted)] hover:bg-white/[0.06] hover:text-[color:var(--color-fg)]',
+                  : isTranscribing
+                    ? 'bg-white/[0.06] text-[color:var(--color-fg-muted)]'
+                    : 'text-[color:var(--color-fg-muted)] hover:bg-white/[0.06] hover:text-[color:var(--color-fg)]',
               )}
               aria-label={isListening ? 'Stop listening' : 'Voice input'}
-              title={isListening ? 'Stop listening' : 'Speak instead of typing'}
+              title={
+                useOnDevice
+                  ? isListening
+                    ? 'Stop — transcribe on-device'
+                    : isTranscribing
+                      ? 'Transcribing privately…'
+                      : 'Speak — transcribed on your device'
+                  : isListening
+                    ? 'Stop listening'
+                    : 'Speak instead of typing'
+              }
             >
-              {isListening ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              {isListening ? (
+                <Square className="h-4 w-4" />
+              ) : isTranscribing ? (
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
+                <Mic className="h-4 w-4" />
+              )}
             </button>
           )}
           <textarea
@@ -485,7 +558,15 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder={isListening ? 'Listening…' : 'Share what is present for you…'}
+            placeholder={
+              isListening
+                ? useOnDevice
+                  ? 'Listening · audio stays on your device…'
+                  : 'Listening…'
+                : isTranscribing
+                  ? 'Transcribing privately…'
+                  : 'Share what is present for you…'
+            }
             rows={1}
             className="flex-1 resize-none bg-transparent px-2 py-2.5 text-sm leading-relaxed outline-none placeholder:text-[color:var(--color-fg-subtle)]"
             style={{ maxHeight: 200 }}
@@ -504,8 +585,19 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
             <Send className="h-4 w-4" />
           </button>
         </div>
-        <div className="mt-2 text-center text-[10px] uppercase tracking-[0.2em] text-[color:var(--color-fg-subtle)]">
-          Enter to send · Shift + Enter for new line · Mic for voice
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-[10px] uppercase tracking-[0.2em] text-[color:var(--color-fg-subtle)]">
+          <span>Enter to send · Shift + Enter for new line</span>
+          {isMicSupported && (
+            <span className="inline-flex items-center gap-1">
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full',
+                  useOnDevice ? 'bg-emerald-400' : 'bg-amber-400',
+                )}
+              />
+              {useOnDevice ? 'Private · Whisper on-device' : 'Voice via browser API'}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -527,6 +619,7 @@ function MessageBubble({
   userImage,
   streaming,
   meta,
+  liveProvider,
 }: {
   message: Message;
   accent: string;
@@ -534,10 +627,13 @@ function MessageBubble({
   userImage?: string;
   streaming?: boolean;
   meta?: AssistantMeta;
+  liveProvider?: ChatProvider | null;
 }) {
   const isUser = message.role === 'user';
   const citations = meta?.citations ?? [];
   const inlineCrisis = meta?.crisis;
+  const provider = meta?.provider ?? (streaming ? liveProvider ?? null : null);
+  const providerInfo = provider ? PROVIDER_LABEL[provider] : null;
 
   return (
     <motion.div
@@ -560,9 +656,25 @@ function MessageBubble({
         </Avatar>
       )}
       <div className={cn('flex max-w-[78%] flex-col gap-2', isUser && 'items-end')}>
-        {/* Memory citation pills (assistant only, above bubble) */}
-        {!isUser && citations.length > 0 && (
+        {/* Citation + privacy-tier pills (assistant only, above bubble) */}
+        {!isUser && (citations.length > 0 || providerInfo) && (
           <div className="flex flex-wrap gap-1.5">
+            {providerInfo && (
+              <span
+                title={meta?.model ? `model: ${meta.model}` : undefined}
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.1em]',
+                  providerInfo.tone === 'private'
+                    ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200'
+                    : providerInfo.tone === 'warn'
+                      ? 'border-amber-400/30 bg-amber-400/10 text-amber-200'
+                      : 'border-white/10 bg-white/[0.03] text-[color:var(--color-fg-muted)]',
+                )}
+              >
+                <Sparkles className="h-3 w-3" />
+                {providerInfo.label}
+              </span>
+            )}
             {citations.map((c) => (
               <span
                 key={`${c.kind}-${c.id}`}
@@ -637,8 +749,9 @@ function MessageBubble({
               </ReactMarkdown>
               {streaming && (
                 <span
-                  className="ml-0.5 inline-block h-3.5 w-[2px] translate-y-0.5 animate-pulse"
-                  style={{ background: accent, opacity: 0.85 }}
+                  className="sh-stream-cursor ml-0.5 inline-block h-3.5 w-[2px] translate-y-0.5 align-middle"
+                  style={{ background: accent }}
+                  aria-hidden
                 />
               )}
             </div>

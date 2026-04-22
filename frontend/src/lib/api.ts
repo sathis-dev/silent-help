@@ -172,10 +172,18 @@ export interface GroundingAction {
     toolHref: string;
 }
 
+export type ChatProvider = 'local' | 'gemini' | 'openai' | 'fallback';
+
+export interface ChatProviderMeta {
+    provider: ChatProvider;
+    model: string | null;
+}
+
 export interface ChatMeta {
     persona: ChatPersona;
     citations: ChatCitation[];
     crisis: { severity: string; source: string; matchedKeywords: string[] } | null;
+    liveEmotion?: { source: 'local' | 'profile'; confidence: number };
 }
 
 export interface ChatDoneData {
@@ -183,10 +191,13 @@ export interface ChatDoneData {
     crisis?: CrisisInfo | null;
     suggestions?: string[];
     groundingActions?: GroundingAction[];
+    provider?: ChatProvider;
+    model?: string | null;
 }
 
 export interface ChatStreamCallbacks {
     onMeta?: (meta: ChatMeta) => void;
+    onProviderMeta?: (meta: ChatProviderMeta) => void;
     onChunk: (text: string) => void;
     onDone: (data: ChatDoneData) => void;
     onError: (error: string) => void;
@@ -197,7 +208,7 @@ export async function sendMessage(
     content: string,
     callbacks: ChatStreamCallbacks,
 ) {
-    const { onMeta, onChunk, onDone, onError } = callbacks;
+    const { onMeta, onProviderMeta, onChunk, onDone, onError } = callbacks;
     try {
         const authHeaders = await getAuthHeaders();
         const res = await fetch(`${API_BASE}/api/chat/${conversationId}/message`, {
@@ -249,6 +260,9 @@ export async function sendMessage(
                     try {
                         const data = JSON.parse(line.slice(6));
                         if (data.meta && onMeta) onMeta(data.meta as ChatMeta);
+                        if (data.providerMeta && onProviderMeta) {
+                            onProviderMeta(data.providerMeta as ChatProviderMeta);
+                        }
                         if (data.content) onChunk(data.content);
                         if (data.done) {
                             onDone({
@@ -256,6 +270,8 @@ export async function sendMessage(
                                 crisis: data.crisis,
                                 suggestions: data.suggestions,
                                 groundingActions: data.groundingActions,
+                                provider: data.provider,
+                                model: data.model,
                             });
                         }
                         if (data.error) onError(data.error);

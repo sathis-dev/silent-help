@@ -22,7 +22,7 @@ import prisma from '@/lib/prisma';
 import { getUserFromRequest, unauthorizedResponse } from '@/lib/auth';
 import { getCrisisSystemPrompt } from '@/lib/crisis';
 import { computeUserState, generateDynamicSystemPrompt, generateOpeningContext } from '@/lib/ai-engine';
-import { stream as aiStream, generate as aiGenerate, embed, toPgVector } from '@/lib/ai/provider';
+import { stream as aiStream, generate as aiGenerate, embed, toPgVector, type ChatProvider } from '@/lib/ai/provider';
 import { buildRagContext, type RagCitation } from '@/services/ragService';
 import { checkForCrisisEnriched, type CompositeCrisisResult } from '@/services/crisisService';
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
@@ -355,8 +355,13 @@ export async function POST(
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
             };
 
+            let chatProvider: ChatProvider = 'fallback';
+            let chatModel: string | null = null;
+
             try {
-                // Emit meta frame FIRST so UI can paint persona + citations + crisis nudge
+                // Emit meta frame FIRST so UI can paint persona + citations + crisis nudge.
+                // provider/model are filled in as soon as the first stream chunk arrives via
+                // a follow-up `providerMeta` frame.
                 send({
                     meta: {
                         persona: {
@@ -374,6 +379,10 @@ export async function POST(
                                   matchedKeywords: crisis.matchedKeywords.slice(0, 4),
                               }
                             : null,
+                        liveEmotion: {
+                            source: liveEmotion.source,
+                            confidence: Number(liveEmotion.confidence.toFixed(3)),
+                        },
                     },
                 });
 
@@ -385,6 +394,13 @@ export async function POST(
                     maxTokens: 1000,
                     temperature: 0.7,
                 })) {
+                    if (chunk.provider && chatProvider === 'fallback') {
+                        chatProvider = chunk.provider;
+                        chatModel = chunk.model ?? null;
+                        // Emit a dedicated frame so the UI can render the privacy-tier badge
+                        // ("Private · self-hosted" vs "Via Gemini") before the full reply lands.
+                        send({ providerMeta: { provider: chatProvider, model: chatModel } });
+                    }
                     if (chunk.content) {
                         fullResponse += chunk.content;
                         send({ content: chunk.content });
@@ -423,6 +439,8 @@ export async function POST(
                         crisisSource: crisis?.source ?? 'none',
                         emotion,
                         citationCount: citations.length,
+                        chatProvider,
+                        chatModel,
                     },
                 });
 
@@ -432,6 +450,8 @@ export async function POST(
                     crisis: crisis?.isCrisis ? crisis : null,
                     suggestions,
                     groundingActions,
+                    provider: chatProvider,
+                    model: chatModel,
                 });
                 controller.close();
             } catch (streamErr) {
