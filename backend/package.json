@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
+    "@huggingface/transformers": "^3.8.1",
     "@prisma/client": "^6.18.0",
     "bcryptjs": "^3.0.2",
     "ioredis": "^5.10.1",

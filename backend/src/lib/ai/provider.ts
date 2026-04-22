@@ -14,6 +14,7 @@ import OpenAI from 'openai';
 import { GoogleGenAI } from '@google/genai';
 import crypto from 'crypto';
 import { logger } from '@/lib/logger';
+import { aiMode, embedLocal } from '@/lib/ai/local';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Types
@@ -207,7 +208,25 @@ export interface EmbedResult {
 
 export async function embed(text: string): Promise<EmbedResult> {
     const clean = text.slice(0, 8000);
+    const mode = aiMode();
 
+    // Prefer self-hosted local embeddings (bge-small-en-v1.5, 384-dim padded to 1536).
+    if (mode !== 'cloud') {
+        try {
+            const local = await embedLocal(clean);
+            if (local && Array.isArray(local.vector) && local.vector.length === EMBED_DIM) {
+                return { vector: local.vector, model: local.model };
+            }
+        } catch (e) {
+            logger.warn({ err: String(e) }, 'ai.embed.local_failed_fallback');
+        }
+        if (mode === 'local') {
+            // In strict-local mode, fall through to hash fallback rather than cloud.
+            return { vector: hashEmbed(clean), model: EMBED_MODEL_FALLBACK };
+        }
+    }
+
+    // Hybrid / cloud mode: OpenAI embeddings as secondary path.
     if (hasOpenAI()) {
         try {
             const r = await openai().embeddings.create({

@@ -29,6 +29,7 @@ import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { requestLogger } from '@/lib/logger';
 import { audit } from '@/lib/audit';
 import { jsonError, parseJson, z } from '@/lib/http';
+import { classifyEmotionLocal } from '@/lib/ai/local';
 
 const BodySchema = z.object({
     content: z.string().trim().min(1).max(4000),
@@ -120,6 +121,26 @@ function resolveEmotionFromProfile(profile: { concern?: string | null; profile?:
         if (v.includes('press') || v.includes('stress')) return 'pressure';
     }
     return fallback;
+}
+
+/**
+ * Live-turn emotion: use the self-hosted GoEmotions classifier to pick up the
+ * emotion actually present in the user's current message. Falls back to the
+ * wellness-profile emotion when the classifier is offline or low-confidence.
+ */
+async function resolveLiveEmotion(message: string, profileEmotion: Emotion): Promise<{ emotion: Emotion; source: 'local' | 'profile'; confidence: number }> {
+    try {
+        const local = await classifyEmotionLocal(message);
+        if (local && local.confidence >= 0.35 && local.label !== 'neutral') {
+            return { emotion: local.label, source: 'local', confidence: local.confidence };
+        }
+        if (local && local.confidence >= 0.5) {
+            return { emotion: local.label, source: 'local', confidence: local.confidence };
+        }
+    } catch {
+        // fall through
+    }
+    return { emotion: profileEmotion, source: 'profile', confidence: 0 };
 }
 
 function personaPromptAddendum(emotion: Emotion): string {
@@ -284,6 +305,10 @@ export async function POST(
     } catch (engineErr) {
         log.warn({ err: String(engineErr) }, 'chat.ai_engine.fallback_static_prompt');
     }
+
+    // Upgrade emotion with the self-hosted live-turn classifier when available.
+    const liveEmotion = await resolveLiveEmotion(content, emotion);
+    emotion = liveEmotion.emotion;
 
     // Apply emotion-aware persona tone
     systemPrompt += personaPromptAddendum(emotion);
