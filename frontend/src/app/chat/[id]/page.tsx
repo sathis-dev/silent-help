@@ -5,21 +5,30 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   ArrowLeft,
+  BookOpen,
+  Brain,
   LifeBuoy,
+  MessageCircleHeart,
   Mic,
   Send,
+  Sparkles,
   Square,
   Volume2,
   VolumeX,
-  Sparkles,
+  Wind,
 } from 'lucide-react';
 import {
   getConversation,
   sendMessage,
-  type Message,
+  type ChatCitation,
+  type ChatPersona,
   type CrisisInfo,
+  type GroundingAction,
+  type Message,
 } from '@/lib/api';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
@@ -30,24 +39,42 @@ import { useWellness } from '@/components/wellness/WellnessProvider';
 import { resolveEmotion } from '@/lib/emotion-theme';
 import { cn } from '@/lib/cn';
 
+interface AssistantMeta {
+  persona?: ChatPersona;
+  citations?: ChatCitation[];
+  crisis?: { severity: string; source: string; matchedKeywords: string[] } | null;
+  suggestions?: string[];
+  groundingActions?: GroundingAction[];
+}
+
 export default function ConversationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useUser();
   const { profile } = useWellness();
-  const theme = resolveEmotion(profile?.emotionalProfile);
+  const baseTheme = resolveEmotion(profile?.emotionalProfile);
 
   const [messages, setMessages] = useState<Message[]>([]);
+  const [metaByMessageId, setMetaByMessageId] = useState<Record<string, AssistantMeta>>({});
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
-  const [crisis, setCrisis] = useState<CrisisInfo | null>(null);
+  const [liveMeta, setLiveMeta] = useState<AssistantMeta | null>(null);
+  const [latestPersona, setLatestPersona] = useState<ChatPersona | null>(null);
+  const [crisisBanner, setCrisisBanner] = useState<CrisisInfo | null>(null);
+  const [latestSuggestions, setLatestSuggestions] = useState<string[]>([]);
+  const [latestGrounding, setLatestGrounding] = useState<GroundingAction[]>([]);
   const [autoSpeak, setAutoSpeak] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoPromptRef = useRef(false);
+  const streamingContentRef = useRef('');
+  const liveMetaRef = useRef<AssistantMeta | null>(null);
+
+  const accent = latestPersona?.accent ?? baseTheme.accent;
+  const theme = { ...baseTheme, accent };
 
   const {
     isListening,
@@ -84,7 +111,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent]);
+  }, [messages, streamingContent, latestSuggestions]);
 
   const doSend = useCallback(
     async (text: string) => {
@@ -92,7 +119,10 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
       setInput('');
       setIsSending(true);
       setStreamingContent('');
-      setCrisis(null);
+      setLiveMeta(null);
+      setLatestSuggestions([]);
+      setLatestGrounding([]);
+      setCrisisBanner(null);
 
       const userMsg: Message = {
         id: `temp-${Date.now()}`,
@@ -103,27 +133,62 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
       setMessages((prev) => [...prev, userMsg]);
       if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
-      await sendMessage(
-        id,
-        text,
-        (chunk) => setStreamingContent((prev) => prev + chunk),
-        (data) => {
-          setStreamingContent((prev) => {
-            const finalMsg = prev;
-            const assistantMsg: Message = {
-              id: data.messageId || `msg-${Date.now()}`,
-              role: 'assistant',
-              content: finalMsg,
-              createdAt: new Date().toISOString(),
-            };
-            setMessages((msgs) => [...msgs, assistantMsg]);
-            if (autoSpeak) speak(finalMsg);
-            return '';
-          });
-          if (data.crisis) setCrisis(data.crisis);
+      streamingContentRef.current = '';
+      liveMetaRef.current = null;
+
+      await sendMessage(id, text, {
+        onMeta: (meta) => {
+          const nextMeta = {
+            persona: meta.persona,
+            citations: meta.citations,
+            crisis: meta.crisis,
+          };
+          liveMetaRef.current = nextMeta;
+          setLiveMeta(nextMeta);
+          setLatestPersona(meta.persona);
+        },
+        onChunk: (chunk) => {
+          streamingContentRef.current += chunk;
+          setStreamingContent(streamingContentRef.current);
+        },
+        onDone: (data) => {
+          const finalMsg = streamingContentRef.current;
+          const assistantId = data.messageId || `msg-${Date.now()}`;
+          const assistantMsg: Message = {
+            id: assistantId,
+            role: 'assistant',
+            content: finalMsg,
+            createdAt: new Date().toISOString(),
+          };
+          const snapshotMeta = liveMetaRef.current;
+          setMessages((msgs) =>
+            msgs.some((m) => m.id === assistantId) ? msgs : [...msgs, assistantMsg],
+          );
+          setMetaByMessageId((m) =>
+            m[assistantId]
+              ? m
+              : {
+                  ...m,
+                  [assistantId]: {
+                    persona: snapshotMeta?.persona,
+                    citations: snapshotMeta?.citations ?? [],
+                    crisis: snapshotMeta?.crisis ?? null,
+                    suggestions: data.suggestions,
+                    groundingActions: data.groundingActions,
+                  },
+                },
+          );
+          if (autoSpeak && finalMsg) speak(finalMsg);
+          streamingContentRef.current = '';
+          liveMetaRef.current = null;
+          setStreamingContent('');
+          if (data.crisis) setCrisisBanner(data.crisis);
+          setLatestSuggestions(data.suggestions ?? []);
+          setLatestGrounding(data.groundingActions ?? []);
+          setLiveMeta(null);
           setIsSending(false);
         },
-        () => {
+        onError: () => {
           setMessages((prev) => [
             ...prev,
             {
@@ -134,9 +199,10 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
             },
           ]);
           setStreamingContent('');
+          setLiveMeta(null);
           setIsSending(false);
         },
-      );
+      });
     },
     [id, isSending, autoSpeak, speak],
   );
@@ -191,13 +257,13 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div
-          className="flex h-10 w-10 items-center justify-center rounded-full"
-          style={{ background: `${theme.accent}18`, border: `1px solid ${theme.accent}38` }}
+          className="flex h-10 w-10 items-center justify-center rounded-full transition-colors"
+          style={{ background: `${accent}18`, border: `1px solid ${accent}38` }}
         >
-          <Sparkles className="h-4 w-4" style={{ color: theme.accent }} />
+          <Sparkles className="h-4 w-4" style={{ color: accent }} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="truncate text-base font-semibold">AI Companion</h1>
             <Badge variant="outline" className="gap-1.5">
               <span className="relative flex h-1.5 w-1.5">
@@ -206,9 +272,24 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
               </span>
               Active
             </Badge>
+            {latestPersona && (
+              <Badge
+                variant="outline"
+                className="gap-1.5 border-0"
+                style={{
+                  background: `${accent}16`,
+                  color: accent,
+                  borderColor: `${accent}40`,
+                }}
+              >
+                <Brain className="h-3 w-3" />
+                {latestPersona.label}
+              </Badge>
+            )}
           </div>
           <div className="text-xs text-[color:var(--color-fg-muted)]">
-            {profile?.aiPersonality?.tone ?? 'gentle'} tone · end-to-end private
+            {latestPersona ? `${latestPersona.tone} · ${latestPersona.pace}` : 'attuning to your tone'}
+            {' · '}private by design
           </div>
         </div>
         {isVoiceSupported && (
@@ -219,6 +300,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
               if (autoSpeak && isSpeaking) stopSpeaking();
               setAutoSpeak(!autoSpeak);
             }}
+            title={autoSpeak ? 'Reading replies aloud' : 'Enable read-aloud'}
           >
             {autoSpeak ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
             {autoSpeak ? 'Reading' : 'Silent'}
@@ -242,25 +324,31 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
             </div>
             <h2 className="font-display text-2xl italic">Begin when ready.</h2>
             <p className="max-w-md text-sm text-[color:var(--color-fg-muted)]">
-              Type or dictate — whatever is present for you. There is no right place to start.
+              Type or speak — whatever is present for you. Your companion remembers what you’ve shared
+              before, shifts its tone to match you, and brings you back to breath if it needs to.
             </p>
           </motion.div>
         )}
 
         <div className="flex flex-col gap-6">
           <AnimatePresence initial={false}>
-            {messages.map((msg) => (
-              <MessageBubble
-                key={msg.id}
-                message={msg}
-                accent={theme.accent}
-                initials={initials}
-                userImage={user?.imageUrl}
-              />
-            ))}
+            {messages.map((msg) => {
+              const meta = msg.role === 'assistant' ? metaByMessageId[msg.id] : undefined;
+              return (
+                <MessageBubble
+                  key={msg.id}
+                  message={msg}
+                  accent={accent}
+                  initials={initials}
+                  userImage={user?.imageUrl}
+                  meta={meta}
+                />
+              );
+            })}
           </AnimatePresence>
 
-          {streamingContent && (
+          {/* Streaming bubble (current in-flight response) */}
+          {(streamingContent || (isSending && liveMeta)) && (
             <MessageBubble
               message={{
                 id: 'streaming',
@@ -268,14 +356,15 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                 content: streamingContent,
                 createdAt: new Date().toISOString(),
               }}
-              accent={theme.accent}
+              accent={accent}
               initials={initials}
               userImage={user?.imageUrl}
               streaming
+              meta={liveMeta ?? undefined}
             />
           )}
 
-          {isSending && !streamingContent && (
+          {isSending && !streamingContent && !liveMeta && (
             <div className="flex gap-3">
               <Avatar className="h-8 w-8">
                 <AvatarFallback
@@ -294,6 +383,45 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
               </div>
             </div>
           )}
+
+          {/* Adaptive follow-ups + grounding actions (rendered once per completed reply) */}
+          {!isSending && (latestSuggestions.length > 0 || latestGrounding.length > 0) && (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="ml-11 flex flex-wrap gap-2"
+            >
+              {latestSuggestions.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => void doSend(s)}
+                  className="group flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-[color:var(--color-fg-muted)] transition-all hover:border-white/25 hover:bg-white/[0.06] hover:text-[color:var(--color-fg)]"
+                  style={{ boxShadow: `inset 0 0 0 1px ${accent}12` }}
+                >
+                  <MessageCircleHeart
+                    className="h-3 w-3 transition-colors"
+                    style={{ color: accent }}
+                  />
+                  {s}
+                </button>
+              ))}
+              {latestGrounding.map((g) => (
+                <Link
+                  key={g.id}
+                  href={g.toolHref}
+                  className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-all"
+                  style={{
+                    borderColor: `${accent}40`,
+                    background: `${accent}14`,
+                    color: accent,
+                  }}
+                >
+                  <Wind className="h-3 w-3" />
+                  {g.label}
+                </Link>
+              ))}
+            </motion.div>
+          )}
         </div>
 
         <div ref={messagesEndRef} />
@@ -301,7 +429,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
 
       {/* Crisis banner */}
       <AnimatePresence>
-        {crisis && (
+        {crisisBanner && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -311,10 +439,10 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
             <LifeBuoy className="mt-0.5 h-5 w-5 text-[color:var(--color-danger)]" />
             <div className="flex-1 text-sm">
               <div className="font-medium text-[color:var(--color-fg)]">
-                {crisis.safetyMessage || "It sounds like you're in a tough place."}
+                {crisisBanner.safetyMessage || "It sounds like you're in a tough place."}
               </div>
               <div className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
-                Open the crisis page for immediate UK help lines.
+                Open the SOS screen for local crisis lines. You are not alone in this.
               </div>
             </div>
             <Link href="/sos">
@@ -334,7 +462,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
             'focus-within:border-white/25 focus-within:bg-white/[0.05]',
           )}
           style={{
-            boxShadow: `0 0 0 3px ${theme.accent}15`,
+            boxShadow: `0 0 0 3px ${accent}15`,
           }}
         >
           {isMicSupported && (
@@ -347,6 +475,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                   : 'text-[color:var(--color-fg-muted)] hover:bg-white/[0.06] hover:text-[color:var(--color-fg)]',
               )}
               aria-label={isListening ? 'Stop listening' : 'Voice input'}
+              title={isListening ? 'Stop listening' : 'Speak instead of typing'}
             >
               {isListening ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </button>
@@ -376,11 +505,19 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
           </button>
         </div>
         <div className="mt-2 text-center text-[10px] uppercase tracking-[0.2em] text-[color:var(--color-fg-subtle)]">
-          Enter to send · Shift + Enter for new line
+          Enter to send · Shift + Enter for new line · Mic for voice
         </div>
       </div>
     </div>
   );
+}
+
+/* ───────────────────────── Message bubble ───────────────────────── */
+
+function citationIcon(kind: ChatCitation['kind']) {
+  if (kind === 'journal') return <BookOpen className="h-3 w-3" />;
+  if (kind === 'message') return <MessageCircleHeart className="h-3 w-3" />;
+  return <Brain className="h-3 w-3" />;
 }
 
 function MessageBubble({
@@ -389,14 +526,18 @@ function MessageBubble({
   initials,
   userImage,
   streaming,
+  meta,
 }: {
   message: Message;
   accent: string;
   initials: string;
   userImage?: string;
   streaming?: boolean;
+  meta?: AssistantMeta;
 }) {
   const isUser = message.role === 'user';
+  const citations = meta?.citations ?? [];
+  const inlineCrisis = meta?.crisis;
 
   return (
     <motion.div
@@ -418,30 +559,91 @@ function MessageBubble({
           </AvatarFallback>
         </Avatar>
       )}
-      <div
-        className={cn(
-          'max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed',
-          isUser
-            ? 'rounded-br-sm text-slate-950 shadow-lg'
-            : 'rounded-bl-sm border border-white/[0.06] bg-white/[0.03] text-[color:var(--color-fg)]',
+      <div className={cn('flex max-w-[78%] flex-col gap-2', isUser && 'items-end')}>
+        {/* Memory citation pills (assistant only, above bubble) */}
+        {!isUser && citations.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {citations.map((c) => (
+              <span
+                key={`${c.kind}-${c.id}`}
+                title={c.preview}
+                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] text-[color:var(--color-fg-muted)]"
+              >
+                <span style={{ color: accent }}>{citationIcon(c.kind)}</span>
+                {c.label}
+              </span>
+            ))}
+          </div>
         )}
-        style={
-          isUser
-            ? {
-                background: `linear-gradient(135deg, ${accent}, #a78bfa)`,
-                boxShadow: `0 10px 24px -12px ${accent}60`,
-              }
-            : undefined
-        }
-      >
-        {message.content.split('\n').map((line, i) => (
-          <p key={i} className={i > 0 ? 'mt-2' : ''}>
-            {line}
-            {streaming && i === message.content.split('\n').length - 1 && (
-              <span className="ml-0.5 inline-block h-3.5 w-[2px] translate-y-0.5 animate-pulse bg-current opacity-70" />
-            )}
-          </p>
-        ))}
+
+        {/* Inline crisis chip (subtle, above bubble) */}
+        {!isUser && inlineCrisis && (
+          <div
+            className="inline-flex items-center gap-1.5 self-start rounded-full border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/10 px-2.5 py-0.5 text-[10px] uppercase tracking-[0.1em] text-[color:var(--color-danger)]"
+          >
+            <LifeBuoy className="h-3 w-3" />
+            safety resources nearby
+          </div>
+        )}
+
+        <div
+          className={cn(
+            'rounded-2xl px-4 py-3 text-sm leading-relaxed',
+            isUser
+              ? 'rounded-br-sm text-slate-950 shadow-lg'
+              : 'rounded-bl-sm border border-white/[0.06] bg-white/[0.03] text-[color:var(--color-fg)]',
+          )}
+          style={
+            isUser
+              ? {
+                  background: `linear-gradient(135deg, ${accent}, #a78bfa)`,
+                  boxShadow: `0 10px 24px -12px ${accent}60`,
+                }
+              : undefined
+          }
+        >
+          {isUser ? (
+            message.content.split('\n').map((line, i) => (
+              <p key={i} className={i > 0 ? 'mt-2' : ''}>
+                {line}
+              </p>
+            ))
+          ) : (
+            <div className="prose-chat">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                  em: ({ children }) => (
+                    <em className="italic" style={{ color: accent }}>
+                      {children}
+                    </em>
+                  ),
+                  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                  ul: ({ children }) => <ul className="mb-2 ml-5 list-disc space-y-1 last:mb-0">{children}</ul>,
+                  ol: ({ children }) => <ol className="mb-2 ml-5 list-decimal space-y-1 last:mb-0">{children}</ol>,
+                  li: ({ children }) => <li>{children}</li>,
+                  code: ({ children }) => (
+                    <code className="rounded bg-white/10 px-1 py-0.5 text-[0.85em]">{children}</code>
+                  ),
+                  a: ({ children, href }) => (
+                    <a href={href} className="underline" style={{ color: accent }} target="_blank" rel="noreferrer">
+                      {children}
+                    </a>
+                  ),
+                }}
+              >
+                {message.content || ' '}
+              </ReactMarkdown>
+              {streaming && (
+                <span
+                  className="ml-0.5 inline-block h-3.5 w-[2px] translate-y-0.5 animate-pulse"
+                  style={{ background: accent, opacity: 0.85 }}
+                />
+              )}
+            </div>
+          )}
+        </div>
       </div>
       {isUser && (
         <Avatar className="h-8 w-8 shrink-0">

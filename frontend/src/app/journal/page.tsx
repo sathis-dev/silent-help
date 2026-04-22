@@ -459,9 +459,21 @@ export default function JournalPage() {
                     <p className="mt-3 text-sm leading-relaxed text-[color:var(--color-fg-muted)]">
                       {distortions.summary}
                     </p>
+                    {distortions.degraded && (
+                      <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-xs text-amber-200/90">
+                        <span className="mt-[2px]">⚠</span>
+                        <span>
+                          {distortions.degradedReason === 'ai_unavailable'
+                            ? 'The AI companion is briefly resting — I fell back to a simpler keyword-based reading. Results are lighter than usual.'
+                            : 'I had trouble reading this through the full AI lens just now, so I\'m showing a simpler keyword-based reading. Try again in a moment for a deeper pass.'}
+                        </span>
+                      </div>
+                    )}
                     {distortions.distortions.length === 0 ? (
                       <p className="mt-3 text-sm text-[color:var(--color-fg-muted)]">
-                        No strong distortion patterns detected. Keep writing — clarity often comes slowly.
+                        {distortions.degraded
+                          ? 'Nothing jumped out through the simpler reading — the full AI check may find more.'
+                          : 'No strong distortion patterns detected. Keep writing — clarity often comes slowly.'}
                       </p>
                     ) : (
                       <div className="mt-4 space-y-3">
