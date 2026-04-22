@@ -8,11 +8,29 @@ import BreathingExercise from '@/components/activities/BreathingExercise';
 import GroundingExercise from '@/components/activities/GroundingExercise';
 import BodyReleaseExercise from '@/components/activities/BodyReleaseExercise';
 import FocusTimer from '@/components/activities/FocusTimer';
+import StepExercise, {
+  TIPP_STEPS,
+  URGE_SURF_STEPS,
+  SELF_COMPASSION_STEPS,
+  COGNITIVE_DIFFUSION_STEPS,
+} from '@/components/activities/StepExercise';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/cn';
 
-type ToolId = 'breathing' | 'grounding' | 'bodyscan' | 'sleep' | 'focus' | null;
+type ToolId =
+  | 'breathing'
+  | 'grounding'
+  | 'bodyscan'
+  | 'sleep'
+  | 'focus'
+  | '478-breath'
+  | 'coherent'
+  | 'tipp'
+  | 'urge-surf'
+  | 'self-compassion'
+  | 'diffusion'
+  | null;
 
 interface Tool {
   id: Exclude<ToolId, null>;
@@ -22,7 +40,7 @@ interface Tool {
   icon: string;
   color: string;
   duration: string;
-  category: 'Breath' | 'Ground' | 'Body' | 'Focus';
+  category: 'Breath' | 'Ground' | 'Body' | 'Focus' | 'Regulate' | 'Compassion';
 }
 
 const TOOLS: Tool[] = [
@@ -76,6 +94,66 @@ const TOOLS: Tool[] = [
     duration: '10 min',
     category: 'Focus',
   },
+  {
+    id: '478-breath',
+    name: '4-7-8 Relaxing Breath',
+    tagline: 'The body-quiet protocol',
+    description: 'Dr. Weil\u2019s evidence-backed pattern: 4 in, 7 hold, 8 out. Drops heart rate in three rounds. Ideal for pre-sleep or post-panic.',
+    icon: '🌬️',
+    color: '#a78bfa',
+    duration: '3 min',
+    category: 'Breath',
+  },
+  {
+    id: 'coherent',
+    name: 'Coherent Breathing',
+    tagline: 'Heart-rate coherence · 5.5 bpm',
+    description: 'Slow, symmetric breathing at roughly 6 breaths per minute. Brings heart-rate variability into a calm, balanced rhythm.',
+    icon: '💞',
+    color: '#22d3ee',
+    duration: '2 min',
+    category: 'Breath',
+  },
+  {
+    id: 'tipp',
+    name: 'TIPP (DBT)',
+    tagline: 'Crash-cool intense activation',
+    description: 'Temperature, Intense exercise, Paced breathing, Paired relaxation. DBT\u2019s fastest distress-tolerance skill when you\u2019re in the red zone.',
+    icon: '❄️',
+    color: '#38bdf8',
+    duration: '2 min',
+    category: 'Regulate',
+  },
+  {
+    id: 'urge-surf',
+    name: 'Urge Surfing',
+    tagline: 'Ride the wave · don\u2019t feed it',
+    description: 'Urges peak and recede like waves. Sit with the body sensation instead of fighting or feeding it. Mindfulness-based relapse prevention.',
+    icon: '🌊',
+    color: '#06b6d4',
+    duration: '3 min',
+    category: 'Regulate',
+  },
+  {
+    id: 'self-compassion',
+    name: 'Self-Compassion Break',
+    tagline: 'Kristin Neff\u2019s 3-step practice',
+    description: 'Three quiet sentences that soften self-judgement: this is hard, I am not alone, may I be kind to myself.',
+    icon: '🤲',
+    color: '#f472b6',
+    duration: '2 min',
+    category: 'Compassion',
+  },
+  {
+    id: 'diffusion',
+    name: 'Cognitive Diffusion (ACT)',
+    tagline: 'You are not your thoughts',
+    description: 'An ACT micro-practice that unhooks you from sticky thoughts. The thought is still there \u2014 it just stops running the show.',
+    icon: '💭',
+    color: '#c084fc',
+    duration: '3 min',
+    category: 'Regulate',
+  },
 ];
 
 export default function ToolsPage() {
@@ -85,7 +163,22 @@ export default function ToolsPage() {
 
   useEffect(() => {
     const a = searchParams.get('activity');
-    if (a && ['breathing', 'grounding', 'bodyscan', 'sleep', 'focus'].includes(a)) {
+    if (
+      a &&
+      [
+        'breathing',
+        'grounding',
+        'bodyscan',
+        'sleep',
+        'focus',
+        '478-breath',
+        'coherent',
+        'tipp',
+        'urge-surf',
+        'self-compassion',
+        'diffusion',
+      ].includes(a)
+    ) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTool(a as Exclude<ToolId, null>);
     }
@@ -121,7 +214,7 @@ export default function ToolsPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {(['All', 'Breath', 'Ground', 'Body', 'Focus'] as const).map((c) => (
+          {(['All', 'Breath', 'Ground', 'Body', 'Focus', 'Regulate', 'Compassion'] as const).map((c) => (
             <button
               key={c}
               onClick={() => setCategory(c)}
@@ -275,6 +368,72 @@ export default function ToolsPage() {
                     duration={600}
                     label="Focus for 10 minutes"
                     accent={active.color}
+                    onComplete={() => setActiveTool(null)}
+                    onCancel={() => setActiveTool(null)}
+                  />
+                )}
+                {activeTool === '478-breath' && (
+                  <BreathingExercise
+                    variant="4-7-8"
+                    accent={active.color}
+                    onComplete={() => setActiveTool(null)}
+                    onCancel={() => setActiveTool(null)}
+                  />
+                )}
+                {activeTool === 'coherent' && (
+                  <BreathingExercise
+                    variant="coherent"
+                    accent={active.color}
+                    onComplete={() => setActiveTool(null)}
+                    onCancel={() => setActiveTool(null)}
+                  />
+                )}
+                {activeTool === 'tipp' && (
+                  <StepExercise
+                    variant="tipp"
+                    title="TIPP — DBT distress tolerance"
+                    subtitle="Lowers intense activation in under 2 minutes"
+                    steps={TIPP_STEPS}
+                    accent={active.color}
+                    onComplete={() => setActiveTool(null)}
+                    onCancel={() => setActiveTool(null)}
+                  />
+                )}
+                {activeTool === 'urge-surf' && (
+                  <StepExercise
+                    variant="urge-surf"
+                    title="Urge Surfing"
+                    subtitle="Ride the wave — don\u2019t feed or fight it"
+                    steps={URGE_SURF_STEPS}
+                    accent={active.color}
+                    completionTitle="You surfed it."
+                    completionBody="Urges are not commands. You stayed with yourself."
+                    onComplete={() => setActiveTool(null)}
+                    onCancel={() => setActiveTool(null)}
+                  />
+                )}
+                {activeTool === 'self-compassion' && (
+                  <StepExercise
+                    variant="self-compassion"
+                    title="Self-Compassion Break"
+                    subtitle="Kristin Neff\u2019s 3-step practice"
+                    steps={SELF_COMPASSION_STEPS}
+                    accent={active.color}
+                    completionTitle="That was a kindness."
+                    completionBody="You gave yourself what you would give a close friend."
+                    onComplete={() => setActiveTool(null)}
+                    onCancel={() => setActiveTool(null)}
+                  />
+                )}
+                {activeTool === 'diffusion' && (
+                  <StepExercise
+                    variant="diffusion"
+                    title="Cognitive Diffusion"
+                    subtitle="Unhook from the thought"
+                    steps={COGNITIVE_DIFFUSION_STEPS}
+                    accent={active.color}
+                    completionTitle="The thought is quieter."
+                    completionBody="You can notice thoughts without obeying them."
                     onComplete={() => setActiveTool(null)}
                     onCancel={() => setActiveTool(null)}
                   />

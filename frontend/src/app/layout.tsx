@@ -4,8 +4,10 @@ import './globals.css';
 import { ClerkProvider } from '@clerk/nextjs';
 import { dark } from '@clerk/themes';
 import { WellnessProvider } from '@/components/wellness/WellnessProvider';
+import { AccessibilityProvider } from '@/components/a11y/AccessibilityProvider';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import ServiceWorkerRegister from '@/components/offline/ServiceWorkerRegister';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -56,10 +58,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <html lang="en" className={inter.variable} suppressHydrationWarning>
         <body className="font-sans antialiased">
           <TooltipProvider delayDuration={200}>
-            <WellnessProvider>
-              {children}
-              <Toaster />
-            </WellnessProvider>
+            <AccessibilityProvider>
+              <WellnessProvider>
+                {children}
+                <Toaster />
+                <ServiceWorkerRegister />
+              </WellnessProvider>
+            </AccessibilityProvider>
           </TooltipProvider>
         </body>
       </html>

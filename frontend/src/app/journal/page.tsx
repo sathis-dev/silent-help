@@ -18,8 +18,10 @@ import {
   createJournalEntry,
   getJournalInsight,
   searchJournal,
+  detectDistortions,
   type JournalEntry,
   type JournalSearchHit,
+  type DistortionResponse,
 } from '@/lib/api';
 import { recordActivity } from '@/lib/streak';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
@@ -71,6 +73,8 @@ export default function JournalPage() {
   const [loading, setLoading] = useState(true);
   const [insight, setInsight] = useState<string | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
+  const [distortions, setDistortions] = useState<DistortionResponse | null>(null);
+  const [distortionsLoading, setDistortionsLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [semanticResults, setSemanticResults] = useState<JournalSearchHit[] | null>(null);
   const [semanticLoading, setSemanticLoading] = useState(false);
@@ -133,6 +137,24 @@ export default function JournalPage() {
       toast.error('Insight unavailable right now');
     } finally {
       setInsightLoading(false);
+    }
+  };
+
+  const analyseDistortions = async () => {
+    const trimmed = content.trim();
+    if (trimmed.length < 10) {
+      toast('Write a little more first', { description: 'I need a few sentences to read the shape of your thoughts.' });
+      return;
+    }
+    setDistortionsLoading(true);
+    try {
+      const res = await detectDistortions(trimmed);
+      setDistortions(res);
+    } catch (err) {
+      console.error(err);
+      toast.error('CBT analysis unavailable right now');
+    } finally {
+      setDistortionsLoading(false);
     }
   };
 
@@ -298,6 +320,25 @@ export default function JournalPage() {
                   </Button>
                 )}
                 <Button
+                  variant="ghost"
+                  size="lg"
+                  onClick={analyseDistortions}
+                  disabled={distortionsLoading || content.trim().length < 10}
+                  title="Let a CBT lens gently check for distorted thinking patterns"
+                >
+                  {distortionsLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Reading…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      Check thoughts
+                    </>
+                  )}
+                </Button>
+                <Button
                   variant="primary"
                   size="lg"
                   onClick={handleSave}
@@ -378,6 +419,75 @@ export default function JournalPage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* CBT distortion detector result */}
+      <AnimatePresence>
+        {distortions && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.35 }}
+            className="mt-6"
+          >
+            <Card className="relative overflow-hidden" style={{ boxShadow: '0 20px 60px -40px #7dd3fc70' }}>
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full opacity-30 blur-3xl"
+                style={{ background: 'radial-gradient(circle, #7dd3fc, transparent 70%)' }}
+              />
+              <CardContent className="relative p-6">
+                <div className="flex items-start gap-4">
+                  <div
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+                    style={{ background: 'rgba(125,211,252,0.15)', color: '#7dd3fc' }}
+                  >
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold tracking-tight">A gentle CBT check</h3>
+                        <p className="text-xs text-[color:var(--color-fg-subtle)]">
+                          Not a diagnosis — just a kinder angle on the thoughts underneath.
+                        </p>
+                      </div>
+                      <Button size="sm" variant="ghost" onClick={() => setDistortions(null)}>
+                        Dismiss
+                      </Button>
+                    </div>
+                    <p className="mt-3 text-sm leading-relaxed text-[color:var(--color-fg-muted)]">
+                      {distortions.summary}
+                    </p>
+                    {distortions.distortions.length === 0 ? (
+                      <p className="mt-3 text-sm text-[color:var(--color-fg-muted)]">
+                        No strong distortion patterns detected. Keep writing — clarity often comes slowly.
+                      </p>
+                    ) : (
+                      <div className="mt-4 space-y-3">
+                        {distortions.distortions.map((d, i) => (
+                          <div
+                            key={i}
+                            className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4"
+                          >
+                            <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
+                              {d.label.replace(/_/g, ' ')}
+                            </Badge>
+                            <p className="mt-2 text-xs text-[color:var(--color-fg-subtle)]">
+                              You wrote: <span className="italic">“{d.evidence}”</span>
+                            </p>
+                            <p className="mt-2 text-sm leading-relaxed">{d.reframe}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Entries */}
       <div className="mt-10">
