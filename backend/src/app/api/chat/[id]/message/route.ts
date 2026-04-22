@@ -201,8 +201,9 @@ async function generateFollowUps(params: {
     userMessage: string;
     assistantMessage: string;
     emotion: Emotion;
+    forceLocal?: boolean;
 }): Promise<string[]> {
-    const { userMessage, assistantMessage, emotion } = params;
+    const { userMessage, assistantMessage, emotion, forceLocal } = params;
     if (!assistantMessage) return [];
     try {
         const r = await aiGenerate({
@@ -223,6 +224,7 @@ Output: one question per line, nothing else.`,
             ],
             maxTokens: 160,
             temperature: 0.8,
+            forceLocal,
         });
         const lines = r.text
             .split(/\r?\n/)
@@ -256,6 +258,14 @@ export async function POST(
         where: { id: conversationId, userId: payload.userId },
     });
     if (!conversation) return jsonError(404, 'Conversation not found');
+
+    // Children's Code (13-17): never send their messages to a third-party vendor.
+    // Look up the user's childMode flag once and thread it through every AI call.
+    const userRow = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { childMode: true },
+    }).catch(() => null);
+    const forceLocal = !!userRow?.childMode;
 
     // Persist the user message FIRST so history survives mid-stream failures.
     const userMessageId = crypto.randomUUID();
@@ -393,6 +403,7 @@ export async function POST(
                         .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
                     maxTokens: 1000,
                     temperature: 0.7,
+                    forceLocal,
                 })) {
                     if (chunk.provider && chatProvider === 'fallback') {
                         chatProvider = chunk.provider;
@@ -426,6 +437,7 @@ export async function POST(
                     userMessage: content,
                     assistantMessage: finalContent,
                     emotion,
+                    forceLocal,
                 }).catch(() => []);
 
                 await audit({

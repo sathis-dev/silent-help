@@ -7,9 +7,16 @@ import { audit } from '@/lib/audit';
 import { jsonOk, jsonError } from '@/lib/http';
 
 /**
- * DELETE /api/me — GDPR soft-delete.
- * Marks the user as deleted; their rows cascade-delete via FK when the
- * purge job runs 30 days later. Sets `deleted_at` now so reads can filter.
+ * DELETE /api/me — GDPR Art 17 right to erasure.
+ *
+ * This performs a **hard delete**: the user row is removed, and every related
+ * row (conversations, messages, journal entries, moods, memories, safety plan,
+ * reminders, digests, gratitude, letters, clinical results, affirmations,
+ * consent logs, audit logs, wellness profile, user state) cascades away via
+ * the `onDelete: Cascade` FK rules defined in the Prisma schema.
+ *
+ * We first write an audit trail (on a separate table not cascaded) so the ICO
+ * can see the erasure request was honoured, then delete.
  */
 export async function DELETE(req: NextRequest) {
     const payload = getUserFromRequest(req);
@@ -20,19 +27,18 @@ export async function DELETE(req: NextRequest) {
     if (!rl.ok) return rateLimitResponse(rl);
 
     try {
-        await prisma.user.update({
-            where: { id: payload.userId },
-            data: { deletedAt: new Date() },
-        });
-        await audit({ req, userId: payload.userId, action: 'me.delete_requested' });
+        // Audit first — the audit_logs FK is SetNull on user delete so the row
+        // survives the cascade for ICO accountability.
+        await audit({ req, userId: payload.userId, action: 'me.erasure_performed' });
+        await prisma.user.delete({ where: { id: payload.userId } });
         return jsonOk({
             ok: true,
-            deletedAt: new Date().toISOString(),
-            note: 'Your account is marked for deletion. All data will be purged permanently within 30 days.',
+            erasedAt: new Date().toISOString(),
+            note: 'Your account and all associated data have been permanently erased.',
         });
     } catch (e) {
         log.error({ err: String(e) }, 'me.delete.failed');
-        return jsonError(500, 'Could not process deletion request');
+        return jsonError(500, 'Could not process erasure request');
     }
 }
 

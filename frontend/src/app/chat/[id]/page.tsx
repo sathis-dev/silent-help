@@ -343,6 +343,10 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
           <div className="text-xs text-[color:var(--color-fg-muted)]">
             {latestPersona ? `${latestPersona.tone} · ${latestPersona.pace}` : 'attuning to your tone'}
             {' · '}private by design
+            {' · '}
+            <span title="Silent Help is a wellness companion, not a medical device. It does not diagnose, treat, or monitor any condition.">
+              wellness companion, not a medical device
+            </span>
           </div>
         </div>
         {isVoiceSupported && (

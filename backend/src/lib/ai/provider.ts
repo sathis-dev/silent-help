@@ -21,7 +21,7 @@ import OpenAI from 'openai';
 import { GoogleGenAI } from '@google/genai';
 import crypto from 'crypto';
 import { logger } from '@/lib/logger';
-import { aiMode, embedLocal } from '@/lib/ai/local';
+import { aiMode, embedLocal, type AiMode } from '@/lib/ai/local';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Types
@@ -39,6 +39,12 @@ export interface GenerateInput {
     turns: ChatTurn[];
     maxTokens?: number;
     temperature?: number;
+    /**
+     * Per-request override. When `true`, this request MUST NOT call any
+     * third-party vendor (Gemini/OpenAI) regardless of AI_MODE. Used to honour
+     * per-user Children's Code mode (13-17) and user opt-out of cloud AI.
+     */
+    forceLocal?: boolean;
 }
 
 export type ChatProvider = 'local' | 'gemini' | 'openai' | 'fallback';
@@ -130,7 +136,8 @@ function localLlm(): OpenAI | null {
 export async function generate(input: GenerateInput): Promise<GenerateResult> {
     const maxTokens = input.maxTokens ?? 600;
     const temperature = input.temperature ?? 0.7;
-    const mode = aiMode();
+    // forceLocal honours per-user Children's Code mode regardless of env.
+    const mode: AiMode = input.forceLocal ? 'local' : aiMode();
 
     // Try self-hosted LLM first (Phase B). In strict local mode this is the only tier.
     if (mode !== 'cloud' && hasLocalLlm()) {
@@ -161,6 +168,14 @@ export async function generate(input: GenerateInput): Promise<GenerateResult> {
                 provider: 'fallback',
             };
         }
+    }
+
+    // Strict local: never reach any third-party vendor even if local tier absent.
+    if (mode === 'local') {
+        return {
+            text: "I'm here with you. My self-hosted companion is warming up — your words are saved and safe.",
+            provider: 'fallback',
+        };
     }
 
     // Try Gemini
@@ -217,7 +232,8 @@ export async function generate(input: GenerateInput): Promise<GenerateResult> {
 export async function* stream(input: GenerateInput): AsyncGenerator<StreamChunk> {
     const maxTokens = input.maxTokens ?? 1000;
     const temperature = input.temperature ?? 0.7;
-    const mode = aiMode();
+    // forceLocal honours per-user Children's Code mode regardless of env.
+    const mode: AiMode = input.forceLocal ? 'local' : aiMode();
 
     // ── Self-hosted LLM (Phase B) ──
     if (mode !== 'cloud' && hasLocalLlm()) {
@@ -268,6 +284,18 @@ export async function* stream(input: GenerateInput): AsyncGenerator<StreamChunk>
             yield { content: '', done: true };
             return;
         }
+    }
+
+    // Strict local: never reach a third-party vendor even if local tier is absent.
+    if (mode === 'local') {
+        yield {
+            content:
+                "I'm here with you. My self-hosted companion is warming up — your words are safe. Give me a moment and try again.",
+            done: false,
+            provider: 'fallback',
+        };
+        yield { content: '', done: true };
+        return;
     }
 
     // ── Gemini ──

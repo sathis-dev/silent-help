@@ -109,6 +109,15 @@ export function clearGuestAuth(): void {
     localStorage.removeItem(GUEST_TOKEN_KEY);
 }
 
+/**
+ * Public wrapper over the internal `getAuthHeaders` so that route-level
+ * `fetch(...)` calls in client components (e.g. consent gate, settings/data)
+ * can reuse the same Clerk→guest-token resolution as `apiFetch`.
+ */
+export async function authHeaders(): Promise<Record<string, string>> {
+    return getAuthHeaders();
+}
+
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
     const authHeaders = await getAuthHeaders();
     const res = await fetch(`${API_BASE}${path}`, {
