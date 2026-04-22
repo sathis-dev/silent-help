@@ -25,11 +25,16 @@ import { computeUserState, generateDynamicSystemPrompt, generateOpeningContext }
 import { stream as aiStream, generate as aiGenerate, embed, toPgVector, type ChatProvider } from '@/lib/ai/provider';
 import { buildRagContext, type RagCitation } from '@/services/ragService';
 import { checkForCrisisEnriched, type CompositeCrisisResult } from '@/services/crisisService';
+import { runToolUse, type ToolInvocation } from '@/services/toolUse';
+import { maybeConsolidate } from '@/services/memoryConsolidator';
+import { computeNudges, nudgePromptAddendum, type ProactiveNudge } from '@/services/proactiveNudge';
+import { judgeReply, applyPatch } from '@/services/qualityJudge';
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { requestLogger } from '@/lib/logger';
 import { audit } from '@/lib/audit';
 import { jsonError, parseJson, z } from '@/lib/http';
 import { classifyEmotionLocal } from '@/lib/ai/local';
+import { resolveReplyLocale, languagePromptAddendum } from '@/lib/locale';
 
 const BodySchema = z.object({
     content: z.string().trim().min(1).max(4000),
@@ -260,12 +265,13 @@ export async function POST(
     if (!conversation) return jsonError(404, 'Conversation not found');
 
     // Children's Code (13-17): never send their messages to a third-party vendor.
-    // Look up the user's childMode flag once and thread it through every AI call.
+    // Look up the user's childMode + locale once and thread them through every AI call.
     const userRow = await prisma.user.findUnique({
         where: { id: payload.userId },
-        select: { childMode: true },
+        select: { childMode: true, locale: true, region: true },
     }).catch(() => null);
     const forceLocal = !!userRow?.childMode;
+    const replyLocale = resolveReplyLocale({ req, profileLocale: userRow?.locale });
 
     // Persist the user message FIRST so history survives mid-stream failures.
     const userMessageId = crypto.randomUUID();
@@ -344,6 +350,35 @@ export async function POST(
         systemPrompt += `\n\nSAFETY: The user's message suggests they may be in crisis (source=${crisis.source}, severity=${crisis.severity}). Lead with empathy. Gently surface UK crisis resources: Samaritans 116 123, Shout (text SHOUT to 85258), NHS 111, 999 for emergency. Never dismiss their feelings. Invite them to open the in-app SOS screen for localised numbers.`;
     }
 
+    // ── Agentic tool-use (chat v2) ──
+    // Planner picks 0-3 read-only internal tools; results become a context block.
+    let toolInvocations: ToolInvocation[] = [];
+    try {
+        const tu = await runToolUse({
+            userId: payload.userId,
+            userMessage: content,
+            emotion,
+            crisis: !!crisis?.isCrisis,
+            forceLocal,
+        });
+        toolInvocations = tu.invocations;
+        if (tu.block) systemPrompt += '\n\n' + tu.block;
+    } catch (toolErr) {
+        log.warn({ err: String(toolErr) }, 'chat.tooluse.failed');
+    }
+
+    // ── Proactive nudges (chat v2) ──
+    let proactiveNudges: ProactiveNudge[] = [];
+    try {
+        proactiveNudges = await computeNudges(payload.userId);
+        systemPrompt += nudgePromptAddendum(proactiveNudges);
+    } catch (nudgeErr) {
+        log.warn({ err: String(nudgeErr) }, 'chat.nudges.failed');
+    }
+
+    // ── Locale-aware reply (chat v2) ──
+    systemPrompt += languagePromptAddendum(replyLocale);
+
     // ── History window ──
     const history = await prisma.message.findMany({
         where: { conversationId },
@@ -393,6 +428,18 @@ export async function POST(
                             source: liveEmotion.source,
                             confidence: Number(liveEmotion.confidence.toFixed(3)),
                         },
+                        toolInvocations: toolInvocations.map((t) => ({
+                            tool: t.tool,
+                            summary: t.summary,
+                            source: t.source,
+                            ok: t.ok,
+                        })),
+                        locale: {
+                            tag: replyLocale.tag,
+                            language: replyLocale.language,
+                            source: replyLocale.source,
+                        },
+                        proactiveNudges,
                     },
                 });
 
@@ -419,7 +466,16 @@ export async function POST(
                     if (chunk.done) break;
                 }
 
-                const finalContent = fullResponse || "I'm here with you. Give me a moment.";
+                const draft = fullResponse || "I'm here with you. Give me a moment.";
+                // ── Quality judge (chat v2) ──
+                // Re-read the draft against Samaritans / MHRA / empathy / length rules
+                // and patch it deterministically if needed. Never regenerate (latency).
+                const judgement = judgeReply({ reply: draft, crisis: !!crisis?.isCrisis });
+                const finalContent = judgement.ok ? draft : applyPatch(draft, judgement.patch);
+                if (!judgement.ok && finalContent !== draft) {
+                    // Tell the UI what we patched — transparency.
+                    send({ qualityPatch: { issues: judgement.issues } });
+                }
                 const assistantMessage = await prisma.message.create({
                     data: { conversationId, role: 'assistant', content: finalContent },
                 });
@@ -453,6 +509,12 @@ export async function POST(
                         citationCount: citations.length,
                         chatProvider,
                         chatModel,
+                        localeTag: replyLocale.tag,
+                        localeSource: replyLocale.source,
+                        toolUseCount: toolInvocations.length,
+                        nudgeCount: proactiveNudges.length,
+                        judgeOk: judgement.ok,
+                        judgeIssues: judgement.issues,
                     },
                 });
 
@@ -464,8 +526,29 @@ export async function POST(
                     groundingActions,
                     provider: chatProvider,
                     model: chatModel,
+                    toolInvocations: toolInvocations.map((t) => ({
+                        tool: t.tool,
+                        summary: t.summary,
+                        source: t.source,
+                        ok: t.ok,
+                    })),
+                    locale: {
+                        tag: replyLocale.tag,
+                        language: replyLocale.language,
+                        source: replyLocale.source,
+                    },
+                    proactiveNudges,
                 });
                 controller.close();
+
+                // ── Fire-and-forget: long-term memory consolidation (chat v2) ──
+                // Every 6 exchanges, summarise the conversation into durable Memory rows.
+                // Respects Children's Code via forceLocal and Art 9 consent gate.
+                void maybeConsolidate({
+                    userId: payload.userId,
+                    conversationId,
+                    forceLocal,
+                }).catch((err) => log.warn({ err: String(err) }, 'chat.consolidate.failed'));
             } catch (streamErr) {
                 log.error({ err: String(streamErr) }, 'chat.stream.failed');
                 if (fullResponse) {
