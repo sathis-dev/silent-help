@@ -25,10 +25,14 @@ import { resolveEmotion } from '@/lib/emotion-theme';
 import {
   createConversation,
   getMoodHistory,
+  getWeeklyDigest,
   listJournalEntries,
   logMood,
+  suggestCoachAction,
+  type CoachSuggestion,
   type MoodLog,
   type JournalEntry,
+  type WeeklyDigest,
 } from '@/lib/api';
 import { toast } from 'sonner';
 import {
@@ -68,6 +72,10 @@ export default function DashboardPage() {
   const [moodLogs, setMoodLogs] = useState<MoodLog[]>([]);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [submittingMood, setSubmittingMood] = useState(false);
+  const [digest, setDigest] = useState<WeeklyDigest | null>(null);
+  const [digestLoading, setDigestLoading] = useState(true);
+  const [coach, setCoach] = useState<CoachSuggestion | null>(null);
+  const [coachLoading, setCoachLoading] = useState(true);
   const loadedRef = useRef(false);
 
   useEffect(() => {
@@ -85,6 +93,15 @@ export default function DashboardPage() {
       setMoodLogs(m.logs ?? []);
       setEntries(j.entries ?? []);
     });
+    // Weekly digest + coach are best-effort; backend returns graceful fallbacks.
+    getWeeklyDigest()
+      .then((r) => setDigest(r.digest))
+      .catch(() => setDigest(null))
+      .finally(() => setDigestLoading(false));
+    suggestCoachAction()
+      .then((r) => setCoach(r.suggestion))
+      .catch(() => setCoach(null))
+      .finally(() => setCoachLoading(false));
   }, [loadProfile, router]);
 
   const theme = resolveEmotion(profile?.emotionalProfile);
@@ -412,6 +429,113 @@ export default function DashboardPage() {
                 onClick={() => router.push('/sos')}
                 danger
               />
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* This week in your words — AI-written weekly digest */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.25 }}
+          className="lg:col-span-4"
+        >
+          <Card className="h-full">
+            <CardHeader>
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[color:var(--color-fg-subtle)]">
+                <Sparkles className="h-3.5 w-3.5" />
+                This week in your words
+              </div>
+              <CardTitle className="font-display italic">
+                {digestLoading ? 'Gathering the week…' : digest?.period ?? 'Your weekly reflection'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              {digestLoading ? (
+                <Skeleton className="h-20 w-full" />
+              ) : (
+                <>
+                  <p className="text-[15px] leading-relaxed text-[color:var(--color-fg)]">
+                    {digest?.summary ??
+                      'Write a few entries this week and I will reflect them back to you gently.'}
+                  </p>
+                  {digest?.themes && digest.themes.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {digest.themes.slice(0, 4).map((t) => (
+                        <span
+                          key={t}
+                          className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-[color:var(--color-fg-muted)]"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {digest?.highlights && digest.highlights.length > 0 && (
+                    <ul className="space-y-1.5 text-sm text-[color:var(--color-fg-muted)]">
+                      {digest.highlights.slice(0, 3).map((h, i) => (
+                        <li key={i} className="flex gap-2">
+                          <span style={{ color: theme.accent }}>·</span>
+                          <span>{h}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {digest?.nudge && (
+                    <p className="mt-auto text-sm italic text-[color:var(--color-fg-muted)]">
+                      {digest.nudge}
+                    </p>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* What might help — adaptive coach */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.28 }}
+          className="lg:col-span-2"
+        >
+          <Card className="h-full">
+            <CardHeader>
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[color:var(--color-fg-subtle)]">
+                <Heart className="h-3.5 w-3.5" />
+                What might help
+              </div>
+              <CardTitle>
+                {coachLoading ? 'Thinking…' : coach?.title ?? 'A three-minute reset'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              {coachLoading ? (
+                <Skeleton className="h-20 w-full" />
+              ) : (
+                <>
+                  <p className="text-sm leading-relaxed text-[color:var(--color-fg-muted)]">
+                    {coach?.body ?? 'Try a slow box breath — four in, four hold, four out, four hold. Three rounds.'}
+                  </p>
+                  {coach?.rationale && (
+                    <p
+                      className="text-[11px] uppercase tracking-[0.18em]"
+                      style={{ color: theme.accent }}
+                    >
+                      {coach.rationale}
+                    </p>
+                  )}
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    onClick={() => router.push(coach?.toolId ? `/tools?tool=${coach.toolId}` : '/tools')}
+                    className="mt-auto"
+                  >
+                    Try it · {coach?.durationMinutes ?? 3} min
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         </motion.div>

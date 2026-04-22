@@ -17,7 +17,9 @@ import {
   listJournalEntries,
   createJournalEntry,
   getJournalInsight,
+  searchJournal,
   type JournalEntry,
+  type JournalSearchHit,
 } from '@/lib/api';
 import { recordActivity } from '@/lib/streak';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
@@ -70,6 +72,8 @@ export default function JournalPage() {
   const [insight, setInsight] = useState<string | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
   const [query, setQuery] = useState('');
+  const [semanticResults, setSemanticResults] = useState<JournalSearchHit[] | null>(null);
+  const [semanticLoading, setSemanticLoading] = useState(false);
   const [promptIdx, setPromptIdx] = useState(0);
 
   const { isListening, transcript, startListening, stopListening, isSupported: isMicSupported } =
@@ -133,13 +137,44 @@ export default function JournalPage() {
   };
 
   const filtered = useMemo(() => {
+    if (semanticResults) {
+      return semanticResults.map((r) => ({
+        id: r.id,
+        content: r.content,
+        mood: r.mood,
+        createdAt: r.createdAt,
+      })) as JournalEntry[];
+    }
     const q = query.trim().toLowerCase();
     if (!q) return entries;
     return entries.filter(
       (e) =>
         e.content.toLowerCase().includes(q) || (e.mood ?? '').toLowerCase().includes(q),
     );
-  }, [entries, query]);
+  }, [entries, query, semanticResults]);
+
+  const runSemanticSearch = async () => {
+    const q = query.trim();
+    if (q.length < 2) return;
+    setSemanticLoading(true);
+    try {
+      const { results } = await searchJournal(q, 10);
+      setSemanticResults(results);
+      if (results.length === 0) {
+        toast('No semantically similar entries yet', { description: 'Keep writing — I will learn your patterns.' });
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Search unavailable right now');
+    } finally {
+      setSemanticLoading(false);
+    }
+  };
+
+  const clearSemantic = () => {
+    setSemanticResults(null);
+    setQuery('');
+  };
 
   const moodInfo = MOODS.find((m) => m.label === selectedMood);
   const accent = moodInfo?.color ?? '#7dd3fc';
@@ -353,18 +388,39 @@ export default function JournalPage() {
           <span className="text-xs text-[color:var(--color-fg-subtle)]">
             {loading ? '…' : `${entries.length} total`}
           </span>
-          <div className="ml-auto w-full max-w-xs">
-            <div className="relative">
+          <div className="ml-auto flex w-full max-w-md items-center gap-2">
+            <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--color-fg-subtle)]" />
               <Input
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search entries"
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  if (semanticResults) setSemanticResults(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') runSemanticSearch();
+                }}
+                placeholder="Search text, or press Enter for meaning"
                 className="pl-9"
               />
             </div>
+            {semanticResults ? (
+              <Button variant="ghost" size="sm" onClick={clearSemantic}>
+                Clear
+              </Button>
+            ) : (
+              <Button variant="secondary" size="sm" onClick={runSemanticSearch} disabled={semanticLoading || query.trim().length < 2}>
+                {semanticLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                Meaning
+              </Button>
+            )}
           </div>
         </div>
+        {semanticResults && (
+          <p className="mt-2 text-xs text-[color:var(--color-fg-subtle)]">
+            Showing {semanticResults.length} semantic matches for <span className="italic">“{query}”</span>, ranked by similarity.
+          </p>
+        )}
 
         <div className="mt-5 space-y-3">
           {loading &&

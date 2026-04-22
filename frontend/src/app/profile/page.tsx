@@ -14,22 +14,33 @@ import {
   CartesianGrid,
 } from 'recharts';
 import {
+  Brain,
   Compass,
+  Download,
   Flame,
   HeartPulse,
   LogOut,
   MessageCircle,
   RefreshCw,
+  ShieldCheck,
   Sparkles,
+  Trash2,
   UserRound,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
-  getWellnessProfile,
+  deleteAccount,
+  deleteMemory,
+  exportAccountUrl,
+  getAuthToken,
   getMoodHistory,
+  getWellnessProfile,
   listConversations,
-  type WellnessProfile,
-  type MoodLog,
+  listMemories,
   type ConversationPreview,
+  type Memory,
+  type MoodLog,
+  type WellnessProfile,
 } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,7 +63,68 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<WellnessProfile | null>(null);
   const [moods, setMoods] = useState<MoodLog[]>([]);
   const [sessions, setSessions] = useState<ConversationPreview[]>([]);
+  const [memories, setMemories] = useState<Memory[]>([]);
+  const [memoriesLoading, setMemoriesLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const loadMemories = async () => {
+    setMemoriesLoading(true);
+    try {
+      const { memories } = await listMemories();
+      setMemories(memories);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setMemoriesLoading(false);
+    }
+  };
+
+  const handleForget = async (id: string) => {
+    try {
+      await deleteMemory(id);
+      setMemories((prev) => prev.filter((m) => m.id !== id));
+      toast.success('Memory forgotten');
+    } catch (e) {
+      toast.error('Could not forget memory', { description: (e as Error).message });
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const token = await getAuthToken();
+      const res = await fetch(exportAccountUrl(), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'silent-help-export.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Export downloaded');
+    } catch (e) {
+      toast.error('Export unavailable', { description: (e as Error).message });
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const ok = typeof window !== 'undefined' && window.confirm(
+      'This will permanently delete your account and all data within 30 days. Continue?',
+    );
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      const res = await deleteAccount();
+      toast.success('Account marked for deletion', { description: res.note });
+    } catch (e) {
+      toast.error('Could not process deletion', { description: (e as Error).message });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -177,6 +249,9 @@ export default function ProfilePage() {
             </TabsTrigger>
             <TabsTrigger value="sessions">
               <MessageCircle className="mr-2 h-4 w-4" /> Sessions
+            </TabsTrigger>
+            <TabsTrigger value="privacy" onClick={loadMemories}>
+              <ShieldCheck className="mr-2 h-4 w-4" /> Privacy
             </TabsTrigger>
           </TabsList>
 
@@ -348,6 +423,75 @@ export default function ProfilePage() {
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="privacy" className="mt-6 space-y-5">
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+                  <Brain className="h-4 w-4 text-[color:var(--color-accent)]" />
+                  Memories the AI holds
+                </h3>
+                <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
+                  Small notes the companion keeps so it can remember you gently. You can forget any of them, any time.
+                </p>
+                <div className="mt-4 space-y-2">
+                  {memoriesLoading && <Skeleton className="h-16 w-full rounded-xl" />}
+                  {!memoriesLoading && memories.length === 0 && (
+                    <p className="text-sm text-[color:var(--color-fg-muted)]">
+                      Nothing is remembered yet.
+                    </p>
+                  )}
+                  {!memoriesLoading && memories.map((m) => (
+                    <div
+                      key={m.id}
+                      className="flex items-start justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
+                            {m.kind}
+                          </Badge>
+                          <span className="text-[11px] text-[color:var(--color-fg-subtle)]">
+                            {formatDateShort(m.createdAt)}
+                          </span>
+                        </div>
+                        <p className="mt-1.5 text-sm leading-relaxed">{m.content}</p>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => handleForget(m.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Forget
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+                  <ShieldCheck className="h-4 w-4 text-[color:var(--color-accent)]" />
+                  Your data, your call
+                </h3>
+                <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
+                  Journal entries are encrypted at rest. You can take a full copy with you, or erase everything.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Button variant="secondary" size="md" onClick={handleExport}>
+                    <Download className="h-4 w-4" />
+                    Export my data (JSON)
+                  </Button>
+                  <Button variant="ghost" size="md" onClick={handleDeleteAccount} disabled={deleting}>
+                    <Trash2 className="h-4 w-4" />
+                    {deleting ? 'Scheduling…' : 'Delete my account'}
+                  </Button>
+                </div>
+                <p className="mt-3 text-[11px] text-[color:var(--color-fg-subtle)]">
+                  Deletion is soft for 30 days so you can undo. After that it is permanent.
+                </p>
               </CardContent>
             </Card>
           </TabsContent>

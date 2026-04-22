@@ -57,6 +57,13 @@ async function ensureGuestToken(): Promise<string | null> {
     return null;
 }
 
+export async function getAuthToken(): Promise<string | null> {
+    const h = await getAuthHeaders();
+    const a = h['Authorization'];
+    if (typeof a === 'string' && a.startsWith('Bearer ')) return a.slice('Bearer '.length);
+    return null;
+}
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (typeof window === 'undefined') return headers;
@@ -264,6 +271,133 @@ export async function getWellnessProfile() {
 
 export async function checkHealth() {
     return apiFetch<{ status: string; database: string }>('/api/health');
+}
+
+// ─── Memory (RAG) ───────────────────────────────────────────
+
+export interface Memory {
+    id: string;
+    content: string;
+    kind: 'context' | 'preference' | 'goal' | 'boundary' | 'relationship' | 'event';
+    salience: number;
+    source: string;
+    createdAt: string;
+}
+
+export async function listMemories() {
+    return apiFetch<{ memories: Memory[] }>('/api/memory');
+}
+
+export async function createMemory(content: string, kind: Memory['kind'] = 'context') {
+    return apiFetch<{ memory: Memory }>('/api/memory', {
+        method: 'POST',
+        body: JSON.stringify({ content, kind }),
+    });
+}
+
+export async function deleteMemory(id: string) {
+    return apiFetch<{ ok: boolean }>(`/api/memory/${id}`, { method: 'DELETE' });
+}
+
+// ─── Semantic journal search ────────────────────────────────
+
+export interface JournalSearchHit {
+    id: string;
+    content: string;
+    mood: string | null;
+    createdAt: string;
+    similarity: number;
+}
+
+export async function searchJournal(q: string, limit = 8) {
+    const params = new URLSearchParams({ q, limit: String(limit) });
+    return apiFetch<{ results: JournalSearchHit[]; query: string }>(`/api/journal/search?${params}`);
+}
+
+// ─── Weekly digest ──────────────────────────────────────────
+
+export interface WeeklyDigest {
+    period: string;
+    periodKey: string;
+    summary: string;
+    highlights: string[];
+    themes: string[];
+    nudge: string;
+    generatedAt: string;
+}
+
+export async function getWeeklyDigest(refresh = false) {
+    const path = refresh ? '/api/insights/weekly?refresh=true' : '/api/insights/weekly';
+    return apiFetch<{ digest: WeeklyDigest }>(path);
+}
+
+// ─── Adaptive coach ─────────────────────────────────────────
+
+export interface CoachSuggestion {
+    title: string;
+    body: string;
+    durationMinutes: number;
+    toolId: string | null;
+    source: 'learned' | 'ai' | 'default';
+    rationale: string;
+}
+
+export async function suggestCoachAction(feeling?: string) {
+    return apiFetch<{ suggestion: CoachSuggestion }>('/api/coach/suggest', {
+        method: 'POST',
+        body: feeling ? JSON.stringify({ feeling }) : JSON.stringify({}),
+    });
+}
+
+// ─── Safety plan ────────────────────────────────────────────
+
+export interface SafetyPlan {
+    warningSigns: string[];
+    copingStrategies: string[];
+    reasonsToLive: string[];
+    supportPeople: { name: string; contact?: string; note?: string }[];
+    professionals: { name: string; contact?: string; note?: string }[];
+    safeSpaces: string[];
+}
+
+export async function getSafetyPlan() {
+    return apiFetch<{ plan: (SafetyPlan & { id: string; updatedAt: string }) | null }>(
+        '/api/safety-plan',
+    );
+}
+
+export async function saveSafetyPlan(plan: SafetyPlan) {
+    return apiFetch<{ plan: SafetyPlan & { id: string; updatedAt: string } }>(
+        '/api/safety-plan',
+        { method: 'PUT', body: JSON.stringify(plan) },
+    );
+}
+
+// ─── Stats ──────────────────────────────────────────────────
+
+export interface WellnessStats {
+    streak: number;
+    totalActiveDays: number;
+    wellnessScore: number;
+    moodAverage: number | null;
+    toolsCompleted: number;
+    journalDays: number;
+}
+
+export async function getWellnessStats() {
+    return apiFetch<WellnessStats>('/api/stats/streak');
+}
+
+// ─── Privacy (GDPR) ─────────────────────────────────────────
+
+export async function deleteAccount() {
+    return apiFetch<{ ok: boolean; deletedAt: string; note: string }>('/api/me', {
+        method: 'DELETE',
+    });
+}
+
+export function exportAccountUrl() {
+    return `${API_BASE}/api/me/export`;
 }
 
 // ─── Types ──────────────────────────────────────────────────
