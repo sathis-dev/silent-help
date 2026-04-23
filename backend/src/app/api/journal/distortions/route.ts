@@ -23,6 +23,7 @@ import { generate } from '@/lib/ai/provider';
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { requestLogger } from '@/lib/logger';
 import { parseJson, z } from '@/lib/http';
+import { aiMode, classifyDistortionsLocal, type CbtDistortion } from '@/lib/ai/local';
 
 const BodySchema = z.object({
     content: z.string().trim().min(10).max(8000),
@@ -235,6 +236,37 @@ function heuristicDetect(text: string): AnalysisResult {
     return { summary, distortions: hits };
 }
 
+/**
+ * Map the local zero-shot classifier's label-set back onto our snake_case taxonomy.
+ */
+const LOCAL_TO_TAXONOMY: Record<CbtDistortion, Distortion> = {
+    catastrophising: 'catastrophising',
+    'all-or-nothing thinking': 'all_or_nothing',
+    'mind reading': 'mind_reading',
+    'fortune telling': 'fortune_telling',
+    overgeneralisation: 'overgeneralisation',
+    personalisation: 'personalisation',
+    'emotional reasoning': 'emotional_reasoning',
+    'should statements': 'should_statements',
+    labelling: 'labeling',
+    'disqualifying the positive': 'disqualifying_the_positive',
+};
+
+const LOCAL_REFRAMES: Record<Distortion, string> = {
+    catastrophising: "The mind is reaching for worst-case. What's the most likely outcome, not the scariest one?",
+    all_or_nothing: 'Words like "always" and "never" rarely hold up — is there a small counter-example this week?',
+    mind_reading: "We can't actually see inside other people's heads. What else could their behaviour mean?",
+    fortune_telling: "You're predicting. The future is still open — what evidence do you actually have yet?",
+    should_statements: '"Should" often hides self-judgement. What would a kinder voice say instead?',
+    personalisation: "Not everything that happens around you is caused by you. What's outside your control here?",
+    emotional_reasoning: "Feelings are real, but they're not always facts. What would the evidence say on its own?",
+    disqualifying_the_positive: "You're allowed to count the good parts. What small thing actually went okay?",
+    magnification: "The mind is zooming in on one piece. What does the wider picture look like?",
+    labeling: "You are not a label. One struggle doesn't define you.",
+    mental_filter: "There may be other parts of today the mind is filtering out. What else happened?",
+    overgeneralisation: "One moment doesn't always become a pattern. What recent exception comes to mind?",
+};
+
 export async function POST(req: NextRequest) {
     const payload = getUserFromRequest(req);
     if (!payload) return unauthorizedResponse();
@@ -247,6 +279,49 @@ export async function POST(req: NextRequest) {
     if (!parsed.ok) return parsed.response;
     const { content } = parsed.data;
 
+    const mode = aiMode();
+
+    // Tier 1: self-hosted zero-shot classifier (in-house, no vendor).
+    if (mode !== 'cloud') {
+        try {
+            const local = await classifyDistortionsLocal(content);
+            if (local && local.hits.length > 0) {
+                const distortions = local.hits
+                    .map((h) => {
+                        const label = LOCAL_TO_TAXONOMY[h.label];
+                        if (!label) return null;
+                        return {
+                            label,
+                            evidence: content.slice(0, 160),
+                            reframe: LOCAL_REFRAMES[label],
+                        };
+                    })
+                    .filter((d): d is AnalysisResult['distortions'][number] => d !== null);
+                if (distortions.length > 0) {
+                    return Response.json({
+                        summary:
+                            'A few familiar thought patterns came through — I named them gently for you.',
+                        distortions,
+                        provider: 'local',
+                        degraded: false,
+                    });
+                }
+            }
+            // Local classifier ran cleanly and found nothing. In strict-local mode trust it.
+            if (mode === 'local' && local) {
+                return Response.json({
+                    summary: 'Nothing strong stood out. That can be a quiet kind of okay.',
+                    distortions: [],
+                    provider: 'local',
+                    degraded: false,
+                });
+            }
+        } catch (e) {
+            log.warn({ err: String(e) }, 'distortions.local_failed');
+        }
+    }
+
+    // Tier 2: cloud LLM (existing path — Gemini / OpenAI).
     try {
         const result = await generate({
             system: SYSTEM_PROMPT,

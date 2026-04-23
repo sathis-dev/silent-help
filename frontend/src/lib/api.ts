@@ -312,7 +312,7 @@ export interface DistortionHit {
 export interface DistortionResponse {
     summary: string;
     distortions: DistortionHit[];
-    provider: 'gemini' | 'openai' | 'heuristic' | 'fallback';
+    provider: 'local' | 'on-device' | 'gemini' | 'openai' | 'heuristic' | 'fallback';
     degraded: boolean;
     degradedReason?: 'ai_output_unparseable' | 'ai_unavailable' | string;
 }

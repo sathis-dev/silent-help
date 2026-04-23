@@ -10,11 +10,12 @@
  */
 import { checkForCrisis as keywordCheck } from '@/lib/crisis';
 import { detectSubtleCrisis } from '@/lib/ai/crisis-llm';
+import { aiMode, classifyCrisisLocal } from '@/lib/ai/local';
 
 export interface CompositeCrisisResult {
     isCrisis: boolean;
     severity: 'none' | 'low' | 'medium' | 'high';
-    source: 'keyword' | 'llm' | 'none';
+    source: 'keyword' | 'local' | 'llm' | 'none';
     matchedKeywords: string[];
     llmConfidence: number;
     reason: string;
@@ -33,7 +34,7 @@ export async function checkForCrisisEnriched(text: string): Promise<CompositeCri
         };
     }
 
-    // Ambiguity heuristic: short messages or clearly benign get no LLM call.
+    // Ambiguity heuristic: short messages or clearly benign get no classifier call.
     if (!text || text.length < 12) {
         return {
             isCrisis: false,
@@ -43,6 +44,41 @@ export async function checkForCrisisEnriched(text: string): Promise<CompositeCri
             llmConfidence: 0,
             reason: 'short_or_empty',
         };
+    }
+
+    const mode = aiMode();
+
+    // Preferred: self-hosted zero-shot MNLI classifier (fast, CPU, no vendor).
+    if (mode !== 'cloud') {
+        try {
+            const local = await classifyCrisisLocal(text);
+            if (local) {
+                if (local.flagged) {
+                    return {
+                        isCrisis: true,
+                        severity: local.severity === 'none' ? 'low' : local.severity,
+                        source: 'local',
+                        matchedKeywords: [],
+                        llmConfidence: local.confidence,
+                        reason: local.reason,
+                    };
+                }
+                // Local says not-crisis. In strict-local mode, trust it.
+                if (mode === 'local') {
+                    return {
+                        isCrisis: false,
+                        severity: 'none',
+                        source: 'none',
+                        matchedKeywords: [],
+                        llmConfidence: local.confidence,
+                        reason: local.reason,
+                    };
+                }
+                // Hybrid mode: let the cloud LLM be a quieter second-opinion below.
+            }
+        } catch {
+            // fall through to cloud
+        }
     }
 
     const llm = await detectSubtleCrisis(text);

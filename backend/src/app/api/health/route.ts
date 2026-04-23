@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
 import { hasGemini, hasOpenAI } from '@/lib/ai/provider';
 import { isEncryptionEnabled } from '@/lib/encryption';
+import { aiMode, localAiHealth } from '@/lib/ai/local';
 
 /** GET /api/health — extended: DB, AI provider reachability, encryption, extensions */
 export async function GET() {
@@ -28,11 +29,21 @@ export async function GET() {
         out.extensions = [];
     }
 
+    const localHealth = localAiHealth();
     out.ai = {
-        gemini: hasGemini(),
-        openai: hasOpenAI(),
-        // At least one real provider is expected for production-grade responses.
-        ok: hasGemini() || hasOpenAI(),
+        mode: aiMode(),
+        local: {
+            embed: localHealth.models.embed,
+            emotion: localHealth.models.emotion,
+            zeroShot: localHealth.models.zeroShot,
+            failed: localHealth.failed,
+        },
+        cloud: {
+            gemini: hasGemini(),
+            openai: hasOpenAI(),
+        },
+        // Ok if local mode is enabled (models load lazily) OR a cloud provider is configured.
+        ok: aiMode() !== 'cloud' || hasGemini() || hasOpenAI(),
     };
 
     out.privacy = {

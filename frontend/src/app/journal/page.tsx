@@ -25,6 +25,8 @@ import {
 } from '@/lib/api';
 import { recordActivity } from '@/lib/streak';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { detectDistortionsOnDevice, preloadOnDeviceAi } from '@/lib/on-device-ai';
+import { CBT_TO_SERVER, CBT_REFRAMES } from '@/lib/ai-types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -147,6 +149,41 @@ export default function JournalPage() {
       return;
     }
     setDistortionsLoading(true);
+    // Tier 1: try fully on-device first — private AI, text never leaves the browser.
+    try {
+      const local = await detectDistortionsOnDevice(trimmed, (pct, msg) => {
+        if (pct > 0 && pct < 100) {
+          toast.loading(`Downloading private AI · ${pct}%`, { id: 'ondevice-load', description: msg });
+        } else if (pct >= 100) {
+          toast.dismiss('ondevice-load');
+        }
+      });
+      toast.dismiss('ondevice-load');
+      const mapped = local.hits.map((h) => {
+        const label = CBT_TO_SERVER[h.label];
+        return {
+          label,
+          evidence: trimmed.slice(0, 160),
+          reframe: CBT_REFRAMES[label],
+        };
+      });
+      setDistortions({
+        summary:
+          mapped.length > 0
+            ? 'A few familiar thought patterns came through — analysed privately on your device.'
+            : 'Nothing strong stood out. That can be a quiet kind of okay.',
+        distortions: mapped,
+        provider: 'on-device',
+        degraded: false,
+      });
+      setDistortionsLoading(false);
+      return;
+    } catch (e) {
+      toast.dismiss('ondevice-load');
+      console.warn('on-device CBT unavailable, falling back to server', e);
+    }
+
+    // Tier 2: server (self-hosted local MNLI → cloud LLM → heuristic).
     try {
       const res = await detectDistortions(trimmed);
       setDistortions(res);
@@ -157,6 +194,11 @@ export default function JournalPage() {
       setDistortionsLoading(false);
     }
   };
+
+  // Warm the on-device model on idle so the first click is fast.
+  useEffect(() => {
+    preloadOnDeviceAi();
+  }, []);
 
   const filtered = useMemo(() => {
     if (semanticResults) {
@@ -456,6 +498,22 @@ export default function JournalPage() {
                         Dismiss
                       </Button>
                     </div>
+                    {(distortions.provider === 'on-device' || distortions.provider === 'local') && (
+                      <div
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-300/20 bg-emerald-300/5 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-emerald-200/90"
+                        title={
+                          distortions.provider === 'on-device'
+                            ? 'This analysis ran entirely in your browser. Your words did not leave your device.'
+                            : 'This analysis ran on our own servers — no third-party AI vendor saw your words.'
+                        }
+                      >
+                        <span
+                          aria-hidden
+                          className="h-1.5 w-1.5 rounded-full bg-emerald-300"
+                        />
+                        {distortions.provider === 'on-device' ? 'Private · on your device' : 'Private · self-hosted'}
+                      </div>
+                    )}
                     <p className="mt-3 text-sm leading-relaxed text-[color:var(--color-fg-muted)]">
                       {distortions.summary}
                     </p>
