@@ -188,11 +188,39 @@ export interface ChatProviderMeta {
     model: string | null;
 }
 
+export interface ChatToolInvocation {
+    tool:
+        | 'search_journal'
+        | 'get_mood_trend'
+        | 'recall_safety_plan'
+        | 'suggest_grounding_tool'
+        | 'recommend_clinical_checkin';
+    summary: string;
+    source: string;
+    ok: boolean;
+}
+
+export interface ChatLocaleInfo {
+    tag: string;
+    language: string;
+    source: 'profile' | 'header' | 'default';
+}
+
+export interface ChatProactiveNudge {
+    kind: 'low_mood_streak' | 'overdue_check_in' | 'tool_that_helped' | 'safety_plan_reminder';
+    message: string;
+    actionLabel?: string;
+    actionHref?: string;
+}
+
 export interface ChatMeta {
     persona: ChatPersona;
     citations: ChatCitation[];
     crisis: { severity: string; source: string; matchedKeywords: string[] } | null;
     liveEmotion?: { source: 'local' | 'profile'; confidence: number };
+    toolInvocations?: ChatToolInvocation[];
+    locale?: ChatLocaleInfo;
+    proactiveNudges?: ChatProactiveNudge[];
 }
 
 export interface ChatDoneData {
@@ -202,6 +230,13 @@ export interface ChatDoneData {
     groundingActions?: GroundingAction[];
     provider?: ChatProvider;
     model?: string | null;
+    toolInvocations?: ChatToolInvocation[];
+    locale?: ChatLocaleInfo;
+    proactiveNudges?: ChatProactiveNudge[];
+}
+
+export interface ChatQualityPatch {
+    issues: string[];
 }
 
 export interface ChatStreamCallbacks {
@@ -210,6 +245,7 @@ export interface ChatStreamCallbacks {
     onChunk: (text: string) => void;
     onDone: (data: ChatDoneData) => void;
     onError: (error: string) => void;
+    onQualityPatch?: (patch: ChatQualityPatch) => void;
 }
 
 export async function sendMessage(
@@ -217,7 +253,7 @@ export async function sendMessage(
     content: string,
     callbacks: ChatStreamCallbacks,
 ) {
-    const { onMeta, onProviderMeta, onChunk, onDone, onError } = callbacks;
+    const { onMeta, onProviderMeta, onChunk, onDone, onError, onQualityPatch } = callbacks;
     try {
         const authHeaders = await getAuthHeaders();
         const res = await fetch(`${API_BASE}/api/chat/${conversationId}/message`, {
@@ -272,6 +308,9 @@ export async function sendMessage(
                         if (data.providerMeta && onProviderMeta) {
                             onProviderMeta(data.providerMeta as ChatProviderMeta);
                         }
+                        if (data.qualityPatch && onQualityPatch) {
+                            onQualityPatch(data.qualityPatch as ChatQualityPatch);
+                        }
                         if (data.content) onChunk(data.content);
                         if (data.done) {
                             onDone({
@@ -281,6 +320,9 @@ export async function sendMessage(
                                 groundingActions: data.groundingActions,
                                 provider: data.provider,
                                 model: data.model,
+                                toolInvocations: data.toolInvocations,
+                                locale: data.locale,
+                                proactiveNudges: data.proactiveNudges,
                             });
                         }
                         if (data.error) onError(data.error);

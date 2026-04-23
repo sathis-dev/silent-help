@@ -25,8 +25,11 @@ import {
   getConversation,
   sendMessage,
   type ChatCitation,
+  type ChatLocaleInfo,
   type ChatPersona,
+  type ChatProactiveNudge,
   type ChatProvider,
+  type ChatToolInvocation,
   type CrisisInfo,
   type GroundingAction,
   type Message,
@@ -49,7 +52,18 @@ interface AssistantMeta {
   groundingActions?: GroundingAction[];
   provider?: ChatProvider;
   model?: string | null;
+  toolInvocations?: ChatToolInvocation[];
+  locale?: ChatLocaleInfo;
+  qualityIssues?: string[];
 }
+
+const TOOL_ICON: Record<ChatToolInvocation['tool'], string> = {
+  search_journal: 'journal',
+  get_mood_trend: 'mood',
+  recall_safety_plan: 'safety plan',
+  suggest_grounding_tool: 'tool',
+  recommend_clinical_checkin: 'clinical',
+};
 
 const PROVIDER_LABEL: Record<ChatProvider, { label: string; tone: 'private' | 'cloud' | 'warn' }> = {
   local: { label: 'Private · self-hosted', tone: 'private' },
@@ -78,8 +92,11 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
   const [latestSuggestions, setLatestSuggestions] = useState<string[]>([]);
   const [latestGrounding, setLatestGrounding] = useState<GroundingAction[]>([]);
   const [liveProvider, setLiveProvider] = useState<ChatProvider | null>(null);
+  const [liveNudges, setLiveNudges] = useState<ChatProactiveNudge[]>([]);
+  const [qualityIssues, setQualityIssues] = useState<string[]>([]);
   const [autoSpeak, setAutoSpeak] = useState(false);
   const liveProviderRef = useRef<ChatProvider | null>(null);
+  const qualityIssuesRef = useRef<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoPromptRef = useRef(false);
@@ -180,16 +197,23 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
       streamingContentRef.current = '';
       liveMetaRef.current = null;
 
+      setLiveNudges([]);
+      qualityIssuesRef.current = [];
+      setQualityIssues([]);
+
       await sendMessage(id, text, {
         onMeta: (meta) => {
           const nextMeta: AssistantMeta = {
             persona: meta.persona,
             citations: meta.citations,
             crisis: meta.crisis,
+            toolInvocations: meta.toolInvocations,
+            locale: meta.locale,
           };
           liveMetaRef.current = nextMeta;
           setLiveMeta(nextMeta);
           setLatestPersona(meta.persona);
+          if (meta.proactiveNudges) setLiveNudges(meta.proactiveNudges);
         },
         onProviderMeta: (pm) => {
           liveProviderRef.current = pm.provider;
@@ -198,6 +222,11 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
         onChunk: (chunk) => {
           streamingContentRef.current += chunk;
           setStreamingContent(streamingContentRef.current);
+        },
+        onQualityPatch: (patch) => {
+          const issues = patch.issues ?? [];
+          qualityIssuesRef.current = issues;
+          setQualityIssues(issues);
         },
         onDone: (data) => {
           const finalMsg = streamingContentRef.current;
@@ -226,6 +255,9 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                     groundingActions: data.groundingActions,
                     provider,
                     model: data.model ?? null,
+                    toolInvocations: data.toolInvocations ?? snapshotMeta?.toolInvocations ?? [],
+                    locale: data.locale ?? snapshotMeta?.locale,
+                    qualityIssues: qualityIssuesRef.current,
                   },
                 },
           );
@@ -512,6 +544,46 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
         )}
       </AnimatePresence>
 
+      {/* Proactive nudge card (chat v2 — shown once per reply when heuristics fire) */}
+      <AnimatePresence>
+        {!isSending && liveNudges.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mb-3 flex flex-col gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3"
+          >
+            {liveNudges.map((n, idx) => (
+              <div key={`${n.kind}-${idx}`} className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-start gap-2 text-sm text-[color:var(--color-fg)]">
+                  <Brain className="mt-0.5 h-4 w-4 shrink-0" style={{ color: accent }} />
+                  <span>{n.message}</span>
+                </div>
+                {n.actionLabel && n.actionHref && (
+                  <Link
+                    href={n.actionHref}
+                    className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-all"
+                    style={{ borderColor: `${accent}40`, background: `${accent}14`, color: accent }}
+                  >
+                    {n.actionLabel}
+                  </Link>
+                )}
+              </div>
+            ))}
+            <div className="text-[10px] uppercase tracking-[0.12em] text-[color:var(--color-fg-muted)]">
+              Based on your own history · manage at <Link className="underline" href="/settings/data">/settings/data</Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Quality-judge disclosure (transparency — shown once per reply when patched) */}
+      {qualityIssues.length > 0 && (
+        <div className="mb-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-100">
+          Safety check adjusted this reply: {qualityIssues.join(', ').replace(/-/g, ' ')}. Our wellness-companion guardrails kicked in.
+        </div>
+      )}
+
       {/* Composer */}
       <div className="sticky bottom-0 border-t border-white/[0.04] bg-[color:var(--color-bg)]/70 pb-6 pt-3 backdrop-blur-xl">
         <div
@@ -638,6 +710,8 @@ function MessageBubble({
   const inlineCrisis = meta?.crisis;
   const provider = meta?.provider ?? (streaming ? liveProvider ?? null : null);
   const providerInfo = provider ? PROVIDER_LABEL[provider] : null;
+  const toolInvocations = (meta?.toolInvocations ?? []).filter((t) => t.ok);
+  const locale = meta?.locale;
 
   return (
     <motion.div
@@ -687,6 +761,32 @@ function MessageBubble({
               >
                 <span style={{ color: accent }}>{citationIcon(c.kind)}</span>
                 {c.label}
+              </span>
+            ))}
+            {locale && locale.language !== 'English' && (
+              <span
+                title={`Reply language resolved from ${locale.source} → ${locale.tag}`}
+                className="inline-flex items-center gap-1 rounded-full border border-indigo-400/30 bg-indigo-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] text-indigo-200"
+              >
+                <span>{locale.language}</span>
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Tool-use transparency chips (Art 22 — show which of the user's own data we touched) */}
+        {!isUser && toolInvocations.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {toolInvocations.map((t, idx) => (
+              <span
+                key={`${t.tool}-${idx}`}
+                title={`${t.source} · ${t.summary}`}
+                className="inline-flex items-center gap-1 rounded-full border border-cyan-400/20 bg-cyan-400/[0.06] px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] text-cyan-100/80"
+              >
+                <Brain className="h-3 w-3" style={{ color: accent }} />
+                <span>{TOOL_ICON[t.tool]}</span>
+                <span className="text-cyan-100/50">·</span>
+                <span className="normal-case tracking-normal">{t.summary.replace(/^[a-z ]+·\s*/i, '')}</span>
               </span>
             ))}
           </div>
