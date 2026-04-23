@@ -25,6 +25,22 @@ model User {
   // Soft-delete for GDPR — row purged by scheduled job 30d later
   deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
 
+  // ── Compliance (UK GDPR / EU GDPR Art 9 + ICO Children's Code) ──
+  // Year-only (no exact DOB stored — minimises PII while still enforcing 13+).
+  birthYear        Int?      @map("birth_year") @db.SmallInt
+  // Children's Code mode: true when user self-identifies as 13-17.
+  // Server enforces local-only AI, reduced telemetry, safer defaults.
+  childMode        Boolean   @default(false) @map("child_mode")
+  // Explicit Art 9(2)(a) consent to process special-category (mental health) data.
+  consentedAt      DateTime? @map("consented_at") @db.Timestamptz(6)
+  consentVersion   String?   @map("consent_version") @db.VarChar(16)
+  // Retention choice: `forever` | `1y` | `90d`. NULL = not yet chosen.
+  retentionPolicy  String?   @map("retention_policy") @db.VarChar(16)
+  // Region hint for data-residency (ISO-3166, e.g. "GB", "DE", "US").
+  region           String?   @db.VarChar(2)
+  // Locale hint (e.g. "en-GB"). Used to pick SOS default + copy.
+  locale           String?   @db.VarChar(10)
+
   // Relations
   conversations   Conversation[]
   journalEntries  JournalEntry[]
@@ -40,9 +56,34 @@ model User {
   futureLetters   FutureLetter[]
   clinicalResults ClinicalResult[]
   affirmations    AffirmationCache[]
+  consentLogs     ConsentLog[]
 
   @@index([deletedAt])
   @@map("users")
+}
+
+// ============================================================================
+// CONSENT LOG — immutable record of consent events (UK GDPR accountability)
+// ============================================================================
+// Every grant / withdraw / retention change is appended here and never mutated.
+// Used to prove lawful basis on SAR or ICO audit.
+
+model ConsentLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // grant | withdraw | retention_change | age_confirm | child_mode_enabled
+  event          String   @db.VarChar(32)
+  // "v1", "v2" … version of the consent text the user accepted
+  consentVersion String   @map("consent_version") @db.VarChar(16)
+  // Retention choice at the moment of the event (for retention_change events)
+  retention      String?  @db.VarChar(16)
+  ipHash         String?  @map("ip_hash") @db.VarChar(64)
+  userAgent      String?  @map("user_agent") @db.VarChar(500)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, createdAt])
+  @@map("consent_logs")
 }
 
 // ============================================================================
@@ -312,7 +353,9 @@ model SafetyPlan {
 model AuditLog {
   id        String   @id @default(uuid()) @db.Uuid
   userId    String?  @map("user_id") @db.Uuid
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // SetNull (not Cascade) so the audit trail survives an Art 17 erasure —
+  // ICO accountability requires we can prove the erasure happened.
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   action    String   @db.VarChar(64)   // e.g. 'journal.create'
   resource  String?  @db.VarChar(64)   // e.g. 'journal:<uuid>'
   ipHash    String?  @map("ip_hash") @db.VarChar(64)

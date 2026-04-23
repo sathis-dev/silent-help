@@ -56,6 +56,23 @@ function AuthForms() {
     if (!isSignedIn) return;
     (async () => {
       const token = await getToken();
+      // Consent gate: if the signed-in user has not given Art 9 consent yet,
+      // route them through /consent first.
+      try {
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${API_BASE}/api/consent`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (!data?.current) {
+            router.replace('/consent');
+            return;
+          }
+        }
+      } catch {
+        /* fall through — never block on consent probe */
+      }
       await checkAndSubmitPending({ token: token || undefined, isGuest: false });
       router.replace('/dashboard');
     })();
@@ -71,6 +88,25 @@ function AuthForms() {
     const guestToken = await provisionGuestAuth();
     const hasPending = await checkAndSubmitPending({ token: guestToken || undefined, isGuest: true });
     setLoading(false);
+    // Consent gate: new guests must give Art 9 consent before touching any
+    // wellness surface. Reuse the consent probe to decide where to go.
+    if (guestToken && !hasPending) {
+      try {
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${API_BASE}/api/consent`, {
+          headers: { Authorization: `Bearer ${guestToken}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (!data?.current) {
+            router.push('/consent');
+            return;
+          }
+        }
+      } catch {
+        /* noop */
+      }
+    }
     router.push(hasPending ? '/dashboard' : '/onboarding');
   };
 

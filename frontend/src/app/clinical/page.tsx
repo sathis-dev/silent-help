@@ -191,10 +191,12 @@ export default function ClinicalPage() {
                     is a diagnosis. It can help you, or a therapist, see movement over time.
                 </p>
                 <div className="mt-4 rounded-xl border border-amber-400/20 bg-amber-400/[0.04] p-4 text-xs leading-relaxed text-[color:var(--color-fg-muted)]">
-                    <span className="font-semibold text-amber-300">Not a diagnostic tool.</span> PHQ-9 (Kroenke et al.,
-                    2001) and GAD-7 (Spitzer et al., 2006) are screening instruments. If your score is high, or if you
-                    are at all worried — please reach for a GP, therapist, or{' '}
-                    <Link href="/sos" className="underline">crisis support</Link>.
+                    <span className="font-semibold text-amber-300">Not a medical device.</span> Silent Help does not
+                    diagnose, treat, cure, or monitor any condition. PHQ-9 (Kroenke et al., 2001) and GAD-7 (Spitzer
+                    et al., 2006) are <em>screening</em> questionnaires used by clinicians — they are not a diagnosis.
+                    If your score is high, or you are worried, please reach out to a GP, therapist, or{' '}
+                    <Link href="/sos" className="underline">crisis support</Link>. In an emergency call 999 (UK) or
+                    112 (EU).
                 </div>
             </motion.div>
 
